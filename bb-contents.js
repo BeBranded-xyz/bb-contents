@@ -588,6 +588,7 @@
                 const gap = bbContents._getAttr(element, 'bb-marquee-gap') || '50';
                 const orientation = bbContents._getAttr(element, 'bb-marquee-orientation') || 'horizontal';
                 const height = bbContents._getAttr(element, 'bb-marquee-height') || '300';
+                const isVertical = orientation === 'vertical';
                 const minHeight = bbContents._getAttr(element, 'bb-marquee-min-height') || (isVertical ? '100px' : 'auto');
 
                 // Sauvegarder le contenu original
@@ -595,7 +596,6 @@
                 
                 // Créer le conteneur principal
                 const mainContainer = document.createElement('div');
-                const isVertical = orientation === 'vertical';
                 // Pour le marquee horizontal, on va détecter automatiquement la hauteur des logos
                 const autoHeight = !isVertical && !bbContents._getAttr(element, 'bb-marquee-height');
                 
