@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.0
+ * @version 1.0.1-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.0',
+        version: '1.0.1-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -588,6 +588,7 @@
                 const gap = bbContents._getAttr(element, 'bb-marquee-gap') || '50';
                 const orientation = bbContents._getAttr(element, 'bb-marquee-orientation') || 'horizontal';
                 const height = bbContents._getAttr(element, 'bb-marquee-height') || '300';
+                const minHeight = bbContents._getAttr(element, 'bb-marquee-min-height') || (isVertical ? '100px' : 'auto');
 
                 // Sauvegarder le contenu original
                 const originalHTML = element.innerHTML;
@@ -595,12 +596,16 @@
                 // Créer le conteneur principal
                 const mainContainer = document.createElement('div');
                 const isVertical = orientation === 'vertical';
+                
+                // Pour le marquee horizontal, on va détecter automatiquement la hauteur des logos
+                const autoHeight = !isVertical && !bbContents._getAttr(element, 'bb-marquee-height');
+                
                 mainContainer.style.cssText = `
                     position: relative;
                     width: 100%;
-                    height: ${isVertical ? height + 'px' : 'auto'};
+                    height: ${isVertical ? height + 'px' : (autoHeight ? 'auto' : height + 'px')};
                     overflow: hidden;
-                    min-height: ${isVertical ? '100px' : '50px'};
+                    min-height: ${minHeight};
                 `;
 
                 // Créer le conteneur de défilement
@@ -654,6 +659,24 @@
                     requestAnimationFrame(() => {
                         const contentWidth = mainBlock.offsetWidth;
                         const contentHeight = mainBlock.offsetHeight;
+                        
+                        // Si auto-height est activé, ajuster la hauteur du conteneur
+                        if (autoHeight && !isVertical) {
+                            const logoElements = mainBlock.querySelectorAll('.bb-marquee_logo, img, svg');
+                            let maxHeight = 0;
+                            
+                            logoElements.forEach(logo => {
+                                const logoHeight = logo.offsetHeight || logo.getBoundingClientRect().height;
+                                if (logoHeight > maxHeight) {
+                                    maxHeight = logoHeight;
+                                }
+                            });
+                            
+                            if (maxHeight > 0) {
+                                mainContainer.style.height = maxHeight + 'px';
+                                bbContents.utils.log('Auto-height détecté:', maxHeight + 'px');
+                            }
+                        }
                         
                         // Debug
                         bbContents.utils.log('Debug - Largeur du contenu:', contentWidth, 'px', 'Hauteur:', contentHeight, 'px', 'Enfants:', mainBlock.children.length, 'Vertical:', isVertical, 'Direction:', direction);
