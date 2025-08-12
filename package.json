@@ -1,0 +1,24 @@
+{
+  "name": "@bebranded/bb-contents",
+  "version": "1.0.0",
+  "description": "Contenus additionnels français pour Webflow",
+  "main": "bb-contents.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "BeBranded <hello@bebranded.xyz>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BeBranded-xyz/bb-contents"
+  },
+  "bugs": {
+    "url": "https://github.com/BeBranded-xyz/bb-contents/issues"
+  },
+  "homepage": "https://www.bebranded.xyz/contents",
+  "files": [
+    "bb-contents.js",
+    "README.md"
+  ]
+}
