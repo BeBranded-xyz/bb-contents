@@ -792,7 +792,138 @@
 
             bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
         }
-    };
+    },
+
+    // Module YouTube Feed
+    youtube: {
+        init: function() {
+            const elements = document.querySelectorAll('[bb-youtube-channel]');
+            if (elements.length === 0) return;
+            
+            bbContents.utils.log('Module détecté: youtube');
+            
+            elements.forEach(element => {
+                if (element.bbProcessed) return;
+                element.bbProcessed = true;
+                
+                const channelId = bbContents._getAttr(element, 'bb-youtube-channel');
+                const videoCount = bbContents._getAttr(element, 'bb-youtube-video-count') || '10';
+                const endpoint = bbContents.config.youtubeEndpoint;
+                
+                if (!channelId) {
+                    bbContents.utils.log('Erreur: bb-youtube-channel manquant');
+                    return;
+                }
+                
+                if (!endpoint) {
+                    bbContents.utils.log('Erreur: youtubeEndpoint non configuré. Utilisez bbContents.config.youtubeEndpoint = "votre-worker-url"');
+                    element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez : bbContents.config.youtubeEndpoint = "votre-worker-url"</div>';
+                    return;
+                }
+                
+                // Afficher un loader
+                element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
+                
+                // Appeler l'API via le Worker
+                fetch(`${endpoint}?channelId=${channelId}&maxResults=${videoCount}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.error) {
+                            throw new Error(data.error.message || 'Erreur API YouTube');
+                        }
+                        this.generateYouTubeFeed(element, data);
+                    })
+                    .catch(error => {
+                        bbContents.utils.log('Erreur dans le module youtube:', error);
+                        element.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${error.message}</div>`;
+                    });
+            });
+        },
+        
+        generateYouTubeFeed: function(container, data) {
+            if (!data.items || data.items.length === 0) {
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vidéo trouvée</div>';
+                return;
+            }
+            
+            // Créer la grille de vidéos
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">';
+            
+            data.items.forEach(item => {
+                const videoId = item.id.videoId;
+                const snippet = item.snippet;
+                
+                html += `
+                    <div class="bb-youtube-video" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                        <div class="bb-youtube-thumbnail" style="position: relative;">
+                            <img src="${snippet.thumbnails.medium.url}" alt="${snippet.title}" style="width: 100%; height: auto; display: block;">
+                            <div class="bb-youtube-duration" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">YouTube</div>
+                        </div>
+                        <div class="bb-youtube-content" style="padding: 16px;">
+                            <div class="bb-youtube-title" style="font-weight: 600; margin-bottom: 8px; line-height: 1.4;">${snippet.title}</div>
+                            <div class="bb-youtube-channel" style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">${snippet.channelTitle}</div>
+                            <div class="bb-youtube-date" style="color: #9ca3af; font-size: 12px;">${this.formatDate(snippet.publishedAt)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+            
+            // Traiter les éléments avec des attributes spécifiques
+            this.processYouTubeElements(container, data);
+        },
+        
+        processYouTubeElements: function(container, data) {
+            // Traiter bb-youtube-show-title
+            container.querySelectorAll('[bb-youtube-show-title]').forEach((element, index) => {
+                if (data.items[index]) {
+                    element.textContent = data.items[index].snippet.title;
+                }
+            });
+            
+            // Traiter bb-youtube-show-description
+            container.querySelectorAll('[bb-youtube-show-description]').forEach((element, index) => {
+                if (data.items[index]) {
+                    element.textContent = data.items[index].snippet.description;
+                }
+            });
+            
+            // Traiter bb-youtube-show-views (nécessite une requête supplémentaire)
+            container.querySelectorAll('[bb-youtube-show-views]').forEach((element, index) => {
+                if (data.items[index]) {
+                    element.textContent = 'Vues non disponibles';
+                }
+            });
+            
+            // Traiter bb-youtube-show-date
+            container.querySelectorAll('[bb-youtube-show-date]').forEach((element, index) => {
+                if (data.items[index]) {
+                    element.textContent = this.formatDate(data.items[index].snippet.publishedAt);
+                }
+            });
+        },
+        
+        formatDate: function(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) return 'Il y a 1 jour';
+            if (diffDays < 7) return `Il y a ${diffDays} jours`;
+            if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)} semaines`;
+            if (diffDays < 365) return `Il y a ${Math.floor(diffDays / 30)} mois`;
+            return `Il y a ${Math.floor(diffDays / 365)} ans`;
+        }
+    }
+};
 
 
 
