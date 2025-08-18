@@ -468,7 +468,7 @@
                     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
                     
                     // Appeler l'API via le Worker
-                    fetch(`${endpoint}?channelId=${channelId}&maxResults=${videoCount}`)
+                    fetch(`${endpoint}?channelId=${channelId}&maxResults=${videoCount}&allowShorts=${allowShorts}`)
                         .then(response => {
                             if (!response.ok) {
                                 throw new Error(`HTTP ${response.status}`);
@@ -494,31 +494,9 @@
                     return;
                 }
                 
-                // Filtrer les shorts si nécessaire
+                // Les vidéos sont déjà filtrées par l'API YouTube selon allowShorts
                 let videos = data.items;
-                if (!allowShorts) {
-                    videos = videos.filter(item => {
-                        // Filtrer les shorts (vidéos avec #shorts dans le titre ou description)
-                        const title = item.snippet.title.toLowerCase();
-                        const description = item.snippet.description.toLowerCase();
-                        
-                        // Détecter les shorts par plusieurs critères
-                        const isShort = 
-                            title.includes('#shorts') || 
-                            title.includes('#short') ||
-                            description.includes('#shorts') || 
-                            description.includes('#short') ||
-                            title.includes('shorts') ||
-                            description.includes('shorts');
-                        
-                        if (isShort) {
-                            bbContents.utils.log(`Short détecté et filtré: "${item.snippet.title}"`);
-                        }
-                        
-                        return !isShort;
-                    });
-                    bbContents.utils.log(`Filtrage des shorts: ${data.items.length} → ${videos.length} vidéos`);
-                }
+                bbContents.utils.log(`Vidéos reçues de l'API: ${videos.length} (allowShorts: ${allowShorts})`);
                 
                 // Vider le conteneur
                 container.innerHTML = '';

@@ -21,6 +21,7 @@ async function handleRequest(request) {
     const url = new URL(request.url)
     const channelId = url.searchParams.get('channelId')
     const maxResults = url.searchParams.get('maxResults') || '10'
+    const allowShorts = url.searchParams.get('allowShorts') || 'false'
     
     if (!channelId) {
       return new Response(JSON.stringify({ error: 'channelId parameter is required' }), {
@@ -35,10 +36,59 @@ async function handleRequest(request) {
     // Remplacez YOUR_YOUTUBE_API_KEY par votre vraie clé API YouTube
     const apiKey = 'YOUR_YOUTUBE_API_KEY'
     
+    // Déterminer la durée des vidéos selon allowShorts
+    let videoDuration = 'any'
+    if (allowShorts === 'true') {
+      videoDuration = 'short' // Vidéos de moins de 4 minutes
+    } else if (allowShorts === 'false') {
+      videoDuration = 'medium,long' // Vidéos de plus de 4 minutes
+    }
+    
+    // Construire l'URL de l'API YouTube
+    let apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=${maxResults}&order=date&type=video&key=${apiKey}`
+    
+    // Ajouter le filtre de durée si nécessaire
+    if (videoDuration !== 'any') {
+      if (videoDuration === 'medium,long') {
+        // Pour exclure les shorts, on fait deux requêtes et on combine
+        const [mediumResponse, longResponse] = await Promise.all([
+          fetch(`${apiUrl}&videoDuration=medium`),
+          fetch(`${apiUrl}&videoDuration=long`)
+        ])
+        
+        if (!mediumResponse.ok || !longResponse.ok) {
+          throw new Error(`YouTube API error: ${mediumResponse.status || longResponse.status}`)
+        }
+        
+        const [mediumData, longData] = await Promise.all([
+          mediumResponse.json(),
+          longResponse.json()
+        ])
+        
+        // Combiner les résultats et trier par date
+        const combinedItems = [...(mediumData.items || []), ...(longData.items || [])]
+        combinedItems.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt))
+        
+        // Limiter au nombre de résultats demandé
+        const limitedItems = combinedItems.slice(0, parseInt(maxResults))
+        
+        return new Response(JSON.stringify({
+          ...mediumData,
+          items: limitedItems
+        }), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=3600'
+          }
+        })
+      } else {
+        apiUrl += `&videoDuration=${videoDuration}`
+      }
+    }
+    
     // Appeler l'API YouTube
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=${maxResults}&order=date&type=video&key=${apiKey}`
-    )
+    const response = await fetch(apiUrl)
     
     if (!response.ok) {
       throw new Error(`YouTube API error: ${response.status}`)
