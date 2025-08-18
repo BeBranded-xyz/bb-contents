@@ -498,10 +498,24 @@
                 let videos = data.items;
                 if (!allowShorts) {
                     videos = videos.filter(item => {
-                        // Filtrer les shorts (vidéos de moins de 60 secondes ou avec #shorts dans le titre)
+                        // Filtrer les shorts (vidéos avec #shorts dans le titre ou description)
                         const title = item.snippet.title.toLowerCase();
                         const description = item.snippet.description.toLowerCase();
-                        return !title.includes('#shorts') && !description.includes('#shorts');
+                        
+                        // Détecter les shorts par plusieurs critères
+                        const isShort = 
+                            title.includes('#shorts') || 
+                            title.includes('#short') ||
+                            description.includes('#shorts') || 
+                            description.includes('#short') ||
+                            title.includes('shorts') ||
+                            description.includes('shorts');
+                        
+                        if (isShort) {
+                            bbContents.utils.log(`Short détecté et filtré: "${item.snippet.title}"`);
+                        }
+                        
+                        return !isShort;
                     });
                     bbContents.utils.log(`Filtrage des shorts: ${data.items.length} → ${videos.length} vidéos`);
                 }
