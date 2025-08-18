@@ -89,20 +89,6 @@ async function handleRequest(request) {
       })
     }
     
-    if (!response.ok) {
-      throw new Error(`YouTube API error: ${response.status}`)
-    }
-    
-    const data = await response.json()
-    
-    return new Response(JSON.stringify(data), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=3600' // Cache 1 heure
-      }
-    })
-    
   } catch (error) {
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
