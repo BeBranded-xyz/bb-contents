@@ -442,19 +442,22 @@
                         return;
                     }
                     
-                    // Chercher le conteneur pour les vidéos
-                    const container = element.querySelector('[bb-youtube-container]');
-                    if (!container) {
-                        bbContents.utils.log('Erreur: élément [bb-youtube-container] manquant');
-                        element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Structure manquante</strong><br>Ajoutez un élément avec l\'attribut bb-youtube-container</div>';
-                        return;
+                    // Chercher le template pour une vidéo (directement dans l'élément ou dans un conteneur)
+                    let template = element.querySelector('[bb-youtube-item]');
+                    let container = element;
+                    
+                    // Si pas de template direct, chercher dans un conteneur
+                    if (!template) {
+                        const containerElement = element.querySelector('[bb-youtube-container]');
+                        if (containerElement) {
+                            container = containerElement;
+                            template = containerElement.querySelector('[bb-youtube-item]');
+                        }
                     }
                     
-                    // Chercher le template pour une vidéo
-                    const template = container.querySelector('[bb-youtube-item]');
                     if (!template) {
                         bbContents.utils.log('Erreur: élément [bb-youtube-item] manquant');
-                        container.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Template manquant</strong><br>Ajoutez un élément avec l\'attribut bb-youtube-item</div>';
+                        element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Template manquant</strong><br>Ajoutez un élément avec l\'attribut bb-youtube-item</div>';
                         return;
                     }
                     
