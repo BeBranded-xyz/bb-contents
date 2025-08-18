@@ -428,6 +428,7 @@
                     
                     const channelId = bbContents._getAttr(element, 'bb-youtube-channel');
                     const videoCount = bbContents._getAttr(element, 'bb-youtube-video-count') || '10';
+                    const allowShorts = bbContents._getAttr(element, 'bb-youtube-allow-shorts') === 'true';
                     const endpoint = bbContents.config.youtubeEndpoint;
                     
                     if (!channelId) {
@@ -441,8 +442,27 @@
                         return;
                     }
                     
+                    // Chercher le conteneur pour les vidéos
+                    const container = element.querySelector('[bb-youtube-container]');
+                    if (!container) {
+                        bbContents.utils.log('Erreur: élément [bb-youtube-container] manquant');
+                        element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Structure manquante</strong><br>Ajoutez un élément avec l\'attribut bb-youtube-container</div>';
+                        return;
+                    }
+                    
+                    // Chercher le template pour une vidéo
+                    const template = container.querySelector('[bb-youtube-item]');
+                    if (!template) {
+                        bbContents.utils.log('Erreur: élément [bb-youtube-item] manquant');
+                        container.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Template manquant</strong><br>Ajoutez un élément avec l\'attribut bb-youtube-item</div>';
+                        return;
+                    }
+                    
+                    // Cacher le template original
+                    template.style.display = 'none';
+                    
                     // Afficher un loader
-                    element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
+                    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
                     
                     // Appeler l'API via le Worker
                     fetch(`${endpoint}?channelId=${channelId}&maxResults=${videoCount}`)
@@ -456,78 +476,94 @@
                             if (data.error) {
                                 throw new Error(data.error.message || 'Erreur API YouTube');
                             }
-                            this.generateYouTubeFeed(element, data);
+                            this.generateYouTubeFeed(container, template, data, allowShorts);
                         })
                         .catch(error => {
                             bbContents.utils.log('Erreur dans le module youtube:', error);
-                            element.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${error.message}</div>`;
+                            container.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${error.message}</div>`;
                         });
                 });
             },
             
-            generateYouTubeFeed: function(container, data) {
+            generateYouTubeFeed: function(container, template, data, allowShorts) {
                 if (!data.items || data.items.length === 0) {
                     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vidéo trouvée</div>';
                     return;
                 }
                 
-                // Créer la grille de vidéos
-                let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">';
+                // Filtrer les shorts si nécessaire
+                let videos = data.items;
+                if (!allowShorts) {
+                    videos = videos.filter(item => {
+                        // Filtrer les shorts (vidéos de moins de 60 secondes ou avec #shorts dans le titre)
+                        const title = item.snippet.title.toLowerCase();
+                        const description = item.snippet.description.toLowerCase();
+                        return !title.includes('#shorts') && !description.includes('#shorts');
+                    });
+                    bbContents.utils.log(`Filtrage des shorts: ${data.items.length} → ${videos.length} vidéos`);
+                }
                 
-                data.items.forEach(item => {
+                // Vider le conteneur
+                container.innerHTML = '';
+                
+                // Cloner le template pour chaque vidéo
+                videos.forEach(item => {
                     const videoId = item.id.videoId;
                     const snippet = item.snippet;
                     
-                    html += `
-                        <div class="bb-youtube-video" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-                            <div class="bb-youtube-thumbnail" style="position: relative;">
-                                <img src="${snippet.thumbnails.medium.url}" alt="${snippet.title}" style="width: 100%; height: auto; display: block;">
-                                <div class="bb-youtube-duration" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">YouTube</div>
-                            </div>
-                            <div class="bb-youtube-content" style="padding: 16px;">
-                                <div class="bb-youtube-title" style="font-weight: 600; margin-bottom: 8px; line-height: 1.4;">${snippet.title}</div>
-                                <div class="bb-youtube-channel" style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">${snippet.channelTitle}</div>
-                                <div class="bb-youtube-date" style="color: #9ca3af; font-size: 12px;">${this.formatDate(snippet.publishedAt)}</div>
-                            </div>
-                        </div>
-                    `;
+                    // Cloner le template
+                    const clone = template.cloneNode(true);
+                    clone.style.display = ''; // Rendre visible
+                    
+                    // Remplir les données
+                    this.fillVideoData(clone, videoId, snippet);
+                    
+                    // Ajouter au conteneur
+                    container.appendChild(clone);
                 });
                 
-                html += '</div>';
-                container.innerHTML = html;
-                
-                // Traiter les éléments avec des attributes spécifiques
-                this.processYouTubeElements(container, data);
+                bbContents.utils.log(`YouTube Feed généré: ${videos.length} vidéos`);
             },
             
-            processYouTubeElements: function(container, data) {
-                // Traiter bb-youtube-show-title
-                container.querySelectorAll('[bb-youtube-show-title]').forEach((element, index) => {
-                    if (data.items[index]) {
-                        element.textContent = data.items[index].snippet.title;
-                    }
-                });
+            fillVideoData: function(element, videoId, snippet) {
+                // Remplir le lien
+                const link = element.querySelector('[bb-youtube-link]');
+                if (link) {
+                    link.href = `https://www.youtube.com/watch?v=${videoId}`;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                }
                 
-                // Traiter bb-youtube-show-description
-                container.querySelectorAll('[bb-youtube-show-description]').forEach((element, index) => {
-                    if (data.items[index]) {
-                        element.textContent = data.items[index].snippet.description;
-                    }
-                });
+                // Remplir la thumbnail
+                const thumbnail = element.querySelector('[bb-youtube-thumbnail]');
+                if (thumbnail) {
+                    thumbnail.src = snippet.thumbnails.medium.url;
+                    thumbnail.alt = snippet.title;
+                }
                 
-                // Traiter bb-youtube-show-views (nécessite une requête supplémentaire)
-                container.querySelectorAll('[bb-youtube-show-views]').forEach((element, index) => {
-                    if (data.items[index]) {
-                        element.textContent = 'Vues non disponibles';
-                    }
-                });
+                // Remplir le titre
+                const title = element.querySelector('[bb-youtube-title]');
+                if (title) {
+                    title.textContent = snippet.title;
+                }
                 
-                // Traiter bb-youtube-show-date
-                container.querySelectorAll('[bb-youtube-show-date]').forEach((element, index) => {
-                    if (data.items[index]) {
-                        element.textContent = this.formatDate(data.items[index].snippet.publishedAt);
-                    }
-                });
+                // Remplir la description
+                const description = element.querySelector('[bb-youtube-description]');
+                if (description) {
+                    description.textContent = snippet.description;
+                }
+                
+                // Remplir la date
+                const date = element.querySelector('[bb-youtube-date]');
+                if (date) {
+                    date.textContent = this.formatDate(snippet.publishedAt);
+                }
+                
+                // Remplir le nom de la chaîne
+                const channel = element.querySelector('[bb-youtube-channel]');
+                if (channel) {
+                    channel.textContent = snippet.channelTitle;
+                }
             },
             
             formatDate: function(dateString) {
