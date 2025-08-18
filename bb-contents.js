@@ -528,23 +528,28 @@
                     element.rel = 'noopener noreferrer';
                 }
                 
-                // Remplir la thumbnail
+                // Remplir la thumbnail (haute qualité)
                 const thumbnail = element.querySelector('[bb-youtube-thumbnail]');
                 if (thumbnail) {
-                    thumbnail.src = snippet.thumbnails.medium.url;
+                    // Utiliser la meilleure qualité disponible
+                    const highQualityUrl = snippet.thumbnails.maxres?.url || 
+                                         snippet.thumbnails.high?.url || 
+                                         snippet.thumbnails.medium?.url || 
+                                         snippet.thumbnails.default?.url;
+                    thumbnail.src = highQualityUrl;
                     thumbnail.alt = snippet.title;
                 }
                 
-                // Remplir le titre
+                // Remplir le titre (avec décodage HTML)
                 const title = element.querySelector('[bb-youtube-title]');
                 if (title) {
-                    title.textContent = snippet.title;
+                    title.textContent = this.decodeHtmlEntities(snippet.title);
                 }
                 
-                // Remplir la description
+                // Remplir la description (avec décodage HTML)
                 const description = element.querySelector('[bb-youtube-description]');
                 if (description) {
-                    description.textContent = snippet.description;
+                    description.textContent = this.decodeHtmlEntities(snippet.description);
                 }
                 
                 // Remplir la date
@@ -571,6 +576,14 @@
                 if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)} semaines`;
                 if (diffDays < 365) return `Il y a ${Math.floor(diffDays / 30)} mois`;
                 return `Il y a ${Math.floor(diffDays / 365)} ans`;
+            },
+            
+            // Fonction pour décoder les entités HTML
+            decodeHtmlEntities: function(text) {
+                if (!text) return '';
+                const textarea = document.createElement('textarea');
+                textarea.innerHTML = text;
+                return textarea.value;
             }
         }
     };
