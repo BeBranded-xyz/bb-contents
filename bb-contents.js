@@ -526,12 +526,11 @@
             },
             
             fillVideoData: function(element, videoId, snippet) {
-                // Remplir le lien
-                const link = element.querySelector('[bb-youtube-link]');
-                if (link) {
-                    link.href = `https://www.youtube.com/watch?v=${videoId}`;
-                    link.target = '_blank';
-                    link.rel = 'noopener noreferrer';
+                // Remplir le lien directement sur l'élément (link block)
+                if (element.tagName === 'A' || element.hasAttribute('bb-youtube-item')) {
+                    element.href = `https://www.youtube.com/watch?v=${videoId}`;
+                    element.target = '_blank';
+                    element.rel = 'noopener noreferrer';
                 }
                 
                 // Remplir la thumbnail
