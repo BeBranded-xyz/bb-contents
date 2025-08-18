@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.3-beta
+ * @version 1.0.6-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.3-beta',
+        version: '1.0.6-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -59,7 +59,7 @@
             }
         },
         
-        // Helper: construire des sélecteurs d’attributs selon le prefix
+        // Helper: construire des sélecteurs d'attributs selon le prefix
         _attrSelector: function(name) {
             const p = (this.config.prefix || 'bb-').replace(/-?$/, '-');
             const legacy = name.startsWith('bb-') ? name : (p + name);
@@ -99,833 +99,451 @@
             this.setupObserver();
         },
 
-        // Ré-initialiser une sous-arborescence DOM (pour contenus ajoutés dynamiquement)
-        reinit: function(root) {
-            const rootNode = root && root.nodeType ? root : document;
-            // Ne pas traiter les sous-arbres marqués en disable
-            if (rootNode.closest && rootNode.closest('[data-bb-disable]')) return;
-            
-            // Éviter les ré-initialisations multiples sur le même scope
-            if (rootNode === document && this._lastReinitTime && (Date.now() - this._lastReinitTime) < 1000) {
-                return; // Éviter les reinit trop fréquents sur document
-            }
-            this._lastReinitTime = Date.now();
-            
-            Object.keys(this.modules).forEach(function(moduleName) {
-                const module = bbContents.modules[moduleName];
-                try {
-                    module.init(rootNode);
-                } catch (error) {
-                    console.error('[BB Contents] Erreur reinit dans le module', moduleName, error);
-                }
-            });
-        },
-
-        // Mise en place d'un MutationObserver avec debounce
+        // Observer DOM pour contenu dynamique
         setupObserver: function() {
-            if (!('MutationObserver' in window) || this._observer) return;
-            const self = this;
-            this._observer = new MutationObserver(function(mutations) {
-                let hasRelevantChanges = false;
-                for (let i = 0; i < mutations.length; i++) {
-                    const mutation = mutations[i];
-                    // Vérifier si les changements concernent des éléments avec nos attributs
-                    if (mutation.addedNodes && mutation.addedNodes.length > 0) {
-                        for (let j = 0; j < mutation.addedNodes.length; j++) {
-                            const node = mutation.addedNodes[j];
+            if (this._observer) {
+                this._observer.disconnect();
+            }
+
+            this._observer = new MutationObserver((mutations) => {
+                let shouldReinit = false;
+                
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach((node) => {
                             if (node.nodeType === 1) { // Element node
+                                // Vérifier si le nouveau nœud ou ses enfants ont des attributs bb-*
                                 if (node.querySelector && (
-                                    node.querySelector('[bb-], [data-bb-]') || 
-                                    node.matches && node.matches('[bb-], [data-bb-]')
+                                    node.querySelector('[bb-]') || 
+                                    node.querySelector('[data-bb-]') ||
+                                    node.matches && (node.matches('[bb-]') || node.matches('[data-bb-]'))
                                 )) {
-                                    hasRelevantChanges = true;
-                                    break;
+                                    shouldReinit = true;
                                 }
                             }
-                        }
+                        });
                     }
+                });
+
+                if (shouldReinit && !this._reinitScheduled) {
+                    this._reinitScheduled = true;
+                    setTimeout(() => {
+                        this.init();
+                        this._reinitScheduled = false;
+                    }, 100);
                 }
-                if (!hasRelevantChanges) return;
-                if (self._reinitScheduled) return;
-                self._reinitScheduled = true;
-                setTimeout(function() {
-                    try {
-                        self.reinit(document);
-                    } finally {
-                        self._reinitScheduled = false;
-                    }
-                }, 200); // Augmenté à 200ms pour réduire la fréquence
             });
-            try {
-                this._observer.observe(document.body, { childList: true, subtree: true });
-                this.utils.log('MutationObserver actif');
-            } catch (e) {
-                // No-op si document.body indisponible
-            }
+
+            this._observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            this.utils.log('MutationObserver actif');
         }
     };
 
-    // ========================================
-    // MODULE: SHARE (Partage Social)
-    // ========================================
-    bbContents.modules.share = {
-        // Configuration des réseaux
-        networks: {
-            twitter: function(data) {
-                return 'https://twitter.com/intent/tweet?url=' + 
-                       encodeURIComponent(data.url) + 
-                       '&text=' + encodeURIComponent(data.text);
+    // Modules
+    bbContents.modules = {
+        // Module SEO
+        seo: {
+            detect: function(scope) {
+                return scope.querySelector('[bb-seo]') !== null;
             },
-            facebook: function(data) {
-                return 'https://facebook.com/sharer/sharer.php?u=' + 
-                       encodeURIComponent(data.url);
-            },
-            linkedin: function(data) {
-                // LinkedIn - URL de partage officielle (2024+)
-                return 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(data.url);
-            },
-            whatsapp: function(data) {
-                return 'https://wa.me/?text=' + 
-                       encodeURIComponent(data.text + ' ' + data.url);
-            },
-            telegram: function(data) {
-                return 'https://t.me/share/url?url=' + 
-                       encodeURIComponent(data.url) + 
-                       '&text=' + encodeURIComponent(data.text);
-            },
-            email: function(data) {
-                return 'mailto:?subject=' + 
-                       encodeURIComponent(data.text) + 
-                       '&body=' + encodeURIComponent(data.text + ' ' + data.url);
-            },
-            copy: function(data) {
-                return 'copy:' + data.url;
-            },
-            native: function(data) {
-                return 'native:' + JSON.stringify(data);
-            }
-        },
-        
-        // Détection
-        detect: function(scope) {
-            const s = scope || document;
-            return s.querySelector(bbContents._attrSelector('share')) !== null;
-        },
-        
-        // Initialisation
-        init: function(root) {
-            const scope = root || document;
-            if (scope.closest && scope.closest('[data-bb-disable]')) return;
-            const elements = scope.querySelectorAll(bbContents._attrSelector('share'));
             
-            elements.forEach(function(element) {
-                // Vérifier si déjà traité
-                if (element.bbProcessed) return;
-                element.bbProcessed = true;
+            init: function(scope) {
+                const elements = scope.querySelectorAll('[bb-seo]');
+                if (elements.length === 0) return;
                 
-                // Récupérer les données
-                const network = bbContents._getAttr(element, 'bb-share');
-                const customUrl = bbContents._getAttr(element, 'bb-url');
-                const customText = bbContents._getAttr(element, 'bb-text');
+                bbContents.utils.log('Module détecté: seo');
                 
-                // Valeurs par défaut sécurisées
-                const data = {
-                    url: bbContents.utils.isValidUrl(customUrl) ? customUrl : window.location.href,
-                    text: bbContents.utils.sanitize(customText || document.title || 'Découvrez ce site')
-                };
-                
-                // Gestionnaire de clic
-                element.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    bbContents.modules.share.share(network, data, element);
-                });
-                
-                // Accessibilité
-                if (element.tagName !== 'BUTTON' && element.tagName !== 'A') {
-                    element.setAttribute('role', 'button');
-                    element.setAttribute('tabindex', '0');
+                elements.forEach(element => {
+                    if (element.bbProcessed) return;
+                    element.bbProcessed = true;
                     
-                    // Support clavier
-                    element.addEventListener('keydown', function(e) {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            bbContents.modules.share.share(network, data, element);
+                    const title = bbContents._getAttr(element, 'bb-seo-title');
+                    const description = bbContents._getAttr(element, 'bb-seo-description');
+                    const keywords = bbContents._getAttr(element, 'bb-seo-keywords');
+                    
+                    if (title) {
+                        document.title = title;
+                    }
+                    
+                    if (description) {
+                        let meta = document.querySelector('meta[name="description"]');
+                        if (!meta) {
+                            meta = document.createElement('meta');
+                            meta.name = 'description';
+                            document.head.appendChild(meta);
                         }
-                    });
-                }
-                
-                element.style.cursor = 'pointer';
-            });
-            
-            bbContents.utils.log('Module Share initialisé:', elements.length, 'éléments');
-        },
-        
-        // Fonction de partage
-        share: function(network, data, element) {
-            const networkFunc = this.networks[network];
-            
-            if (!networkFunc) {
-                console.error('[BB Contents] Réseau non supporté:', network);
-                return;
-            }
-            
-            const shareUrl = networkFunc(data);
-            
-            // Cas spécial : copier le lien
-            if (shareUrl.startsWith('copy:')) {
-                const url = shareUrl.substring(5);
-                // Copie silencieuse (pas de feedback visuel)
-                this.copyToClipboard(url, element, true);
-                return;
-            }
-            
-            // Cas spécial : partage natif (Web Share API)
-            if (shareUrl.startsWith('native:')) {
-                const shareData = JSON.parse(shareUrl.substring(7));
-                this.nativeShare(shareData, element);
-                return;
-            }
-            
-            // Ouvrir popup de partage
-            const width = 600;
-            const height = 400;
-            const left = (window.innerWidth - width) / 2;
-            const top = (window.innerHeight - height) / 2;
-            
-            window.open(
-                shareUrl,
-                'bbshare',
-                'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',noopener,noreferrer'
-            );
-            
-            bbContents.utils.log('Partage sur', network, data);
-        },
-        
-        // Copier dans le presse-papier
-        copyToClipboard: function(text, element, silent) {
-            const isSilent = !!silent;
-            // Méthode moderne
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(function() {
-                    if (!isSilent) {
-                        bbContents.modules.share.showFeedback(element, '✓ ' + (bbContents.config.i18n.copied || 'Lien copié !'));
+                        meta.content = description;
                     }
-                }).catch(function() {
-                    bbContents.modules.share.fallbackCopy(text, element, isSilent);
-                });
-            } else {
-                // Fallback pour environnements sans Clipboard API
-                this.fallbackCopy(text, element, isSilent);
-            }
-        },
-        
-        // Fallback copie
-        fallbackCopy: function(text, element, silent) {
-            const isSilent = !!silent;
-            // Pas de UI si silencieux (exigence produit)
-            if (isSilent) return;
-            try {
-                // Afficher un prompt natif pour permettre à l'utilisateur de copier manuellement
-                // (solution universelle sans execCommand)
-                window.prompt('Copiez le lien ci-dessous (Ctrl/Cmd+C) :', text);
-            } catch (err) {
-                // Dernier recours: ne rien faire
-            }
-        },
-        
-        // Partage natif (Web Share API)
-        nativeShare: function(data, element) {
-            // Vérifier si Web Share API est disponible
-            if (navigator.share) {
-                navigator.share({
-                    title: data.text,
-                    url: data.url
-                }).then(function() {
-                    bbContents.utils.log('Partage natif réussi');
-                }).catch(function(error) {
-                    if (error.name !== 'AbortError') {
-                        console.error('[BB Contents] Erreur partage natif:', error);
-                        // Fallback vers copie si échec
-                        bbContents.modules.share.copyToClipboard(data.url, element, false);
+                    
+                    if (keywords) {
+                        let meta = document.querySelector('meta[name="keywords"]');
+                        if (!meta) {
+                            meta = document.createElement('meta');
+                            meta.name = 'keywords';
+                            document.head.appendChild(meta);
+                        }
+                        meta.content = keywords;
                     }
                 });
-            } else {
-                // Fallback si Web Share API non disponible
-                bbContents.utils.log('Web Share API non disponible, fallback vers copie');
-                this.copyToClipboard(data.url, element, false);
+                
+                bbContents.utils.log('Module SEO initialisé:', elements.length, 'éléments');
             }
         },
-        
-        // Feedback visuel
-        showFeedback: function(element, message) {
-            const originalText = element.textContent;
-            element.textContent = message;
-            element.style.pointerEvents = 'none';
+
+        // Module Images
+        images: {
+            detect: function(scope) {
+                return scope.querySelector('[bb-images]') !== null;
+            },
             
-            setTimeout(function() {
-                element.textContent = originalText;
-                element.style.pointerEvents = '';
-            }, 2000);
-        }
-    };
-
-    // ========================================
-    // MODULE: CURRENT YEAR (Année courante)
-    // ========================================
-    bbContents.modules.currentYear = {
-        detect: function(scope) {
-            const s = scope || document;
-            return s.querySelector(bbContents._attrSelector('current-year')) !== null;
-        },
-        init: function(root) {
-            const scope = root || document;
-            if (scope.closest && scope.closest('[data-bb-disable]')) return;
-            const elements = scope.querySelectorAll(bbContents._attrSelector('current-year'));
-
-            const year = String(new Date().getFullYear());
-            elements.forEach(function(element) {
-                if (element.bbProcessed) return;
-                element.bbProcessed = true;
-
-                const customFormat = bbContents._getAttr(element, 'bb-current-year-format');
-                const prefix = bbContents._getAttr(element, 'bb-current-year-prefix');
-                const suffix = bbContents._getAttr(element, 'bb-current-year-suffix');
-
-                if (customFormat && customFormat.includes('{year}')) {
-                    element.textContent = customFormat.replace('{year}', year);
-                } else if (prefix || suffix) {
-                    element.textContent = prefix + year + suffix;
-                } else {
-                    element.textContent = year;
-                }
-            });
-
-            bbContents.utils.log('Module CurrentYear initialisé:', elements.length, 'éléments');
-        }
-    };
-
-
-
-    // ========================================
-    // MODULE: READING TIME (Temps de lecture)
-    // ========================================
-    bbContents.modules.readingTime = {
-        detect: function(scope) {
-            const s = scope || document;
-            return s.querySelector(bbContents._attrSelector('reading-time')) !== null;
-        },
-        init: function(root) {
-            const scope = root || document;
-            if (scope.closest && scope.closest('[data-bb-disable]')) return;
-            const elements = scope.querySelectorAll(bbContents._attrSelector('reading-time'));
-
-            elements.forEach(function(element) {
-                if (element.bbProcessed) return;
-                element.bbProcessed = true;
-
-                const targetSelector = bbContents._getAttr(element, 'bb-reading-time-target');
-                const speedAttr = bbContents._getAttr(element, 'bb-reading-time-speed');
-                const imageSpeedAttr = bbContents._getAttr(element, 'bb-reading-time-image-speed');
-                const format = bbContents._getAttr(element, 'bb-reading-time-format') || '{minutes} min';
-
-                const wordsPerMinute = Number(speedAttr) > 0 ? Number(speedAttr) : 230;
-                const secondsPerImage = Number(imageSpeedAttr) > 0 ? Number(imageSpeedAttr) : 12;
+            init: function(scope) {
+                const elements = scope.querySelectorAll('[bb-images]');
+                if (elements.length === 0) return;
                 
-                // Validation des valeurs
-                if (isNaN(wordsPerMinute) || wordsPerMinute <= 0) {
-                    bbContents.utils.log('Vitesse de lecture invalide, utilisation de la valeur par défaut (230)');
-                }
-                if (isNaN(secondsPerImage) || secondsPerImage < 0) {
-                    bbContents.utils.log('Temps par image invalide, utilisation de la valeur par défaut (12)');
-                }
-
-                let sourceNode = element;
-                if (targetSelector) {
-                    const found = document.querySelector(targetSelector);
-                    if (found) sourceNode = found;
-                }
-
-                const text = (sourceNode.textContent || '').trim();
-                const wordCount = text ? (text.match(/\b\w+\b/g) || []).length : 0;
+                bbContents.utils.log('Module détecté: images');
                 
-                // Compter les images dans le contenu ciblé
-                const images = sourceNode.querySelectorAll('img');
-                const imageCount = images.length;
-                const imageTimeInMinutes = (imageCount * secondsPerImage) / 60;
+                elements.forEach(element => {
+                    if (element.bbProcessed) return;
+                    element.bbProcessed = true;
+                    
+                    const lazy = bbContents._getAttr(element, 'bb-images-lazy');
+                    const webp = bbContents._getAttr(element, 'bb-images-webp');
+                    
+                    if (lazy === 'true') {
+                        // Implémentation lazy loading basique
+                        const images = element.querySelectorAll('img');
+                        images.forEach(img => {
+                            if (!img.loading) {
+                                img.loading = 'lazy';
+                            }
+                        });
+                    }
+                    
+                    if (webp === 'true') {
+                        // Support WebP basique
+                        const images = element.querySelectorAll('img');
+                        images.forEach(img => {
+                            const src = img.src;
+                            if (src && !src.includes('.webp')) {
+                                // Logique de conversion WebP (à implémenter selon les besoins)
+                                bbContents.utils.log('Support WebP activé pour:', src);
+                            }
+                        });
+                    }
+                });
                 
-                let minutesFloat = (wordCount / wordsPerMinute) + imageTimeInMinutes;
-                let minutes = Math.ceil(minutesFloat);
-
-                if ((wordCount > 0 || imageCount > 0) && minutes < 1) minutes = 1; // affichage minimal 1 min si contenu non vide
-                if (wordCount === 0 && imageCount === 0) minutes = 0;
-
-                const output = format.replace('{minutes}', String(minutes));
-                element.textContent = output;
-            });
-
-            bbContents.utils.log('Module ReadingTime initialisé:', elements.length, 'éléments');
-        }
-    };
-
-    // ========================================
-    // MODULE: FAVICON (Favicon Dynamique)
-    // ========================================
-    bbContents.modules.favicon = {
-        originalFavicon: null,
-        
-        // Détection
-        detect: function(scope) {
-            const s = scope || document;
-            return s.querySelector(bbContents._attrSelector('favicon')) !== null;
-        },
-        
-        // Initialisation
-        init: function(root) {
-            const scope = root || document;
-            if (scope.closest && scope.closest('[data-bb-disable]')) return;
-            
-            // Chercher les éléments avec bb-favicon ou bb-favicon-dark
-            const elements = scope.querySelectorAll(bbContents._attrSelector('favicon') + ', ' + bbContents._attrSelector('favicon-dark'));
-            if (elements.length === 0) return;
-            
-            // Sauvegarder le favicon original
-            const existingLink = document.querySelector("link[rel*='icon']");
-            if (existingLink) {
-                this.originalFavicon = existingLink.href;
-            }
-            
-            // Collecter les URLs depuis tous les éléments
-            let faviconUrl = null;
-            let darkUrl = null;
-            
-            elements.forEach(function(element) {
-                const light = bbContents._getAttr(element, 'bb-favicon') || bbContents._getAttr(element, 'favicon');
-                const dark = bbContents._getAttr(element, 'bb-favicon-dark') || bbContents._getAttr(element, 'favicon-dark');
-                
-                if (light) faviconUrl = light;
-                if (dark) darkUrl = dark;
-            });
-            
-            // Appliquer la logique
-            if (faviconUrl && darkUrl) {
-                this.setupDarkMode(faviconUrl, darkUrl);
-            } else if (faviconUrl) {
-                this.setFavicon(faviconUrl);
-                bbContents.utils.log('Favicon changé:', faviconUrl);
+                bbContents.utils.log('Module Images initialisé:', elements.length, 'éléments');
             }
         },
-        
-        // Helper: Récupérer ou créer un élément favicon
-        getFaviconElement: function() {
-            let favicon = document.querySelector('link[rel="icon"]') ||
-                document.querySelector('link[rel="shortcut icon"]');
-            if (!favicon) {
-                favicon = document.createElement('link');
-                favicon.rel = 'icon';
-                document.head.appendChild(favicon);
-            }
-            return favicon;
-        },
-        
-        // Changer le favicon
-        setFavicon: function(url) {
-            if (!url) return;
+
+        // Module Infinite Scroll
+        infinite: {
+            detect: function(scope) {
+                return scope.querySelector('[bb-infinite]') !== null;
+            },
             
-            // Ajouter un timestamp pour forcer le rafraîchissement du cache
-            const cacheBuster = '?v=' + Date.now();
-            const urlWithCacheBuster = url + cacheBuster;
-            
-            const favicon = this.getFaviconElement();
-            favicon.href = urlWithCacheBuster;
-        },
-        
-        // Support dark mode (méthode simplifiée et directe)
-        setupDarkMode: function(lightUrl, darkUrl) {
-            // Fonction pour mettre à jour le favicon selon le mode sombre
-            const updateFavicon = function(e) {
-                const darkModeOn = e ? e.matches : window.matchMedia('(prefers-color-scheme: dark)').matches;
-                const selectedUrl = darkModeOn ? darkUrl : lightUrl;
-                bbContents.modules.favicon.setFavicon(selectedUrl);
-            };
-            
-            // Initialiser le favicon au chargement de la page
-            updateFavicon();
-            
-            // Écouter les changements du mode sombre
-            const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-            if (typeof darkModeMediaQuery.addEventListener === 'function') {
-                darkModeMediaQuery.addEventListener('change', updateFavicon);
-            } else if (typeof darkModeMediaQuery.addListener === 'function') {
-                darkModeMediaQuery.addListener(updateFavicon);
-            }
-        }
-    };
-
-    // ========================================
-    // MODULE: MARQUEE (Défilement Infini)
-    // ========================================
-    bbContents.modules.marquee = {
-        // Détection
-        detect: function(scope) {
-            const s = scope || document;
-            return s.querySelector(bbContents._attrSelector('marquee')) !== null;
-        },
-        
-        // Initialisation
-        init: function(root) {
-            const scope = root || document;
-            if (scope.closest && scope.closest('[data-bb-disable]')) return;
-            const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
-
-            elements.forEach(function(element) {
-                if (element.bbProcessed) return;
-                element.bbProcessed = true;
-
-                // Récupérer les options
-                const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
-                const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
-                const pauseOnHover = bbContents._getAttr(element, 'bb-marquee-pause') || 'true';
-                const gap = bbContents._getAttr(element, 'bb-marquee-gap') || '50';
-                const orientation = bbContents._getAttr(element, 'bb-marquee-orientation') || 'horizontal';
-                const height = bbContents._getAttr(element, 'bb-marquee-height') || '300';
-                const isVertical = orientation === 'vertical';
-                const minHeight = bbContents._getAttr(element, 'bb-marquee-min-height') || (isVertical ? '100px' : 'auto');
-
-                // Sauvegarder le contenu original
-                const originalHTML = element.innerHTML;
+            init: function(scope) {
+                const elements = scope.querySelectorAll('[bb-infinite]');
+                if (elements.length === 0) return;
                 
-                // Créer le conteneur principal
-                const mainContainer = document.createElement('div');
-                // Pour le marquee horizontal, on va détecter automatiquement la hauteur des logos
-                const autoHeight = !isVertical && !bbContents._getAttr(element, 'bb-marquee-height');
+                bbContents.utils.log('Module détecté: infinite');
                 
-                mainContainer.style.cssText = `
-                    position: relative;
-                    width: 100%;
-                    height: ${isVertical ? height + 'px' : (autoHeight ? 'auto' : height + 'px')};
-                    overflow: hidden;
-                    min-height: ${minHeight};
-                `;
-
-                // Créer le conteneur de défilement
-                const scrollContainer = document.createElement('div');
-                scrollContainer.style.cssText = `
-                    position: absolute;
-                    will-change: transform;
-                    height: 100%;
-                    top: 0px;
-                    left: 0px;
-                    display: flex;
-                    ${isVertical ? 'flex-direction: column;' : ''}
-                    align-items: center;
-                    gap: ${gap}px;
-                    ${isVertical ? '' : 'white-space: nowrap;'}
-                    flex-shrink: 0;
-                `;
-
-                // Créer le bloc de contenu principal
-                const mainBlock = document.createElement('div');
-                mainBlock.innerHTML = originalHTML;
-                mainBlock.style.cssText = `
-                    display: flex;
-                    ${isVertical ? 'flex-direction: column;' : ''}
-                    align-items: center;
-                    gap: ${gap}px;
-                    ${isVertical ? '' : 'white-space: nowrap;'}
-                    flex-shrink: 0;
-                    ${isVertical ? 'min-height: 100px;' : ''}
-                `;
-
-                // Créer plusieurs répétitions pour un défilement continu
-                const repeatBlock1 = mainBlock.cloneNode(true);
-                const repeatBlock2 = mainBlock.cloneNode(true);
-                const repeatBlock3 = mainBlock.cloneNode(true);
-                
-                // Assembler la structure
-                scrollContainer.appendChild(mainBlock);
-                scrollContainer.appendChild(repeatBlock1);
-                scrollContainer.appendChild(repeatBlock2);
-                scrollContainer.appendChild(repeatBlock3);
-                mainContainer.appendChild(scrollContainer);
-                
-                // Vider et remplacer le contenu original
-                element.innerHTML = '';
-                element.appendChild(mainContainer);
-
-                // Fonction pour initialiser l'animation
-                const initAnimation = () => {
-                    // Attendre que le contenu soit dans le DOM
-                    requestAnimationFrame(() => {
-                        const contentWidth = mainBlock.offsetWidth;
-                        const contentHeight = mainBlock.offsetHeight;
+                elements.forEach(element => {
+                    if (element.bbProcessed) return;
+                    element.bbProcessed = true;
+                    
+                    const threshold = bbContents._getAttr(element, 'bb-infinite-threshold') || '0.1';
+                    const url = bbContents._getAttr(element, 'bb-infinite-url');
+                    
+                    if (!url) {
+                        bbContents.utils.log('Erreur: bb-infinite-url manquant');
+                        return;
+                    }
+                    
+                    // Implémentation basique d'infinite scroll
+                    let loading = false;
+                    let page = 1;
+                    
+                    const loadMore = () => {
+                        if (loading) return;
+                        loading = true;
                         
-                        // Si auto-height est activé, ajuster la hauteur du conteneur
-                        if (autoHeight && !isVertical) {
-                            const logoElements = mainBlock.querySelectorAll('.bb-marquee_logo, img, svg');
-                            let maxHeight = 0;
-                            
-                            logoElements.forEach(logo => {
-                                const logoHeight = logo.offsetHeight || logo.getBoundingClientRect().height;
-                                if (logoHeight > maxHeight) {
-                                    maxHeight = logoHeight;
+                        fetch(`${url}?page=${page}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.items && data.items.length > 0) {
+                                    // Ajouter le contenu
+                                    element.innerHTML += data.html || '';
+                                    page++;
+                                    loading = false;
                                 }
+                            })
+                            .catch(error => {
+                                bbContents.utils.log('Erreur infinite scroll:', error);
+                                loading = false;
                             });
-                            
-                            if (maxHeight > 0) {
-                                mainContainer.style.height = maxHeight + 'px';
-                                bbContents.utils.log('Auto-height détecté:', maxHeight + 'px');
+                    };
+                    
+                    // Observer d'intersection pour déclencher le chargement
+                    const observer = new IntersectionObserver((entries) => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                loadMore();
                             }
-                        }
-                        
-                        // Debug
-                        bbContents.utils.log('Debug - Largeur du contenu:', contentWidth, 'px', 'Hauteur:', contentHeight, 'px', 'Enfants:', mainBlock.children.length, 'Vertical:', isVertical, 'Direction:', direction);
-                        
-                        // Si pas de contenu, réessayer
-                        if ((isVertical && contentHeight === 0) || (!isVertical && contentWidth === 0)) {
-                            bbContents.utils.log('Contenu non prêt, nouvelle tentative dans 200ms');
-                            setTimeout(initAnimation, 200);
-                            return;
-                        }
-                        
-                        // Pour le vertical, s'assurer qu'on a une hauteur minimale
-                        if (isVertical && contentHeight < 50) {
-                            bbContents.utils.log('Hauteur insuffisante pour le marquee vertical (' + contentHeight + 'px), nouvelle tentative dans 200ms');
-                            setTimeout(initAnimation, 200);
-                            return;
-                        }
-                        
-                        if (isVertical) {
-                            // Animation JavaScript pour le vertical
-                            const contentSize = contentHeight;
-                            const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
-                            scrollContainer.style.height = totalSize + 'px';
-                            
-                            let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
-                            const step = (parseFloat(speed) * 2) / 60; // Vitesse différente
-                            let isPaused = false;
-                            
-                            // Fonction d'animation JavaScript
-                            const animate = () => {
-                                if (!isPaused) {
-                                    if (direction === 'bottom') {
-                                        currentPosition += step;
-                                        if (currentPosition >= 0) {
-                                            currentPosition = -contentSize - parseInt(gap);
-                                        }
-                                    } else {
-                                        currentPosition -= step;
-                                        if (currentPosition <= -contentSize - parseInt(gap)) {
-                                            currentPosition = 0;
-                                        }
-                                    }
-                                    
-                                    scrollContainer.style.transform = `translate3d(0px, ${currentPosition}px, 0px)`;
-                                }
-                                requestAnimationFrame(animate);
-                            };
-                            
-                            // Démarrer l'animation
-                            animate();
-                            
-                            bbContents.utils.log('Marquee vertical créé avec animation JS - direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px', 'hauteur-wrapper:', height + 'px');
-                            
-                            // Pause au survol
-                            if (pauseOnHover === 'true') {
-                                element.addEventListener('mouseenter', function() {
-                                    isPaused = true;
-                                });
-                                element.addEventListener('mouseleave', function() {
-                                    isPaused = false;
-                                });
-                            }
-                        } else {
-                            // Animation CSS pour l'horizontal (modifiée)
-                            const contentSize = contentWidth;
-                            const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
-                            scrollContainer.style.width = totalSize + 'px';
-                            
-                            // Créer l'animation CSS optimisée
-                            const animationName = 'bb-scroll-' + Math.random().toString(36).substr(2, 9);
-                            const animationDuration = (totalSize / (parseFloat(speed) * 1.5)).toFixed(2) + 's'; // Vitesse différente
-                            
-                            // Animation avec translate3d pour hardware acceleration
-                            let keyframes;
-                            if (direction === 'right') {
-                                keyframes = `@keyframes ${animationName} {
-                                    0% { transform: translate3d(-${contentSize + parseInt(gap)}px, 0px, 0px); }
-                                    100% { transform: translate3d(0px, 0px, 0px); }
-                                }`;
-                            } else {
-                                // Direction 'left' par défaut
-                                keyframes = `@keyframes ${animationName} {
-                                    0% { transform: translate3d(0px, 0px, 0px); }
-                                    100% { transform: translate3d(-${contentSize + parseInt(gap)}px, 0px, 0px); }
-                                }`;
-                            }
-
-                            // Ajouter les styles
-                            const style = document.createElement('style');
-                            style.textContent = keyframes;
-                            document.head.appendChild(style);
-
-                            // Appliquer l'animation
-                            scrollContainer.style.animation = `${animationName} ${animationDuration} linear infinite`;
-                            
-                            bbContents.utils.log('Marquee horizontal créé:', animationName, 'durée:', animationDuration + 's', 'direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px');
-
-                            // Pause au survol
-                            if (pauseOnHover === 'true') {
-                                element.addEventListener('mouseenter', function() {
-                                    scrollContainer.style.animationPlayState = 'paused';
-                                });
-                                element.addEventListener('mouseleave', function() {
-                                    scrollContainer.style.animationPlayState = 'running';
-                                });
-                            }
-                        }
-                    });
-                };
+                        });
+                    }, { threshold: parseFloat(threshold) });
+                    
+                    observer.observe(element);
+                });
                 
-                // Démarrer l'initialisation
-                setTimeout(initAnimation, isVertical ? 300 : 100);
-            });
-
-            bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
-        }
-    },
-
-    // Module YouTube Feed
-    youtube: {
-        init: function() {
-            const elements = document.querySelectorAll('[bb-youtube-channel]');
-            if (elements.length === 0) return;
-            
-            bbContents.utils.log('Module détecté: youtube');
-            
-            elements.forEach(element => {
-                if (element.bbProcessed) return;
-                element.bbProcessed = true;
-                
-                const channelId = bbContents._getAttr(element, 'bb-youtube-channel');
-                const videoCount = bbContents._getAttr(element, 'bb-youtube-video-count') || '10';
-                const endpoint = bbContents.config.youtubeEndpoint;
-                
-                if (!channelId) {
-                    bbContents.utils.log('Erreur: bb-youtube-channel manquant');
-                    return;
-                }
-                
-                if (!endpoint) {
-                    bbContents.utils.log('Erreur: youtubeEndpoint non configuré. Utilisez bbContents.config.youtubeEndpoint = "votre-worker-url"');
-                    element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez : bbContents.config.youtubeEndpoint = "votre-worker-url"</div>';
-                    return;
-                }
-                
-                // Afficher un loader
-                element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
-                
-                // Appeler l'API via le Worker
-                fetch(`${endpoint}?channelId=${channelId}&maxResults=${videoCount}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.error) {
-                            throw new Error(data.error.message || 'Erreur API YouTube');
-                        }
-                        this.generateYouTubeFeed(element, data);
-                    })
-                    .catch(error => {
-                        bbContents.utils.log('Erreur dans le module youtube:', error);
-                        element.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${error.message}</div>`;
-                    });
-            });
-        },
-        
-        generateYouTubeFeed: function(container, data) {
-            if (!data.items || data.items.length === 0) {
-                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vidéo trouvée</div>';
-                return;
+                bbContents.utils.log('Module Infinite Scroll initialisé:', elements.length, 'éléments');
             }
+        },
+
+        // Module Marquee
+        marquee: {
+            detect: function(scope) {
+                return scope.querySelector('[bb-marquee]') !== null;
+            },
             
-            // Créer la grille de vidéos
-            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">';
-            
-            data.items.forEach(item => {
-                const videoId = item.id.videoId;
-                const snippet = item.snippet;
+            init: function(scope) {
+                const elements = scope.querySelectorAll('[bb-marquee]');
+                if (elements.length === 0) return;
                 
-                html += `
-                    <div class="bb-youtube-video" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-                        <div class="bb-youtube-thumbnail" style="position: relative;">
-                            <img src="${snippet.thumbnails.medium.url}" alt="${snippet.title}" style="width: 100%; height: auto; display: block;">
-                            <div class="bb-youtube-duration" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">YouTube</div>
-                        </div>
-                        <div class="bb-youtube-content" style="padding: 16px;">
-                            <div class="bb-youtube-title" style="font-weight: 600; margin-bottom: 8px; line-height: 1.4;">${snippet.title}</div>
-                            <div class="bb-youtube-channel" style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">${snippet.channelTitle}</div>
-                            <div class="bb-youtube-date" style="color: #9ca3af; font-size: 12px;">${this.formatDate(snippet.publishedAt)}</div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            container.innerHTML = html;
-            
-            // Traiter les éléments avec des attributes spécifiques
-            this.processYouTubeElements(container, data);
+                bbContents.utils.log('Module détecté: marquee');
+                
+                elements.forEach(element => {
+                    if (element.bbProcessed) return;
+                    element.bbProcessed = true;
+                    
+                    const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '30';
+                    const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
+                    const pause = bbContents._getAttr(element, 'bb-marquee-pause') || 'true';
+                    const gap = bbContents._getAttr(element, 'bb-marquee-gap') || '50';
+                    const orientation = bbContents._getAttr(element, 'bb-marquee-orientation') || 'horizontal';
+                    const height = bbContents._getAttr(element, 'bb-marquee-height');
+                    const minHeight = bbContents._getAttr(element, 'bb-marquee-min-height');
+                    
+                    // Créer le conteneur principal
+                    const mainContainer = document.createElement('div');
+                    mainContainer.style.cssText = `
+                        overflow: hidden;
+                        position: relative;
+                        width: 100%;
+                        ${height ? `height: ${height};` : ''}
+                        ${minHeight ? `min-height: ${minHeight};` : ''}
+                    `;
+                    
+                    // Créer le conteneur de défilement
+                    const scrollContainer = document.createElement('div');
+                    scrollContainer.style.cssText = `
+                        display: flex;
+                        align-items: center;
+                        ${orientation === 'vertical' ? 'flex-direction: column;' : ''}
+                        gap: ${gap}px;
+                        animation: marquee ${speed}s linear infinite;
+                        ${direction === 'right' ? 'animation-direction: reverse;' : ''}
+                        ${orientation === 'vertical' ? 'animation-name: marquee-vertical;' : ''}
+                    `;
+                    
+                    // Déplacer le contenu original
+                    const originalContent = element.innerHTML;
+                    scrollContainer.innerHTML = originalContent + originalContent; // Dupliquer pour l'effet infini
+                    
+                    // Ajouter les styles CSS
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        @keyframes marquee {
+                            0% { transform: translateX(0); }
+                            100% { transform: translateX(-50%); }
+                        }
+                        @keyframes marquee-vertical {
+                            0% { transform: translateY(0); }
+                            100% { transform: translateY(-50%); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                    
+                    // Pause au survol
+                    if (pause === 'true') {
+                        mainContainer.addEventListener('mouseenter', () => {
+                            scrollContainer.style.animationPlayState = 'paused';
+                        });
+                        mainContainer.addEventListener('mouseleave', () => {
+                            scrollContainer.style.animationPlayState = 'running';
+                        });
+                    }
+                    
+                    // Auto-height pour les logos horizontaux
+                    if (orientation === 'horizontal' && !height && !minHeight) {
+                        const logos = element.querySelectorAll('.bb-marquee_logo, img, svg');
+                        let maxHeight = 0;
+                        logos.forEach(logo => {
+                            const rect = logo.getBoundingClientRect();
+                            if (rect.height > maxHeight) maxHeight = rect.height;
+                        });
+                        if (maxHeight > 0) {
+                            mainContainer.style.height = maxHeight + 'px';
+                        }
+                    }
+                    
+                    // Assembler
+                    mainContainer.appendChild(scrollContainer);
+                    element.innerHTML = '';
+                    element.appendChild(mainContainer);
+                    
+                    // Délai pour l'animation
+                    const isVertical = orientation === 'vertical';
+                    setTimeout(() => {
+                        scrollContainer.style.animation = `marquee${isVertical ? '-vertical' : ''} ${speed}s linear infinite`;
+                        if (direction === 'right') {
+                            scrollContainer.style.animationDirection = 'reverse';
+                        }
+                    }, isVertical ? 300 : 100);
+                });
+                
+                bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
+            }
         },
-        
-        processYouTubeElements: function(container, data) {
-            // Traiter bb-youtube-show-title
-            container.querySelectorAll('[bb-youtube-show-title]').forEach((element, index) => {
-                if (data.items[index]) {
-                    element.textContent = data.items[index].snippet.title;
-                }
-            });
+
+        // Module YouTube Feed
+        youtube: {
+            detect: function(scope) {
+                return scope.querySelector('[bb-youtube-channel]') !== null;
+            },
             
-            // Traiter bb-youtube-show-description
-            container.querySelectorAll('[bb-youtube-show-description]').forEach((element, index) => {
-                if (data.items[index]) {
-                    element.textContent = data.items[index].snippet.description;
-                }
-            });
+            init: function(scope) {
+                const elements = scope.querySelectorAll('[bb-youtube-channel]');
+                if (elements.length === 0) return;
+                
+                bbContents.utils.log('Module détecté: youtube');
+                
+                elements.forEach(element => {
+                    if (element.bbProcessed) return;
+                    element.bbProcessed = true;
+                    
+                    const channelId = bbContents._getAttr(element, 'bb-youtube-channel');
+                    const videoCount = bbContents._getAttr(element, 'bb-youtube-video-count') || '10';
+                    const endpoint = bbContents.config.youtubeEndpoint;
+                    
+                    if (!channelId) {
+                        bbContents.utils.log('Erreur: bb-youtube-channel manquant');
+                        return;
+                    }
+                    
+                    if (!endpoint) {
+                        bbContents.utils.log('Erreur: youtubeEndpoint non configuré. Utilisez bbContents.config.youtubeEndpoint = "votre-worker-url"');
+                        element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez : bbContents.config.youtubeEndpoint = "votre-worker-url"</div>';
+                        return;
+                    }
+                    
+                    // Afficher un loader
+                    element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
+                    
+                    // Appeler l'API via le Worker
+                    fetch(`${endpoint}?channelId=${channelId}&maxResults=${videoCount}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.error) {
+                                throw new Error(data.error.message || 'Erreur API YouTube');
+                            }
+                            this.generateYouTubeFeed(element, data);
+                        })
+                        .catch(error => {
+                            bbContents.utils.log('Erreur dans le module youtube:', error);
+                            element.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${error.message}</div>`;
+                        });
+                });
+            },
             
-            // Traiter bb-youtube-show-views (nécessite une requête supplémentaire)
-            container.querySelectorAll('[bb-youtube-show-views]').forEach((element, index) => {
-                if (data.items[index]) {
-                    element.textContent = 'Vues non disponibles';
+            generateYouTubeFeed: function(container, data) {
+                if (!data.items || data.items.length === 0) {
+                    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vidéo trouvée</div>';
+                    return;
                 }
-            });
+                
+                // Créer la grille de vidéos
+                let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">';
+                
+                data.items.forEach(item => {
+                    const videoId = item.id.videoId;
+                    const snippet = item.snippet;
+                    
+                    html += `
+                        <div class="bb-youtube-video" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                            <div class="bb-youtube-thumbnail" style="position: relative;">
+                                <img src="${snippet.thumbnails.medium.url}" alt="${snippet.title}" style="width: 100%; height: auto; display: block;">
+                                <div class="bb-youtube-duration" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">YouTube</div>
+                            </div>
+                            <div class="bb-youtube-content" style="padding: 16px;">
+                                <div class="bb-youtube-title" style="font-weight: 600; margin-bottom: 8px; line-height: 1.4;">${snippet.title}</div>
+                                <div class="bb-youtube-channel" style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">${snippet.channelTitle}</div>
+                                <div class="bb-youtube-date" style="color: #9ca3af; font-size: 12px;">${this.formatDate(snippet.publishedAt)}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+                
+                // Traiter les éléments avec des attributes spécifiques
+                this.processYouTubeElements(container, data);
+            },
             
-            // Traiter bb-youtube-show-date
-            container.querySelectorAll('[bb-youtube-show-date]').forEach((element, index) => {
-                if (data.items[index]) {
-                    element.textContent = this.formatDate(data.items[index].snippet.publishedAt);
-                }
-            });
-        },
-        
-        formatDate: function(dateString) {
-            const date = new Date(dateString);
-            const now = new Date();
-            const diffTime = Math.abs(now - date);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            processYouTubeElements: function(container, data) {
+                // Traiter bb-youtube-show-title
+                container.querySelectorAll('[bb-youtube-show-title]').forEach((element, index) => {
+                    if (data.items[index]) {
+                        element.textContent = data.items[index].snippet.title;
+                    }
+                });
+                
+                // Traiter bb-youtube-show-description
+                container.querySelectorAll('[bb-youtube-show-description]').forEach((element, index) => {
+                    if (data.items[index]) {
+                        element.textContent = data.items[index].snippet.description;
+                    }
+                });
+                
+                // Traiter bb-youtube-show-views (nécessite une requête supplémentaire)
+                container.querySelectorAll('[bb-youtube-show-views]').forEach((element, index) => {
+                    if (data.items[index]) {
+                        element.textContent = 'Vues non disponibles';
+                    }
+                });
+                
+                // Traiter bb-youtube-show-date
+                container.querySelectorAll('[bb-youtube-show-date]').forEach((element, index) => {
+                    if (data.items[index]) {
+                        element.textContent = this.formatDate(data.items[index].snippet.publishedAt);
+                    }
+                });
+            },
             
-            if (diffDays === 1) return 'Il y a 1 jour';
-            if (diffDays < 7) return `Il y a ${diffDays} jours`;
-            if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)} semaines`;
-            if (diffDays < 365) return `Il y a ${Math.floor(diffDays / 30)} mois`;
-            return `Il y a ${Math.floor(diffDays / 365)} ans`;
+            formatDate: function(dateString) {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffTime = Math.abs(now - date);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (diffDays === 1) return 'Il y a 1 jour';
+                if (diffDays < 7) return `Il y a ${diffDays} jours`;
+                if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)} semaines`;
+                if (diffDays < 365) return `Il y a ${Math.floor(diffDays / 30)} mois`;
+                return `Il y a ${Math.floor(diffDays / 365)} ans`;
+            }
         }
-    }
-};
-
-
+    };
 
     // Exposer globalement
     window.bbContents = bbContents;
