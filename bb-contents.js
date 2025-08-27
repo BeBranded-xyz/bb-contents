@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.21-beta
+ * @version 1.0.22-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.21-beta',
+        version: '1.0.22-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -304,7 +304,7 @@
             }
         },
 
-        // Module Marquee - Version simplifiée et corrigée
+        // Module Marquee - Reproduction exacte de la version live
         marquee: {
             detect: function(scope) {
                 return scope.querySelector('[bb-marquee]') !== null;
@@ -324,98 +324,131 @@
                     }
                     element.bbProcessed = true;
                     
-                    // Récupérer les options
-                    const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '3000';
+                    // Récupérer les options (comme la version live)
+                    const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
                     const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
-                    const pause = bbContents._getAttr(element, 'bb-marquee-pause') || 'true';
+                    const pauseOnHover = bbContents._getAttr(element, 'bb-marquee-pause') || 'true';
                     const gap = bbContents._getAttr(element, 'bb-marquee-gap') || '50';
                     const orientation = bbContents._getAttr(element, 'bb-marquee-orientation') || 'horizontal';
-                    const height = bbContents._getAttr(element, 'bb-marquee-height');
+                    const height = bbContents._getAttr(element, 'bb-marquee-height') || '300';
                     const minHeight = bbContents._getAttr(element, 'bb-marquee-min-height');
                     
                     // Sauvegarder le contenu original
-                    const originalContent = element.innerHTML;
+                    const originalHTML = element.innerHTML;
                     
-                    // Créer le conteneur principal
+                    // Créer le conteneur principal (comme la version live)
                     const mainContainer = document.createElement('div');
+                    const isVertical = orientation === 'vertical';
                     mainContainer.style.cssText = `
-                        overflow: hidden;
                         position: relative;
                         width: 100%;
-                        ${height ? `height: ${height};` : ''}
+                        height: ${isVertical ? height + 'px' : 'auto'};
+                        overflow: hidden;
+                        min-height: ${isVertical ? '100px' : '50px'};
                         ${minHeight ? `min-height: ${minHeight};` : ''}
                     `;
                     
-                    // Créer le conteneur de défilement
+                    // Créer le conteneur de défilement (comme la version live)
                     const scrollContainer = document.createElement('div');
                     scrollContainer.style.cssText = `
-                        display: flex;
-                        align-items: center;
-                        ${orientation === 'vertical' ? 'flex-direction: column;' : ''}
-                        gap: ${gap}px;
+                        position: absolute;
                         will-change: transform;
+                        height: 100%;
+                        top: 0px;
+                        left: 0px;
+                        display: flex;
+                        ${isVertical ? 'flex-direction: column;' : ''}
+                        align-items: center;
+                        gap: ${gap}px;
+                        ${isVertical ? '' : 'white-space: nowrap;'}
+                        flex-shrink: 0;
                     `;
                     
-                    // Dupliquer le contenu
-                    scrollContainer.innerHTML = originalContent + originalContent;
+                    // Dupliquer le contenu (4 copies comme la version live)
+                    scrollContainer.innerHTML = originalHTML + originalHTML + originalHTML + originalHTML;
                     
                     // Assembler
                     mainContainer.appendChild(scrollContainer);
-                    // Sauvegarder le contenu original avant de vider
-                    const originalMarqueeContent = element.innerHTML;
                     element.innerHTML = '';
                     element.appendChild(mainContainer);
                     
                     // Marquer l'élément comme traité par le module marquee
                     element.setAttribute('data-bb-marquee-processed', 'true');
                     
-                    // Animation JavaScript simple et efficace
-                    const isVertical = orientation === 'vertical';
-                    let animationId;
-                    let startTime;
-                    let currentPosition = 0;
-                    
-                    const animate = (timestamp) => {
-                        if (!startTime) startTime = timestamp;
-                        const elapsed = timestamp - startTime;
+                    // Logique exacte de la version live
+                    if (isVertical) {
+                        // Animation JavaScript pour le vertical (comme la version live)
+                        const contentHeight = scrollContainer.scrollHeight / 4;
+                        const contentSize = contentHeight;
+                        const totalSize = contentSize * 4 + parseInt(gap) * 3;
+                        scrollContainer.style.height = totalSize + 'px';
                         
-                        // Vitesse en millisecondes (plus lente pour une transition fluide)
-                        const speedMs = parseInt(speed);
-                        const progress = (elapsed % speedMs) / speedMs;
+                        let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
+                        const step = (parseFloat(speed) * 2) / 60; // Exactement comme la version live
+                        let isPaused = false;
                         
-                        // Calculer la taille du contenu avec une transition plus douce
-                        const contentSize = isVertical ? scrollContainer.scrollHeight / 2 : scrollContainer.scrollWidth / 2;
-                        currentPosition = -progress * contentSize;
-                        
-                        // Appliquer une transition CSS pour plus de fluidité
-                        scrollContainer.style.transition = 'transform 0.1s ease-out';
-                        
-                        // Appliquer la transformation
-                        scrollContainer.style.transform = isVertical 
-                            ? `translateY(${currentPosition}px)`
-                            : `translateX(${currentPosition}px)`;
-                        
-                        animationId = requestAnimationFrame(animate);
-                    };
-                    
-                    // Démarrer l'animation avec un délai pour laisser le DOM se stabiliser
-                    setTimeout(() => {
-                        animationId = requestAnimationFrame(animate);
-                    }, 200);
-                    
-                    // Pause au survol
-                    if (pause === 'true') {
-                        mainContainer.addEventListener('mouseenter', () => {
-                            if (animationId) {
-                                cancelAnimationFrame(animationId);
-                                animationId = null;
+                        const animate = () => {
+                            if (!isPaused) {
+                                if (direction === 'bottom') {
+                                    currentPosition += step;
+                                    if (currentPosition >= 0) {
+                                        currentPosition = -contentSize - parseInt(gap);
+                                    }
+                                } else {
+                                    currentPosition -= step;
+                                    if (currentPosition <= -contentSize - parseInt(gap)) {
+                                        currentPosition = 0;
+                                    }
+                                }
+                                
+                                scrollContainer.style.transform = `translate3d(0px, ${currentPosition}px, 0px)`;
                             }
-                        });
-                        mainContainer.addEventListener('mouseleave', () => {
-                            if (!animationId) {
-                                animationId = requestAnimationFrame(animate);
+                            requestAnimationFrame(animate);
+                        };
+                        
+                        animate();
+                        
+                        // Pause au survol
+                        if (pauseOnHover === 'true') {
+                            mainContainer.addEventListener('mouseenter', () => {
+                                isPaused = true;
+                            });
+                            mainContainer.addEventListener('mouseleave', () => {
+                                isPaused = false;
+                            });
+                        }
+                    } else {
+                        // Animation CSS pour l'horizontal (comme la version live)
+                        const contentWidth = scrollContainer.scrollWidth / 4;
+                        const contentSize = contentWidth;
+                        const totalSize = contentSize * 4 + parseInt(gap) * 3;
+                        scrollContainer.style.width = totalSize + 'px';
+                        
+                        // Calcul de la durée exacte comme la version live
+                        const animationDuration = (totalSize / (parseFloat(speed) * 1.5)).toFixed(2) + 's';
+                        
+                        // Animation CSS avec translate3d
+                        const animationName = 'bb-scroll-' + Math.random().toString(36).substr(2, 9);
+                        const style = document.createElement('style');
+                        style.textContent = `
+                            @keyframes ${animationName} {
+                                0% { transform: translate3d(0px, 0px, 0px); }
+                                100% { transform: translate3d(-${contentSize + parseInt(gap)}px, 0px, 0px); }
                             }
-                        });
+                        `;
+                        document.head.appendChild(style);
+                        
+                        scrollContainer.style.animation = `${animationName} ${animationDuration} linear infinite`;
+                        
+                        // Pause au survol
+                        if (pauseOnHover === 'true') {
+                            mainContainer.addEventListener('mouseenter', () => {
+                                scrollContainer.style.animationPlayState = 'paused';
+                            });
+                            mainContainer.addEventListener('mouseleave', () => {
+                                scrollContainer.style.animationPlayState = 'running';
+                            });
+                        }
                     }
                     
                     // Auto-height pour les logos horizontaux
@@ -432,7 +465,7 @@
                     }
                 });
                 
-                bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
+                bbContents.utils.log('Module Marquee (version live) initialisé:', elements.length, 'éléments');
             }
         },
 
