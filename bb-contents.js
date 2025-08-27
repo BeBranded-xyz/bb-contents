@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.22-beta
+ * @version 1.0.23-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.22-beta',
+        version: '1.0.23-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -375,93 +375,97 @@
                     // Marquer l'élément comme traité par le module marquee
                     element.setAttribute('data-bb-marquee-processed', 'true');
                     
-                    // Logique exacte de la version live
-                    if (isVertical) {
-                        // Animation JavaScript pour le vertical (comme la version live)
-                        const contentHeight = scrollContainer.scrollHeight / 4;
-                        const contentSize = contentHeight;
-                        const totalSize = contentSize * 4 + parseInt(gap) * 3;
-                        scrollContainer.style.height = totalSize + 'px';
-                        
-                        let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
-                        const step = (parseFloat(speed) * 2) / 60; // Exactement comme la version live
-                        let isPaused = false;
-                        
-                        const animate = () => {
-                            if (!isPaused) {
-                                if (direction === 'bottom') {
-                                    currentPosition += step;
-                                    if (currentPosition >= 0) {
-                                        currentPosition = -contentSize - parseInt(gap);
+                    // Démarrer l'animation après un délai pour laisser le DOM se stabiliser
+                    setTimeout(() => {
+                        if (isVertical) {
+                            // Animation JavaScript pour le vertical (comme la version live)
+                            const contentHeight = scrollContainer.scrollHeight / 4;
+                            const contentSize = contentHeight;
+                            const totalSize = contentSize * 4 + parseInt(gap) * 3;
+                            scrollContainer.style.height = totalSize + 'px';
+                            
+                            let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
+                            const step = (parseFloat(speed) * 2) / 60; // Exactement comme la version live
+                            let isPaused = false;
+                            
+                            const animate = () => {
+                                if (!isPaused) {
+                                    if (direction === 'bottom') {
+                                        currentPosition += step;
+                                        if (currentPosition >= 0) {
+                                            currentPosition = -contentSize - parseInt(gap);
+                                        }
+                                    } else {
+                                        currentPosition -= step;
+                                        if (currentPosition <= -contentSize - parseInt(gap)) {
+                                            currentPosition = 0;
+                                        }
                                     }
-                                } else {
-                                    currentPosition -= step;
-                                    if (currentPosition <= -contentSize - parseInt(gap)) {
-                                        currentPosition = 0;
-                                    }
+                                    
+                                    scrollContainer.style.transform = `translate3d(0px, ${currentPosition}px, 0px)`;
                                 }
-                                
-                                scrollContainer.style.transform = `translate3d(0px, ${currentPosition}px, 0px)`;
+                                requestAnimationFrame(animate);
+                            };
+                            
+                            animate();
+                            
+                            // Pause au survol
+                            if (pauseOnHover === 'true') {
+                                mainContainer.addEventListener('mouseenter', () => {
+                                    isPaused = true;
+                                });
+                                mainContainer.addEventListener('mouseleave', () => {
+                                    isPaused = false;
+                                });
                             }
-                            requestAnimationFrame(animate);
-                        };
-                        
-                        animate();
-                        
-                        // Pause au survol
-                        if (pauseOnHover === 'true') {
-                            mainContainer.addEventListener('mouseenter', () => {
-                                isPaused = true;
-                            });
-                            mainContainer.addEventListener('mouseleave', () => {
-                                isPaused = false;
-                            });
-                        }
-                    } else {
-                        // Animation CSS pour l'horizontal (comme la version live)
-                        const contentWidth = scrollContainer.scrollWidth / 4;
-                        const contentSize = contentWidth;
-                        const totalSize = contentSize * 4 + parseInt(gap) * 3;
-                        scrollContainer.style.width = totalSize + 'px';
-                        
-                        // Calcul de la durée exacte comme la version live
-                        const animationDuration = (totalSize / (parseFloat(speed) * 1.5)).toFixed(2) + 's';
-                        
-                        // Animation CSS avec translate3d
-                        const animationName = 'bb-scroll-' + Math.random().toString(36).substr(2, 9);
-                        const style = document.createElement('style');
-                        style.textContent = `
-                            @keyframes ${animationName} {
-                                0% { transform: translate3d(0px, 0px, 0px); }
-                                100% { transform: translate3d(-${contentSize + parseInt(gap)}px, 0px, 0px); }
+                        } else {
+                            // Animation CSS pour l'horizontal (comme la version live)
+                            const contentWidth = scrollContainer.scrollWidth / 4;
+                            const contentSize = contentWidth;
+                            const totalSize = contentSize * 4 + parseInt(gap) * 3;
+                            scrollContainer.style.width = totalSize + 'px';
+                            
+                            // Calcul de la durée exacte comme la version live
+                            const animationDuration = (totalSize / (parseFloat(speed) * 1.5)).toFixed(2) + 's';
+                            
+                            // Animation CSS avec translate3d
+                            const animationName = 'bb-scroll-' + Math.random().toString(36).substr(2, 9);
+                            const style = document.createElement('style');
+                            style.textContent = `
+                                @keyframes ${animationName} {
+                                    0% { transform: translate3d(0px, 0px, 0px); }
+                                    100% { transform: translate3d(-${contentSize + parseInt(gap)}px, 0px, 0px); }
+                                }
+                            `;
+                            document.head.appendChild(style);
+                            
+                            scrollContainer.style.animation = `${animationName} ${animationDuration} linear infinite`;
+                            
+                            // Pause au survol
+                            if (pauseOnHover === 'true') {
+                                mainContainer.addEventListener('mouseenter', () => {
+                                    scrollContainer.style.animationPlayState = 'paused';
+                                });
+                                mainContainer.addEventListener('mouseleave', () => {
+                                    scrollContainer.style.animationPlayState = 'running';
+                                });
                             }
-                        `;
-                        document.head.appendChild(style);
-                        
-                        scrollContainer.style.animation = `${animationName} ${animationDuration} linear infinite`;
-                        
-                        // Pause au survol
-                        if (pauseOnHover === 'true') {
-                            mainContainer.addEventListener('mouseenter', () => {
-                                scrollContainer.style.animationPlayState = 'paused';
-                            });
-                            mainContainer.addEventListener('mouseleave', () => {
-                                scrollContainer.style.animationPlayState = 'running';
-                            });
                         }
-                    }
+                    }, 100);
                     
-                    // Auto-height pour les logos horizontaux
+                    // Auto-height pour les logos horizontaux (amélioré)
                     if (orientation === 'horizontal' && !height && !minHeight) {
-                        const logos = element.querySelectorAll('.bb-marquee_logo, img, svg');
-                        let maxHeight = 0;
-                        logos.forEach(logo => {
-                            const rect = logo.getBoundingClientRect();
-                            if (rect.height > maxHeight) maxHeight = rect.height;
-                        });
-                        if (maxHeight > 0) {
-                            mainContainer.style.height = maxHeight + 'px';
-                        }
+                        setTimeout(() => {
+                            const logos = element.querySelectorAll('.bb-marquee_logo, img, svg');
+                            let maxHeight = 0;
+                            logos.forEach(logo => {
+                                const rect = logo.getBoundingClientRect();
+                                if (rect.height > maxHeight) maxHeight = rect.height;
+                            });
+                            if (maxHeight > 0) {
+                                mainContainer.style.height = maxHeight + 'px';
+                            }
+                        }, 50);
                     }
                 });
                 
