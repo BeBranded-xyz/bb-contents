@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.15-beta
+ * @version 1.0.16-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.15-beta',
+        version: '1.0.16-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -320,7 +320,7 @@
                     if (element.bbProcessed) return;
                     element.bbProcessed = true;
                     
-                    const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
+                    const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '15';
                     const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
                     const pause = bbContents._getAttr(element, 'bb-marquee-pause') || 'true';
                     const gap = bbContents._getAttr(element, 'bb-marquee-gap') || '50';
@@ -345,7 +345,7 @@
                         align-items: center;
                         ${orientation === 'vertical' ? 'flex-direction: column;' : ''}
                         gap: ${gap}px;
-                        animation: marquee ${speed}ms linear infinite;
+                        animation: marquee ${speed}s linear infinite;
                         ${direction === 'right' ? 'animation-direction: reverse;' : ''}
                         ${orientation === 'vertical' ? 'animation-name: marquee-vertical;' : ''}
                     `;
@@ -399,7 +399,7 @@
                     // Délai pour l'animation
                     const isVertical = orientation === 'vertical';
                     setTimeout(() => {
-                        scrollContainer.style.animation = `marquee${isVertical ? '-vertical' : ''} ${speed}ms linear infinite`;
+                        scrollContainer.style.animation = `marquee${isVertical ? '-vertical' : ''} ${speed}s linear infinite`;
                         if (direction === 'right') {
                             scrollContainer.style.animationDirection = 'reverse';
                         }
