@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.17-beta
+ * @version 1.0.18-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.17-beta',
+        version: '1.0.18-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -304,7 +304,7 @@
             }
         },
 
-        // Module Marquee
+        // Module Marquee - Version hybride (CSS + JavaScript)
         marquee: {
             detect: function(scope) {
                 return scope.querySelector('[bb-marquee]') !== null;
@@ -320,6 +320,7 @@
                     if (element.bbProcessed) return;
                     element.bbProcessed = true;
                     
+                    // Récupérer les options avec valeurs par défaut optimisées
                     const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
                     const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
                     const pause = bbContents._getAttr(element, 'bb-marquee-pause') || 'true';
@@ -327,6 +328,9 @@
                     const orientation = bbContents._getAttr(element, 'bb-marquee-orientation') || 'horizontal';
                     const height = bbContents._getAttr(element, 'bb-marquee-height');
                     const minHeight = bbContents._getAttr(element, 'bb-marquee-min-height');
+                    
+                    // Calculer la vitesse en millisecondes (comme la version live)
+                    const speedMs = parseInt(speed);
                     
                     // Créer le conteneur principal
                     const mainContainer = document.createElement('div');
@@ -338,26 +342,25 @@
                         ${minHeight ? `min-height: ${minHeight};` : ''}
                     `;
                     
-                    // Créer le conteneur de défilement
+                    // Créer le conteneur de défilement avec animation CSS de base
                     const scrollContainer = document.createElement('div');
                     scrollContainer.style.cssText = `
                         display: flex;
                         align-items: center;
                         ${orientation === 'vertical' ? 'flex-direction: column;' : ''}
                         gap: ${gap}px;
-                        animation: marquee ${speed}ms linear infinite;
-                        ${direction === 'right' ? 'animation-direction: reverse;' : ''}
-                        ${orientation === 'vertical' ? 'animation-name: marquee-vertical;' : ''}
+                        will-change: transform;
+                        ${orientation === 'vertical' ? 'white-space: nowrap;' : ''}
                     `;
                     
-                    // Déplacer le contenu original
+                    // Dupliquer le contenu pour l'effet infini
                     const originalContent = element.innerHTML;
-                    scrollContainer.innerHTML = originalContent + originalContent; // Dupliquer pour l'effet infini
+                    scrollContainer.innerHTML = originalContent + originalContent;
                     
-                    // Ajouter les styles CSS
+                    // Ajouter les styles CSS optimisés
                     const style = document.createElement('style');
                     style.textContent = `
-                        @keyframes marquee {
+                        @keyframes marquee-horizontal {
                             0% { transform: translateX(0); }
                             100% { transform: translateX(-50%); }
                         }
@@ -368,13 +371,48 @@
                     `;
                     document.head.appendChild(style);
                     
+                    // Fonction d'animation JavaScript pour contrôle précis (comme la version live)
+                    const isVertical = orientation === 'vertical';
+                    let animationId;
+                    let startTime;
+                    let currentPosition = 0;
+                    const contentSize = isVertical ? scrollContainer.scrollHeight / 2 : scrollContainer.scrollWidth / 2;
+                    
+                    const animate = (timestamp) => {
+                        if (!startTime) startTime = timestamp;
+                        const elapsed = timestamp - startTime;
+                        
+                        // Calculer la position basée sur la vitesse (comme la version live)
+                        const progress = (elapsed % speedMs) / speedMs;
+                        currentPosition = -progress * contentSize;
+                        
+                        // Appliquer la transformation
+                        if (isVertical) {
+                            scrollContainer.style.transform = `translateY(${currentPosition}px)`;
+                        } else {
+                            scrollContainer.style.transform = `translateX(${currentPosition}px)`;
+                        }
+                        
+                        animationId = requestAnimationFrame(animate);
+                    };
+                    
+                    // Démarrer l'animation
+                    setTimeout(() => {
+                        animationId = requestAnimationFrame(animate);
+                    }, 100);
+                    
                     // Pause au survol
                     if (pause === 'true') {
                         mainContainer.addEventListener('mouseenter', () => {
-                            scrollContainer.style.animationPlayState = 'paused';
+                            if (animationId) {
+                                cancelAnimationFrame(animationId);
+                                animationId = null;
+                            }
                         });
                         mainContainer.addEventListener('mouseleave', () => {
-                            scrollContainer.style.animationPlayState = 'running';
+                            if (!animationId) {
+                                animationId = requestAnimationFrame(animate);
+                            }
                         });
                     }
                     
@@ -395,18 +433,9 @@
                     mainContainer.appendChild(scrollContainer);
                     element.innerHTML = '';
                     element.appendChild(mainContainer);
-                    
-                    // Délai pour l'animation
-                    const isVertical = orientation === 'vertical';
-                    setTimeout(() => {
-                        scrollContainer.style.animation = `marquee${isVertical ? '-vertical' : ''} ${speed}ms linear infinite`;
-                        if (direction === 'right') {
-                            scrollContainer.style.animationDirection = 'reverse';
-                        }
-                    }, isVertical ? 300 : 100);
                 });
                 
-                bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
+                bbContents.utils.log('Module Marquee hybride initialisé:', elements.length, 'éléments');
             }
         },
 
