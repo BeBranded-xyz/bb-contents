@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.19-beta
+ * @version 1.0.20-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.19-beta',
+        version: '1.0.20-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -317,7 +317,11 @@
                 bbContents.utils.log('Module détecté: marquee');
                 
                 elements.forEach(element => {
-                    if (element.bbProcessed) return;
+                    // Vérifier si l'élément a déjà été traité par un autre module
+                    if (element.bbProcessed || element.hasAttribute('data-bb-youtube-processed')) {
+                        bbContents.utils.log('Élément marquee déjà traité par un autre module, ignoré:', element);
+                        return;
+                    }
                     element.bbProcessed = true;
                     
                     // Récupérer les options
@@ -357,8 +361,13 @@
                     
                     // Assembler
                     mainContainer.appendChild(scrollContainer);
+                    // Sauvegarder le contenu original avant de vider
+                    const originalMarqueeContent = element.innerHTML;
                     element.innerHTML = '';
                     element.appendChild(mainContainer);
+                    
+                    // Marquer l'élément comme traité par le module marquee
+                    element.setAttribute('data-bb-marquee-processed', 'true');
                     
                     // Animation JavaScript simple et efficace
                     const isVertical = orientation === 'vertical';
@@ -437,7 +446,11 @@
                 bbContents.utils.log('Module détecté: youtube');
                 
                 elements.forEach(element => {
-                    if (element.bbProcessed) return;
+                    // Vérifier si l'élément a déjà été traité par un autre module
+                    if (element.bbProcessed || element.hasAttribute('data-bb-marquee-processed')) {
+                        bbContents.utils.log('Élément youtube déjà traité par un autre module, ignoré:', element);
+                        return;
+                    }
                     element.bbProcessed = true;
                     
                     const channelId = bbContents._getAttr(element, 'bb-youtube-channel');
@@ -478,6 +491,9 @@
                     // Cacher le template original
                     template.style.display = 'none';
                     
+                    // Marquer l'élément comme traité par le module YouTube
+                    element.setAttribute('data-bb-youtube-processed', 'true');
+                    
                     // Afficher un loader
                     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
                     
@@ -512,8 +528,14 @@
                 let videos = data.items;
                 bbContents.utils.log(`Vidéos reçues de l'API: ${videos.length} (allowShorts: ${allowShorts})`);
                 
-                // Vider le conteneur
+                // Vider le conteneur (en préservant les éléments marquee)
+                const marqueeElements = container.querySelectorAll('[data-bb-marquee-processed]');
                 container.innerHTML = '';
+                
+                // Restaurer les éléments marquee si présents
+                marqueeElements.forEach(marqueeEl => {
+                    container.appendChild(marqueeEl);
+                });
                 
                 // Cloner le template pour chaque vidéo
                 videos.forEach(item => {
