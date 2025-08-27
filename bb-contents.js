@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.24-beta
+ * @version 1.0.25-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.24-beta',
+        version: '1.0.25-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -465,47 +465,47 @@
                                     });
                                 }
                             } else {
-                                // Animation CSS pour l'horizontal (modifiée)
+                                // Animation JavaScript pour l'horizontal (comme le vertical pour éviter les saccades)
                                 const contentSize = contentWidth;
-                                const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
+                                const totalSize = contentSize * 4 + parseInt(gap) * 3;
                                 scrollContainer.style.width = totalSize + 'px';
                                 
-                                // Créer l'animation CSS optimisée
-                                const animationName = 'bb-scroll-' + Math.random().toString(36).substr(2, 9);
-                                const animationDuration = (totalSize / (parseFloat(speed) * 1.5)).toFixed(2) + 's'; // Vitesse différente
+                                let currentPosition = direction === 'right' ? -contentSize - parseInt(gap) : 0;
+                                const step = (parseFloat(speed) * 2) / 60; // Même logique que le vertical
+                                let isPaused = false;
                                 
-                                // Animation avec translate3d pour hardware acceleration
-                                let keyframes;
-                                if (direction === 'right') {
-                                    keyframes = `@keyframes ${animationName} {
-                                        0% { transform: translate3d(-${contentSize + parseInt(gap)}px, 0px, 0px); }
-                                        100% { transform: translate3d(0px, 0px, 0px); }
-                                    }`;
-                                } else {
-                                    // Direction 'left' par défaut
-                                    keyframes = `@keyframes ${animationName} {
-                                        0% { transform: translate3d(0px, 0px, 0px); }
-                                        100% { transform: translate3d(-${contentSize + parseInt(gap)}px, 0px, 0px); }
-                                    }`;
-                                }
-
-                                // Ajouter les styles
-                                const style = document.createElement('style');
-                                style.textContent = keyframes;
-                                document.head.appendChild(style);
-
-                                // Appliquer l'animation
-                                scrollContainer.style.animation = `${animationName} ${animationDuration} linear infinite`;
+                                // Fonction d'animation JavaScript
+                                const animate = () => {
+                                    if (!isPaused) {
+                                        if (direction === 'right') {
+                                            currentPosition += step;
+                                            if (currentPosition >= 0) {
+                                                currentPosition = -contentSize - parseInt(gap);
+                                            }
+                                        } else {
+                                            currentPosition -= step;
+                                            if (currentPosition <= -contentSize - parseInt(gap)) {
+                                                currentPosition = 0;
+                                            }
+                                        }
+                                        
+                                        scrollContainer.style.transform = `translate3d(${currentPosition}px, 0px, 0px)`;
+                                    }
+                                    requestAnimationFrame(animate);
+                                };
                                 
-                                bbContents.utils.log('Marquee horizontal créé:', animationName, 'durée:', animationDuration + 's', 'direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px');
-
+                                // Démarrer l'animation
+                                animate();
+                                
+                                bbContents.utils.log('Marquee horizontal créé avec animation JS - direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px');
+                                
                                 // Pause au survol
                                 if (pauseOnHover === 'true') {
                                     element.addEventListener('mouseenter', function() {
-                                        scrollContainer.style.animationPlayState = 'paused';
+                                        isPaused = true;
                                     });
                                     element.addEventListener('mouseleave', function() {
-                                        scrollContainer.style.animationPlayState = 'running';
+                                        isPaused = false;
                                     });
                                 }
                             }
