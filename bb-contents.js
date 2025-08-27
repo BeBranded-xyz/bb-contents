@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.25-beta
+ * @version 1.0.26-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.25-beta',
+        version: '1.0.26-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -471,7 +471,7 @@
                                 scrollContainer.style.width = totalSize + 'px';
                                 
                                 let currentPosition = direction === 'right' ? -contentSize - parseInt(gap) : 0;
-                                const step = (parseFloat(speed) * 2) / 60; // Même logique que le vertical
+                                const step = (parseFloat(speed) * 0.5) / 60; // Vitesse réduite pour l'horizontal
                                 let isPaused = false;
                                 
                                 // Fonction d'animation JavaScript
