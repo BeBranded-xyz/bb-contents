@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.20-beta
+ * @version 1.0.21-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.20-beta',
+        version: '1.0.21-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -325,7 +325,7 @@
                     element.bbProcessed = true;
                     
                     // Récupérer les options
-                    const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
+                    const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '3000';
                     const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
                     const pause = bbContents._getAttr(element, 'bb-marquee-pause') || 'true';
                     const gap = bbContents._getAttr(element, 'bb-marquee-gap') || '50';
@@ -379,13 +379,16 @@
                         if (!startTime) startTime = timestamp;
                         const elapsed = timestamp - startTime;
                         
-                        // Vitesse en millisecondes
+                        // Vitesse en millisecondes (plus lente pour une transition fluide)
                         const speedMs = parseInt(speed);
                         const progress = (elapsed % speedMs) / speedMs;
                         
-                        // Calculer la taille du contenu
+                        // Calculer la taille du contenu avec une transition plus douce
                         const contentSize = isVertical ? scrollContainer.scrollHeight / 2 : scrollContainer.scrollWidth / 2;
                         currentPosition = -progress * contentSize;
+                        
+                        // Appliquer une transition CSS pour plus de fluidité
+                        scrollContainer.style.transition = 'transform 0.1s ease-out';
                         
                         // Appliquer la transformation
                         scrollContainer.style.transform = isVertical 
@@ -395,10 +398,10 @@
                         animationId = requestAnimationFrame(animate);
                     };
                     
-                    // Démarrer l'animation
+                    // Démarrer l'animation avec un délai pour laisser le DOM se stabiliser
                     setTimeout(() => {
                         animationId = requestAnimationFrame(animate);
-                    }, 100);
+                    }, 200);
                     
                     // Pause au survol
                     if (pause === 'true') {
