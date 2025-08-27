@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.18-beta
+ * @version 1.0.19-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.18-beta',
+        version: '1.0.19-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -304,7 +304,7 @@
             }
         },
 
-        // Module Marquee - Version hybride (CSS + JavaScript)
+        // Module Marquee - Version simplifiée et corrigée
         marquee: {
             detect: function(scope) {
                 return scope.querySelector('[bb-marquee]') !== null;
@@ -320,7 +320,7 @@
                     if (element.bbProcessed) return;
                     element.bbProcessed = true;
                     
-                    // Récupérer les options avec valeurs par défaut optimisées
+                    // Récupérer les options
                     const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
                     const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
                     const pause = bbContents._getAttr(element, 'bb-marquee-pause') || 'true';
@@ -329,8 +329,8 @@
                     const height = bbContents._getAttr(element, 'bb-marquee-height');
                     const minHeight = bbContents._getAttr(element, 'bb-marquee-min-height');
                     
-                    // Calculer la vitesse en millisecondes (comme la version live)
-                    const speedMs = parseInt(speed);
+                    // Sauvegarder le contenu original
+                    const originalContent = element.innerHTML;
                     
                     // Créer le conteneur principal
                     const mainContainer = document.createElement('div');
@@ -342,7 +342,7 @@
                         ${minHeight ? `min-height: ${minHeight};` : ''}
                     `;
                     
-                    // Créer le conteneur de défilement avec animation CSS de base
+                    // Créer le conteneur de défilement
                     const scrollContainer = document.createElement('div');
                     scrollContainer.style.cssText = `
                         display: flex;
@@ -350,48 +350,38 @@
                         ${orientation === 'vertical' ? 'flex-direction: column;' : ''}
                         gap: ${gap}px;
                         will-change: transform;
-                        ${orientation === 'vertical' ? 'white-space: nowrap;' : ''}
                     `;
                     
-                    // Dupliquer le contenu pour l'effet infini
-                    const originalContent = element.innerHTML;
+                    // Dupliquer le contenu
                     scrollContainer.innerHTML = originalContent + originalContent;
                     
-                    // Ajouter les styles CSS optimisés
-                    const style = document.createElement('style');
-                    style.textContent = `
-                        @keyframes marquee-horizontal {
-                            0% { transform: translateX(0); }
-                            100% { transform: translateX(-50%); }
-                        }
-                        @keyframes marquee-vertical {
-                            0% { transform: translateY(0); }
-                            100% { transform: translateY(-50%); }
-                        }
-                    `;
-                    document.head.appendChild(style);
+                    // Assembler
+                    mainContainer.appendChild(scrollContainer);
+                    element.innerHTML = '';
+                    element.appendChild(mainContainer);
                     
-                    // Fonction d'animation JavaScript pour contrôle précis (comme la version live)
+                    // Animation JavaScript simple et efficace
                     const isVertical = orientation === 'vertical';
                     let animationId;
                     let startTime;
                     let currentPosition = 0;
-                    const contentSize = isVertical ? scrollContainer.scrollHeight / 2 : scrollContainer.scrollWidth / 2;
                     
                     const animate = (timestamp) => {
                         if (!startTime) startTime = timestamp;
                         const elapsed = timestamp - startTime;
                         
-                        // Calculer la position basée sur la vitesse (comme la version live)
+                        // Vitesse en millisecondes
+                        const speedMs = parseInt(speed);
                         const progress = (elapsed % speedMs) / speedMs;
+                        
+                        // Calculer la taille du contenu
+                        const contentSize = isVertical ? scrollContainer.scrollHeight / 2 : scrollContainer.scrollWidth / 2;
                         currentPosition = -progress * contentSize;
                         
                         // Appliquer la transformation
-                        if (isVertical) {
-                            scrollContainer.style.transform = `translateY(${currentPosition}px)`;
-                        } else {
-                            scrollContainer.style.transform = `translateX(${currentPosition}px)`;
-                        }
+                        scrollContainer.style.transform = isVertical 
+                            ? `translateY(${currentPosition}px)`
+                            : `translateX(${currentPosition}px)`;
                         
                         animationId = requestAnimationFrame(animate);
                     };
@@ -428,14 +418,9 @@
                             mainContainer.style.height = maxHeight + 'px';
                         }
                     }
-                    
-                    // Assembler
-                    mainContainer.appendChild(scrollContainer);
-                    element.innerHTML = '';
-                    element.appendChild(mainContainer);
                 });
                 
-                bbContents.utils.log('Module Marquee hybride initialisé:', elements.length, 'éléments');
+                bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
             }
         },
 
