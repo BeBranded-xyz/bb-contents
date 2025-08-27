@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.23-beta
+ * @version 1.0.24-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.23-beta',
+        version: '1.0.24-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -304,27 +304,27 @@
             }
         },
 
-        // Module Marquee - Reproduction exacte de la version live
+        // Module Marquee - Version live 1.0.0 avec protections
         marquee: {
             detect: function(scope) {
-                return scope.querySelector('[bb-marquee]') !== null;
+                const s = scope || document;
+                return s.querySelector(bbContents._attrSelector('marquee')) !== null;
             },
             
-            init: function(scope) {
-                const elements = scope.querySelectorAll('[bb-marquee]');
-                if (elements.length === 0) return;
-                
-                bbContents.utils.log('Module détecté: marquee');
-                
-                elements.forEach(element => {
+            init: function(root) {
+                const scope = root || document;
+                if (scope.closest && scope.closest('[data-bb-disable]')) return;
+                const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
+
+                elements.forEach(function(element) {
                     // Vérifier si l'élément a déjà été traité par un autre module
                     if (element.bbProcessed || element.hasAttribute('data-bb-youtube-processed')) {
                         bbContents.utils.log('Élément marquee déjà traité par un autre module, ignoré:', element);
                         return;
                     }
                     element.bbProcessed = true;
-                    
-                    // Récupérer les options (comme la version live)
+
+                    // Récupérer les options
                     const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
                     const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
                     const pauseOnHover = bbContents._getAttr(element, 'bb-marquee-pause') || 'true';
@@ -332,11 +332,11 @@
                     const orientation = bbContents._getAttr(element, 'bb-marquee-orientation') || 'horizontal';
                     const height = bbContents._getAttr(element, 'bb-marquee-height') || '300';
                     const minHeight = bbContents._getAttr(element, 'bb-marquee-min-height');
-                    
+
                     // Sauvegarder le contenu original
                     const originalHTML = element.innerHTML;
                     
-                    // Créer le conteneur principal (comme la version live)
+                    // Créer le conteneur principal
                     const mainContainer = document.createElement('div');
                     const isVertical = orientation === 'vertical';
                     mainContainer.style.cssText = `
@@ -347,8 +347,8 @@
                         min-height: ${isVertical ? '100px' : '50px'};
                         ${minHeight ? `min-height: ${minHeight};` : ''}
                     `;
-                    
-                    // Créer le conteneur de défilement (comme la version live)
+
+                    // Créer le conteneur de défilement
                     const scrollContainer = document.createElement('div');
                     scrollContainer.style.cssText = `
                         position: absolute;
@@ -363,113 +363,160 @@
                         ${isVertical ? '' : 'white-space: nowrap;'}
                         flex-shrink: 0;
                     `;
+
+                    // Créer le bloc de contenu principal
+                    const mainBlock = document.createElement('div');
+                    mainBlock.innerHTML = originalHTML;
+                    mainBlock.style.cssText = `
+                        display: flex;
+                        ${isVertical ? 'flex-direction: column;' : ''}
+                        align-items: center;
+                        gap: ${gap}px;
+                        ${isVertical ? '' : 'white-space: nowrap;'}
+                        flex-shrink: 0;
+                        ${isVertical ? 'min-height: 100px;' : ''}
+                    `;
+
+                    // Créer plusieurs répétitions pour un défilement continu
+                    const repeatBlock1 = mainBlock.cloneNode(true);
+                    const repeatBlock2 = mainBlock.cloneNode(true);
+                    const repeatBlock3 = mainBlock.cloneNode(true);
                     
-                    // Dupliquer le contenu (4 copies comme la version live)
-                    scrollContainer.innerHTML = originalHTML + originalHTML + originalHTML + originalHTML;
-                    
-                    // Assembler
+                    // Assembler la structure
+                    scrollContainer.appendChild(mainBlock);
+                    scrollContainer.appendChild(repeatBlock1);
+                    scrollContainer.appendChild(repeatBlock2);
+                    scrollContainer.appendChild(repeatBlock3);
                     mainContainer.appendChild(scrollContainer);
+                    
+                    // Vider et remplacer le contenu original
                     element.innerHTML = '';
                     element.appendChild(mainContainer);
                     
                     // Marquer l'élément comme traité par le module marquee
                     element.setAttribute('data-bb-marquee-processed', 'true');
-                    
-                    // Démarrer l'animation après un délai pour laisser le DOM se stabiliser
-                    setTimeout(() => {
-                        if (isVertical) {
-                            // Animation JavaScript pour le vertical (comme la version live)
-                            const contentHeight = scrollContainer.scrollHeight / 4;
-                            const contentSize = contentHeight;
-                            const totalSize = contentSize * 4 + parseInt(gap) * 3;
-                            scrollContainer.style.height = totalSize + 'px';
+
+                    // Fonction pour initialiser l'animation
+                    const initAnimation = () => {
+                        // Attendre que le contenu soit dans le DOM
+                        requestAnimationFrame(() => {
+                            const contentWidth = mainBlock.offsetWidth;
+                            const contentHeight = mainBlock.offsetHeight;
                             
-                            let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
-                            const step = (parseFloat(speed) * 2) / 60; // Exactement comme la version live
-                            let isPaused = false;
+                            // Debug
+                            bbContents.utils.log('Debug - Largeur du contenu:', contentWidth, 'px', 'Hauteur:', contentHeight, 'px', 'Enfants:', mainBlock.children.length, 'Vertical:', isVertical, 'Direction:', direction);
                             
-                            const animate = () => {
-                                if (!isPaused) {
-                                    if (direction === 'bottom') {
-                                        currentPosition += step;
-                                        if (currentPosition >= 0) {
-                                            currentPosition = -contentSize - parseInt(gap);
+                            // Si pas de contenu, réessayer
+                            if ((isVertical && contentHeight === 0) || (!isVertical && contentWidth === 0)) {
+                                bbContents.utils.log('Contenu non prêt, nouvelle tentative dans 200ms');
+                                setTimeout(initAnimation, 200);
+                                return;
+                            }
+                            
+                            // Pour le vertical, s'assurer qu'on a une hauteur minimale
+                            if (isVertical && contentHeight < 50) {
+                                bbContents.utils.log('Hauteur insuffisante pour le marquee vertical (' + contentHeight + 'px), nouvelle tentative dans 200ms');
+                                setTimeout(initAnimation, 200);
+                                return;
+                            }
+                            
+                            if (isVertical) {
+                                // Animation JavaScript pour le vertical
+                                const contentSize = contentHeight;
+                                const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
+                                scrollContainer.style.height = totalSize + 'px';
+                                
+                                let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
+                                const step = (parseFloat(speed) * 2) / 60; // Vitesse différente
+                                let isPaused = false;
+                                
+                                // Fonction d'animation JavaScript
+                                const animate = () => {
+                                    if (!isPaused) {
+                                        if (direction === 'bottom') {
+                                            currentPosition += step;
+                                            if (currentPosition >= 0) {
+                                                currentPosition = -contentSize - parseInt(gap);
+                                            }
+                                        } else {
+                                            currentPosition -= step;
+                                            if (currentPosition <= -contentSize - parseInt(gap)) {
+                                                currentPosition = 0;
+                                            }
                                         }
-                                    } else {
-                                        currentPosition -= step;
-                                        if (currentPosition <= -contentSize - parseInt(gap)) {
-                                            currentPosition = 0;
-                                        }
+                                        
+                                        scrollContainer.style.transform = `translate3d(0px, ${currentPosition}px, 0px)`;
                                     }
-                                    
-                                    scrollContainer.style.transform = `translate3d(0px, ${currentPosition}px, 0px)`;
+                                    requestAnimationFrame(animate);
+                                };
+                                
+                                // Démarrer l'animation
+                                animate();
+                                
+                                bbContents.utils.log('Marquee vertical créé avec animation JS - direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px', 'hauteur-wrapper:', height + 'px');
+                                
+                                // Pause au survol
+                                if (pauseOnHover === 'true') {
+                                    element.addEventListener('mouseenter', function() {
+                                        isPaused = true;
+                                    });
+                                    element.addEventListener('mouseleave', function() {
+                                        isPaused = false;
+                                    });
                                 }
-                                requestAnimationFrame(animate);
-                            };
-                            
-                            animate();
-                            
-                            // Pause au survol
-                            if (pauseOnHover === 'true') {
-                                mainContainer.addEventListener('mouseenter', () => {
-                                    isPaused = true;
-                                });
-                                mainContainer.addEventListener('mouseleave', () => {
-                                    isPaused = false;
-                                });
-                            }
-                        } else {
-                            // Animation CSS pour l'horizontal (comme la version live)
-                            const contentWidth = scrollContainer.scrollWidth / 4;
-                            const contentSize = contentWidth;
-                            const totalSize = contentSize * 4 + parseInt(gap) * 3;
-                            scrollContainer.style.width = totalSize + 'px';
-                            
-                            // Calcul de la durée exacte comme la version live
-                            const animationDuration = (totalSize / (parseFloat(speed) * 1.5)).toFixed(2) + 's';
-                            
-                            // Animation CSS avec translate3d
-                            const animationName = 'bb-scroll-' + Math.random().toString(36).substr(2, 9);
-                            const style = document.createElement('style');
-                            style.textContent = `
-                                @keyframes ${animationName} {
-                                    0% { transform: translate3d(0px, 0px, 0px); }
-                                    100% { transform: translate3d(-${contentSize + parseInt(gap)}px, 0px, 0px); }
+                            } else {
+                                // Animation CSS pour l'horizontal (modifiée)
+                                const contentSize = contentWidth;
+                                const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
+                                scrollContainer.style.width = totalSize + 'px';
+                                
+                                // Créer l'animation CSS optimisée
+                                const animationName = 'bb-scroll-' + Math.random().toString(36).substr(2, 9);
+                                const animationDuration = (totalSize / (parseFloat(speed) * 1.5)).toFixed(2) + 's'; // Vitesse différente
+                                
+                                // Animation avec translate3d pour hardware acceleration
+                                let keyframes;
+                                if (direction === 'right') {
+                                    keyframes = `@keyframes ${animationName} {
+                                        0% { transform: translate3d(-${contentSize + parseInt(gap)}px, 0px, 0px); }
+                                        100% { transform: translate3d(0px, 0px, 0px); }
+                                    }`;
+                                } else {
+                                    // Direction 'left' par défaut
+                                    keyframes = `@keyframes ${animationName} {
+                                        0% { transform: translate3d(0px, 0px, 0px); }
+                                        100% { transform: translate3d(-${contentSize + parseInt(gap)}px, 0px, 0px); }
+                                    }`;
                                 }
-                            `;
-                            document.head.appendChild(style);
-                            
-                            scrollContainer.style.animation = `${animationName} ${animationDuration} linear infinite`;
-                            
-                            // Pause au survol
-                            if (pauseOnHover === 'true') {
-                                mainContainer.addEventListener('mouseenter', () => {
-                                    scrollContainer.style.animationPlayState = 'paused';
-                                });
-                                mainContainer.addEventListener('mouseleave', () => {
-                                    scrollContainer.style.animationPlayState = 'running';
-                                });
+
+                                // Ajouter les styles
+                                const style = document.createElement('style');
+                                style.textContent = keyframes;
+                                document.head.appendChild(style);
+
+                                // Appliquer l'animation
+                                scrollContainer.style.animation = `${animationName} ${animationDuration} linear infinite`;
+                                
+                                bbContents.utils.log('Marquee horizontal créé:', animationName, 'durée:', animationDuration + 's', 'direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px');
+
+                                // Pause au survol
+                                if (pauseOnHover === 'true') {
+                                    element.addEventListener('mouseenter', function() {
+                                        scrollContainer.style.animationPlayState = 'paused';
+                                    });
+                                    element.addEventListener('mouseleave', function() {
+                                        scrollContainer.style.animationPlayState = 'running';
+                                    });
+                                }
                             }
-                        }
-                    }, 100);
+                        });
+                    };
                     
-                    // Auto-height pour les logos horizontaux (amélioré)
-                    if (orientation === 'horizontal' && !height && !minHeight) {
-                        setTimeout(() => {
-                            const logos = element.querySelectorAll('.bb-marquee_logo, img, svg');
-                            let maxHeight = 0;
-                            logos.forEach(logo => {
-                                const rect = logo.getBoundingClientRect();
-                                if (rect.height > maxHeight) maxHeight = rect.height;
-                            });
-                            if (maxHeight > 0) {
-                                mainContainer.style.height = maxHeight + 'px';
-                            }
-                        }, 50);
-                    }
+                    // Démarrer l'initialisation
+                    setTimeout(initAnimation, isVertical ? 300 : 100);
                 });
-                
-                bbContents.utils.log('Module Marquee (version live) initialisé:', elements.length, 'éléments');
+
+                bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
             }
         },
 
