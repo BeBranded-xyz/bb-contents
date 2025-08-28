@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.26-beta
+ * @version 1.0.27-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.26-beta',
+        version: '1.0.27-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -342,7 +342,7 @@
                     mainContainer.style.cssText = `
                         position: relative;
                         width: 100%;
-                        height: ${isVertical ? height + 'px' : 'auto'};
+                        height: ${isVertical ? (height === 'auto' ? 'auto' : height + 'px') : 'auto'};
                         overflow: hidden;
                         min-height: ${isVertical ? '100px' : '50px'};
                         ${minHeight ? `min-height: ${minHeight};` : ''}
