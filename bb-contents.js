@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.27-beta
+ * @version 1.0.28-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.27-beta',
+        version: '1.0.28-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -339,6 +339,8 @@
                     // Créer le conteneur principal
                     const mainContainer = document.createElement('div');
                     const isVertical = orientation === 'vertical';
+                    const useAutoHeight = isVertical && height === 'auto';
+                    
                     mainContainer.style.cssText = `
                         position: relative;
                         width: 100%;
@@ -351,11 +353,9 @@
                     // Créer le conteneur de défilement
                     const scrollContainer = document.createElement('div');
                     scrollContainer.style.cssText = `
-                        position: absolute;
+                        ${useAutoHeight ? 'position: relative;' : 'position: absolute;'}
                         will-change: transform;
-                        height: 100%;
-                        top: 0px;
-                        left: 0px;
+                        ${useAutoHeight ? '' : 'height: 100%; top: 0px; left: 0px;'}
                         display: flex;
                         ${isVertical ? 'flex-direction: column;' : ''}
                         align-items: center;
@@ -424,7 +424,11 @@
                                 // Animation JavaScript pour le vertical
                                 const contentSize = contentHeight;
                                 const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
-                                scrollContainer.style.height = totalSize + 'px';
+                                
+                                // Ajuster la hauteur du scrollContainer seulement si pas en mode auto
+                                if (!useAutoHeight) {
+                                    scrollContainer.style.height = totalSize + 'px';
+                                }
                                 
                                 let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
                                 const step = (parseFloat(speed) * 2) / 60; // Vitesse différente
