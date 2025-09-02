@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.28-beta
+ * @version 1.0.29-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.28-beta',
+        version: '1.0.29-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -655,16 +655,46 @@
                     element.rel = 'noopener noreferrer';
                 }
                 
-                // Remplir la thumbnail (haute qualité)
+                // Remplir la thumbnail (qualité optimisée)
                 const thumbnail = element.querySelector('[bb-youtube-thumbnail]');
                 if (thumbnail) {
-                    // Utiliser la meilleure qualité disponible
-                    const highQualityUrl = snippet.thumbnails.maxres?.url || 
-                                         snippet.thumbnails.high?.url || 
-                                         snippet.thumbnails.medium?.url || 
-                                         snippet.thumbnails.default?.url;
-                    thumbnail.src = highQualityUrl;
-                    thumbnail.alt = snippet.title;
+                    // Logique optimisée pour la meilleure qualité disponible
+                    let bestThumbnailUrl = null;
+                    let bestQuality = 'unknown';
+                    
+                    // Priorité 1: maxres (1280x720) - qualité maximale
+                    if (snippet.thumbnails.maxres?.url) {
+                        bestThumbnailUrl = snippet.thumbnails.maxres.url;
+                        bestQuality = 'maxres (1280x720)';
+                    }
+                    // Priorité 2: high (480x360) - bonne qualité pour l'affichage
+                    else if (snippet.thumbnails.high?.url) {
+                        bestThumbnailUrl = snippet.thumbnails.high.url;
+                        bestQuality = 'high (480x360)';
+                    }
+                    // Priorité 3: medium (320x180) - qualité acceptable en dernier recours
+                    else if (snippet.thumbnails.medium?.url) {
+                        bestThumbnailUrl = snippet.thumbnails.medium.url;
+                        bestQuality = 'medium (320x180)';
+                    }
+                    // Fallback: default (120x90) - seulement si rien d'autre
+                    else if (snippet.thumbnails.default?.url) {
+                        bestThumbnailUrl = snippet.thumbnails.default.url;
+                        bestQuality = 'default (120x90)';
+                    }
+                    
+                    // Appliquer la meilleure thumbnail trouvée
+                    if (bestThumbnailUrl) {
+                        thumbnail.src = bestThumbnailUrl;
+                        thumbnail.alt = snippet.title;
+                        
+                        // Debug: logger la qualité utilisée (en mode debug seulement)
+                        if (bbContents.config.debug) {
+                            bbContents.utils.log(`Thumbnail optimisée pour ${snippet.title}: ${bestQuality}`);
+                        }
+                    } else {
+                        bbContents.utils.log('Aucune thumbnail disponible pour:', snippet.title);
+                    }
                 }
                 
                 // Remplir le titre (avec décodage HTML)
