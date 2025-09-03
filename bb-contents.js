@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.31-beta
+ * @version 1.0.32-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.31-beta',
+        version: '1.0.32-beta',
         debug: false, // Désactivé par défaut pour une console propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -608,6 +608,7 @@
                     const channelId = bbContents._getAttr(element, 'bb-youtube-channel');
                     const videoCount = bbContents._getAttr(element, 'bb-youtube-video-count') || '10';
                     const allowShorts = bbContents._getAttr(element, 'bb-youtube-allow-shorts') === 'true';
+                    const language = bbContents._getAttr(element, 'bb-youtube-language') || 'fr';
                     const endpoint = bbContents.config.youtubeEndpoint;
                     
                     if (!channelId) {
@@ -647,12 +648,12 @@
                     element.setAttribute('data-bb-youtube-processed', 'true');
                     
                     // Vérifier le cache d'abord
-                    const cacheKey = `youtube_${channelId}_${videoCount}_${allowShorts}`;
+                    const cacheKey = `youtube_${channelId}_${videoCount}_${allowShorts}_${language}`;
                     const cachedData = this.cache.get(cacheKey);
                     
                     if (cachedData) {
                         bbContents.utils.log('Données YouTube récupérées du cache (économie API)');
-                        this.generateYouTubeFeed(container, template, cachedData, allowShorts);
+                        this.generateYouTubeFeed(container, template, cachedData, allowShorts, language);
                         return;
                     }
                     
@@ -676,7 +677,7 @@
                             this.cache.set(cacheKey, data);
                             bbContents.utils.log('Données YouTube mises en cache pour 24h (économie API)');
                             
-                            this.generateYouTubeFeed(container, template, data, allowShorts);
+                            this.generateYouTubeFeed(container, template, data, allowShorts, language);
                         })
                         .catch(error => {
                             bbContents.utils.log('Erreur dans le module youtube:', error);
@@ -699,7 +700,7 @@
                 });
             },
             
-            generateYouTubeFeed: function(container, template, data, allowShorts) {
+            generateYouTubeFeed: function(container, template, data, allowShorts, language = 'fr') {
                 if (!data.items || data.items.length === 0) {
                     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vidéo trouvée</div>';
                     return;
@@ -728,7 +729,7 @@
                     clone.style.display = ''; // Rendre visible
                     
                     // Remplir les données
-                    this.fillVideoData(clone, videoId, snippet);
+                    this.fillVideoData(clone, videoId, snippet, language);
                     
                     // Ajouter au conteneur
                     container.appendChild(clone);
@@ -737,7 +738,7 @@
                 bbContents.utils.log(`YouTube Feed généré: ${videos.length} vidéos`);
             },
             
-            fillVideoData: function(element, videoId, snippet) {
+            fillVideoData: function(element, videoId, snippet, language = 'fr') {
                 // Remplir le lien directement sur l'élément (link block)
                 if (element.tagName === 'A' || element.hasAttribute('bb-youtube-item')) {
                     element.href = `https://www.youtube.com/watch?v=${videoId}`;
@@ -802,7 +803,7 @@
                 // Remplir la date
                 const date = element.querySelector('[bb-youtube-date]');
                 if (date) {
-                    date.textContent = this.formatDate(snippet.publishedAt);
+                    date.textContent = this.formatDate(snippet.publishedAt, language);
                 }
                 
                 // Remplir le nom de la chaîne
@@ -812,17 +813,54 @@
                 }
             },
             
-            formatDate: function(dateString) {
+            formatDate: function(dateString, language = 'fr') {
                 const date = new Date(dateString);
                 const now = new Date();
                 const diffTime = Math.abs(now - date);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 
-                if (diffDays === 1) return 'Il y a 1 jour';
-                if (diffDays < 7) return `Il y a ${diffDays} jours`;
-                if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)} semaines`;
-                if (diffDays < 365) return `Il y a ${Math.floor(diffDays / 30)} mois`;
-                return `Il y a ${Math.floor(diffDays / 365)} ans`;
+                // Traductions
+                const translations = {
+                    fr: {
+                        day: 'jour',
+                        days: 'jours',
+                        week: 'semaine',
+                        weeks: 'semaines',
+                        month: 'mois',
+                        months: 'mois',
+                        year: 'an',
+                        years: 'ans',
+                        ago: 'Il y a'
+                    },
+                    en: {
+                        day: 'day',
+                        days: 'days',
+                        week: 'week',
+                        weeks: 'weeks',
+                        month: 'month',
+                        months: 'months',
+                        year: 'year',
+                        years: 'years',
+                        ago: 'ago'
+                    }
+                };
+                
+                const t = translations[language] || translations.fr;
+                
+                if (diffDays === 1) return `${t.ago} 1 ${t.day}`;
+                if (diffDays < 7) return `${t.ago} ${diffDays} ${t.days}`;
+                
+                const weeks = Math.floor(diffDays / 7);
+                if (weeks === 1) return `${t.ago} 1 ${t.week}`;
+                if (diffDays < 30) return `${t.ago} ${weeks} ${t.weeks}`;
+                
+                const months = Math.floor(diffDays / 30);
+                if (months === 1) return `${t.ago} 1 ${t.month}`;
+                if (diffDays < 365) return `${t.ago} ${months} ${t.months}`;
+                
+                const years = Math.floor(diffDays / 365);
+                if (years === 1) return `${t.ago} 1 ${t.year}`;
+                return `${t.ago} ${years} ${t.years}`;
             },
             
             // Fonction pour décoder les entités HTML
