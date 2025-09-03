@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.30-beta
+ * @version 1.0.31-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,8 +17,8 @@
 
     // Configuration
     const config = {
-        version: '1.0.30-beta',
-        debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
+        version: '1.0.31-beta',
+        debug: false, // Désactivé par défaut pour une console propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
             copied: 'Lien copié !'
@@ -35,7 +35,7 @@
         // Utilitaires
         utils: {
             log: function(...args) {
-                if (config.debug) {
+                if (bbContents.config.debug) {
                     console.log('[BB Contents]', ...args);
                 }
             },
@@ -76,6 +76,9 @@
 
         // Initialisation
         init: function() {
+            // Console simple et épurée
+            console.log('bb-contents | v' + this.config.version);
+            
             this.utils.log('Initialisation v' + this.config.version);
             
             // Déterminer la portée
@@ -887,9 +890,5 @@
     // Initialisation
     initBBContents();
 
-    // Message de confirmation
-    console.log(
-        '%cBeBranded Contents v' + config.version + ' chargé avec succès !',
-        'color: #422eff; font-weight: bold; font-size: 14px;'
-    );
+    // Message de confirmation supprimé pour une console plus propre
 })();
