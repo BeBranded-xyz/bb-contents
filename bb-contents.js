@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.29-beta
+ * @version 1.0.30-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.29-beta',
+        version: '1.0.30-beta',
         debug: window.location.hostname === 'localhost' || window.location.hostname.includes('webflow.io'),
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -526,11 +526,69 @@
 
         // Module YouTube Feed
         youtube: {
+            // Détection des bots pour éviter les appels API inutiles
+            isBot: function() {
+                const userAgent = navigator.userAgent.toLowerCase();
+                const botPatterns = [
+                    'bot', 'crawler', 'spider', 'scraper', 'googlebot', 'bingbot', 'slurp',
+                    'duckduckbot', 'baiduspider', 'yandexbot', 'facebookexternalhit', 'twitterbot',
+                    'linkedinbot', 'whatsapp', 'telegrambot', 'discordbot', 'slackbot'
+                ];
+                
+                return botPatterns.some(pattern => userAgent.includes(pattern)) || 
+                       navigator.webdriver || 
+                       !navigator.userAgent;
+            },
+            
+            // Gestion du cache localStorage
+            cache: {
+                get: function(key) {
+                    try {
+                        const cached = localStorage.getItem(key);
+                        if (!cached) return null;
+                        
+                        const data = JSON.parse(cached);
+                        const now = Date.now();
+                        
+                        // Cache expiré après 24h
+                        if (now - data.timestamp > 24 * 60 * 60 * 1000) {
+                            localStorage.removeItem(key);
+                            return null;
+                        }
+                        
+                        return data.value;
+                    } catch (e) {
+                        return null;
+                    }
+                },
+                
+                set: function(key, value) {
+                    try {
+                        const data = {
+                            value: value,
+                            timestamp: Date.now()
+                        };
+                        localStorage.setItem(key, JSON.stringify(data));
+                    } catch (e) {
+                        // Ignorer les erreurs de localStorage
+                    }
+                }
+            },
+            
             detect: function(scope) {
                 return scope.querySelector('[bb-youtube-channel]') !== null;
             },
             
             init: function(scope) {
+                // Vérifier si c'est un bot - pas d'appel API
+                if (this.isBot()) {
+                    bbContents.utils.log('Bot détecté, pas de chargement YouTube (économie API)');
+                    return;
+                }
+                
+                // Nettoyer le cache expiré au démarrage
+                this.cleanCache();
+                
                 const elements = scope.querySelectorAll('[bb-youtube-channel]');
                 if (elements.length === 0) return;
                 
@@ -585,6 +643,16 @@
                     // Marquer l'élément comme traité par le module YouTube
                     element.setAttribute('data-bb-youtube-processed', 'true');
                     
+                    // Vérifier le cache d'abord
+                    const cacheKey = `youtube_${channelId}_${videoCount}_${allowShorts}`;
+                    const cachedData = this.cache.get(cacheKey);
+                    
+                    if (cachedData) {
+                        bbContents.utils.log('Données YouTube récupérées du cache (économie API)');
+                        this.generateYouTubeFeed(container, template, cachedData, allowShorts);
+                        return;
+                    }
+                    
                     // Afficher un loader
                     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
                     
@@ -600,10 +668,29 @@
                             if (data.error) {
                                 throw new Error(data.error.message || 'Erreur API YouTube');
                             }
+                            
+                            // Sauvegarder en cache pour 24h
+                            this.cache.set(cacheKey, data);
+                            bbContents.utils.log('Données YouTube mises en cache pour 24h (économie API)');
+                            
                             this.generateYouTubeFeed(container, template, data, allowShorts);
                         })
                         .catch(error => {
                             bbContents.utils.log('Erreur dans le module youtube:', error);
+                            
+                            // En cas d'erreur, essayer de récupérer du cache même expiré
+                            const expiredCache = localStorage.getItem(cacheKey);
+                            if (expiredCache) {
+                                try {
+                                    const cachedData = JSON.parse(expiredCache);
+                                    bbContents.utils.log('Utilisation du cache expiré en cas d\'erreur API');
+                                    this.generateYouTubeFeed(container, template, cachedData.value, allowShorts);
+                                    return;
+                                } catch (e) {
+                                    // Ignorer les erreurs de parsing
+                                }
+                            }
+                            
                             container.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${error.message}</div>`;
                         });
                 });
@@ -741,6 +828,37 @@
                 const textarea = document.createElement('textarea');
                 textarea.innerHTML = text;
                 return textarea.value;
+            },
+            
+            // Nettoyer le cache expiré
+            cleanCache: function() {
+                try {
+                    const keys = Object.keys(localStorage);
+                    const now = Date.now();
+                    let cleaned = 0;
+                    
+                    keys.forEach(key => {
+                        if (key.startsWith('youtube_')) {
+                            try {
+                                const cached = JSON.parse(localStorage.getItem(key));
+                                if (now - cached.timestamp > 24 * 60 * 60 * 1000) {
+                                    localStorage.removeItem(key);
+                                    cleaned++;
+                                }
+                            } catch (e) {
+                                // Supprimer les clés corrompues
+                                localStorage.removeItem(key);
+                                cleaned++;
+                            }
+                        }
+                    });
+                    
+                    if (cleaned > 0) {
+                        bbContents.utils.log(`Cache YouTube nettoyé: ${cleaned} entrées supprimées`);
+                    }
+                } catch (e) {
+                    // Ignorer les erreurs de nettoyage
+                }
             }
         }
     };
