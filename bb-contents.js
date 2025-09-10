@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.35-beta',
+        version: '1.0.36-beta',
         debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -470,14 +470,27 @@
                     const initAnimation = (retryCount = 0) => {
                         // Attendre que le contenu soit dans le DOM
                         requestAnimationFrame(() => {
-                            const contentWidth = mainBlock.offsetWidth;
-                            const contentHeight = mainBlock.offsetHeight;
+                            // Calcul plus robuste des dimensions
+                            const rect = mainBlock.getBoundingClientRect();
+                            const contentWidth = rect.width || mainBlock.offsetWidth;
+                            const contentHeight = rect.height || mainBlock.offsetHeight;
+                            
+                            // Pour les marquees verticaux, utiliser la largeur du parent si nécessaire
+                            let finalWidth = contentWidth;
+                            let finalHeight = contentHeight;
+                            
+                            if (isVertical && contentWidth < 10) {
+                                // Si largeur trop petite, utiliser la largeur du parent
+                                const parentRect = mainBlock.parentElement.getBoundingClientRect();
+                                finalWidth = parentRect.width || mainBlock.parentElement.offsetWidth;
+                                bbContents.utils.log('Largeur corrigée pour marquee vertical:', finalWidth, 'px (était:', contentWidth, 'px)');
+                            }
                             
                             // Debug amélioré
-                            bbContents.utils.log('Debug - Largeur du contenu:', contentWidth, 'px', 'Hauteur:', contentHeight, 'px', 'Enfants:', mainBlock.children.length, 'Vertical:', isVertical, 'Direction:', direction, 'Tentative:', retryCount + 1);
+                            bbContents.utils.log('Debug - Largeur du contenu:', finalWidth, 'px', 'Hauteur:', finalHeight, 'px', 'Enfants:', mainBlock.children.length, 'Vertical:', isVertical, 'Direction:', direction, 'Tentative:', retryCount + 1);
                             
                             // Si pas de contenu, réessayer avec délai progressif
-                            if ((isVertical && contentHeight === 0) || (!isVertical && contentWidth === 0)) {
+                            if ((isVertical && finalHeight === 0) || (!isVertical && finalWidth === 0)) {
                                 if (retryCount < 5) {
                                     bbContents.utils.log('Contenu non prêt, nouvelle tentative dans', (200 + retryCount * 100), 'ms');
                                     setTimeout(() => initAnimation(retryCount + 1), 200 + retryCount * 100);
@@ -489,9 +502,9 @@
                             }
                             
                             // Pour le vertical, s'assurer qu'on a une hauteur minimale
-                            if (isVertical && contentHeight < 50) {
+                            if (isVertical && finalHeight < 50) {
                                 if (retryCount < 5) {
-                                    bbContents.utils.log('Hauteur insuffisante pour le marquee vertical (' + contentHeight + 'px), nouvelle tentative dans', (200 + retryCount * 100), 'ms');
+                                    bbContents.utils.log('Hauteur insuffisante pour le marquee vertical (' + finalHeight + 'px), nouvelle tentative dans', (200 + retryCount * 100), 'ms');
                                     setTimeout(() => initAnimation(retryCount + 1), 200 + retryCount * 100);
                                     return;
                                 } else {
@@ -502,7 +515,7 @@
                             
                             if (isVertical) {
                                 // Animation JavaScript pour le vertical
-                                const contentSize = contentHeight;
+                                const contentSize = finalHeight;
                                 const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
                                 
                                 // Ajuster la hauteur du scrollContainer seulement si pas en mode auto
@@ -550,7 +563,7 @@
                                 }
                             } else {
                                 // Animation JavaScript pour l'horizontal (comme le vertical pour éviter les saccades)
-                                const contentSize = contentWidth;
+                                const contentSize = finalWidth;
                                 const totalSize = contentSize * 4 + parseInt(gap) * 3;
                                 scrollContainer.style.width = totalSize + 'px';
                                 
