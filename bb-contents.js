@@ -17,8 +17,8 @@
 
     // Configuration
     const config = {
-        version: '1.0.34-beta',
-        debug: false, // Désactivé par défaut pour une console propre
+        version: '1.0.35-beta',
+        debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
             copied: 'Lien copié !'
@@ -83,6 +83,14 @@
             console.log('bb-contents | v' + this.config.version);
             
             this.utils.log('Initialisation v' + this.config.version);
+            
+            // Debug: Analyser l'environnement
+            this.utils.log('=== DEBUG ENVIRONNEMENT ===');
+            this.utils.log('Body attributes:', Array.from(document.body.attributes).map(attr => attr.name + '=' + attr.value));
+            this.utils.log('Scripts chargés:', document.querySelectorAll('script').length);
+            this.utils.log('Stylesheets chargés:', document.querySelectorAll('link[rel="stylesheet"]').length);
+            this.utils.log('Marquees détectés:', document.querySelectorAll('[bb-marquee]').length);
+            this.utils.log('Marquees déjà traités:', document.querySelectorAll('[bb-marquee][data-bb-marquee-processed]').length);
             
             // Détection du bb-performance-boost
             this._performanceBoostDetected = document.body.hasAttribute('bb-performance-boost');
