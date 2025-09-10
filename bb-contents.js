@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.36-beta',
+        version: '1.0.37-beta',
         debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -466,9 +466,13 @@
                     // Marquer l'élément comme traité par le module marquee
                     element.setAttribute('data-bb-marquee-processed', 'true');
 
-                    // Fonction pour initialiser l'animation avec retry amélioré
+                    // Fonction pour initialiser l'animation avec vérification robuste des dimensions
                     const initAnimation = (retryCount = 0) => {
-                        // Attendre que le contenu soit dans le DOM
+                        // Vérifier que les images sont chargées
+                        const images = mainBlock.querySelectorAll('img');
+                        const imagesLoaded = Array.from(images).every(img => img.complete && img.naturalHeight > 0);
+                        
+                        // Attendre que le contenu soit dans le DOM et que les images soient chargées
                         requestAnimationFrame(() => {
                             // Calcul plus robuste des dimensions
                             const rect = mainBlock.getBoundingClientRect();
@@ -486,29 +490,22 @@
                                 bbContents.utils.log('Largeur corrigée pour marquee vertical:', finalWidth, 'px (était:', contentWidth, 'px)');
                             }
                             
-                            // Debug amélioré
-                            bbContents.utils.log('Debug - Largeur du contenu:', finalWidth, 'px', 'Hauteur:', finalHeight, 'px', 'Enfants:', mainBlock.children.length, 'Vertical:', isVertical, 'Direction:', direction, 'Tentative:', retryCount + 1);
+                            // Debug amélioré avec statut des images
+                            bbContents.utils.log('Debug - Largeur:', finalWidth, 'px, Hauteur:', finalHeight, 'px, Images chargées:', imagesLoaded, 'Enfants:', mainBlock.children.length, 'Vertical:', isVertical, 'Direction:', direction, 'Tentative:', retryCount + 1);
                             
-                            // Si pas de contenu, réessayer avec délai progressif
-                            if ((isVertical && finalHeight === 0) || (!isVertical && finalWidth === 0)) {
-                                if (retryCount < 5) {
-                                    bbContents.utils.log('Contenu non prêt, nouvelle tentative dans', (200 + retryCount * 100), 'ms');
-                                    setTimeout(() => initAnimation(retryCount + 1), 200 + retryCount * 100);
+                            // Vérifications robustes avant initialisation
+                            const hasValidDimensions = (isVertical && finalHeight > 50) || (!isVertical && finalWidth > 50);
+                            const maxRetries = 8; // Plus de tentatives pour attendre les images
+                            
+                            // Si pas de contenu valide ou images pas chargées, réessayer
+                            if (!hasValidDimensions || !imagesLoaded) {
+                                if (retryCount < maxRetries) {
+                                    const delay = 300 + retryCount * 200; // Délais plus longs pour attendre les images
+                                    bbContents.utils.log('Contenu/images non prêts, nouvelle tentative dans', delay, 'ms');
+                                    setTimeout(() => initAnimation(retryCount + 1), delay);
                                     return;
                                 } else {
-                                    bbContents.utils.log('Échec d\'initialisation après 5 tentatives');
-                                    return;
-                                }
-                            }
-                            
-                            // Pour le vertical, s'assurer qu'on a une hauteur minimale
-                            if (isVertical && finalHeight < 50) {
-                                if (retryCount < 5) {
-                                    bbContents.utils.log('Hauteur insuffisante pour le marquee vertical (' + finalHeight + 'px), nouvelle tentative dans', (200 + retryCount * 100), 'ms');
-                                    setTimeout(() => initAnimation(retryCount + 1), 200 + retryCount * 100);
-                                    return;
-                                } else {
-                                    bbContents.utils.log('Échec d\'initialisation - hauteur insuffisante après 5 tentatives');
+                                    bbContents.utils.log('Échec d\'initialisation après', maxRetries, 'tentatives - dimensions:', finalWidth + 'x' + finalHeight, 'images chargées:', imagesLoaded);
                                     return;
                                 }
                             }
@@ -609,12 +606,22 @@
                         });
                     };
                     
-                    // Démarrer l'initialisation avec délai adaptatif
-                    let initDelay = isVertical ? 300 : 100;
+                    // Démarrer l'initialisation avec délai adaptatif - Option 1: Attendre que tout soit prêt
+                    let initDelay = isVertical ? 500 : 200; // Délais plus longs par défaut
                     if (bbContents._performanceBoostDetected) {
-                        initDelay = isVertical ? 600 : 300; // Délais plus longs avec bb-performance-boost
+                        initDelay = isVertical ? 800 : 500; // Délais encore plus longs avec bb-performance-boost
                     }
-                    setTimeout(() => initAnimation(0), initDelay);
+                    
+                    // Attendre window.load si pas encore déclenché
+                    if (document.readyState !== 'complete') {
+                        bbContents.utils.log('Attente de window.load pour initialiser le marquee');
+                        window.addEventListener('load', () => {
+                            setTimeout(() => initAnimation(0), initDelay);
+                        });
+                    } else {
+                        // window.load déjà déclenché, initialiser directement
+                        setTimeout(() => initAnimation(0), initDelay);
+                    }
                 });
 
                 bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
@@ -1020,15 +1027,25 @@
             }, delay);
         }
         
-        // Initialisation différée supplémentaire pour les cas difficiles
+        // Initialisation différée supplémentaire pour les cas difficiles - Option 1: Attendre que tout soit vraiment prêt
         window.addEventListener('load', function() {
-            const loadDelay = document.body.hasAttribute('bb-performance-boost') ? 2000 : 1000;
+            const loadDelay = document.body.hasAttribute('bb-performance-boost') ? 3000 : 1500; // Délais plus longs
             setTimeout(function() {
                 // Vérifier s'il y a des éléments non initialisés
                 const unprocessedMarquees = document.querySelectorAll('[bb-marquee]:not([data-bb-marquee-processed])');
                 if (unprocessedMarquees.length > 0) {
                     bbContents.utils.log('Éléments marquee non initialisés détectés après load, réinitialisation...');
                     bbContents.reinit();
+                }
+                
+                // Vérification supplémentaire des images chargées
+                const allImages = document.querySelectorAll('img');
+                const unloadedImages = Array.from(allImages).filter(img => !img.complete || img.naturalHeight === 0);
+                if (unloadedImages.length > 0) {
+                    bbContents.utils.log('Images non chargées détectées:', unloadedImages.length, '- attente supplémentaire...');
+                    setTimeout(() => {
+                        bbContents.reinit();
+                    }, 1000);
                 }
             }, loadDelay);
         });
