@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.33-beta',
+        version: '1.0.34-beta',
         debug: false, // Désactivé par défaut pour une console propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -33,6 +33,7 @@
         _reinitScheduled: false,
         _initRetryCount: 0,
         _maxInitRetries: 3,
+        _performanceBoostDetected: false,
         
         // Utilitaires
         utils: {
@@ -82,6 +83,12 @@
             console.log('bb-contents | v' + this.config.version);
             
             this.utils.log('Initialisation v' + this.config.version);
+            
+            // Détection du bb-performance-boost
+            this._performanceBoostDetected = document.body.hasAttribute('bb-performance-boost');
+            if (this._performanceBoostDetected) {
+                this.utils.log('bb-performance-boost détecté - mode de compatibilité activé');
+            }
             
             // Déterminer la portée
             const scope = document.querySelector('[data-bb-scope]') || document;
@@ -133,9 +140,10 @@
                 this._initRetryCount++;
                 bbContents.utils.log('Tentative de réinitialisation', this._initRetryCount, '/', this._maxInitRetries);
                 
+                const delay = this._performanceBoostDetected ? 1000 * this._initRetryCount : 500 * this._initRetryCount;
                 setTimeout(() => {
                     this.init();
-                }, 500 * this._initRetryCount); // Délai progressif
+                }, delay); // Délai progressif adaptatif
             }
         },
         
@@ -173,10 +181,11 @@
 
                 if (shouldReinit && !this._reinitScheduled) {
                     this._reinitScheduled = true;
+                    const delay = this._performanceBoostDetected ? 200 : 100;
                     setTimeout(() => {
                         this.init();
                         this._reinitScheduled = false;
-                    }, 100);
+                    }, delay);
                 }
             });
 
@@ -580,7 +589,10 @@
                     };
                     
                     // Démarrer l'initialisation avec délai adaptatif
-                    const initDelay = isVertical ? 300 : 100;
+                    let initDelay = isVertical ? 300 : 100;
+                    if (bbContents._performanceBoostDetected) {
+                        initDelay = isVertical ? 600 : 300; // Délais plus longs avec bb-performance-boost
+                    }
                     setTimeout(() => initAnimation(0), initDelay);
                 });
 
@@ -974,19 +986,22 @@
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
                 // Délai pour éviter le blocage du rendu
+                const delay = document.body.hasAttribute('bb-performance-boost') ? 300 : 100;
                 setTimeout(function() {
                     bbContents.init();
-                }, 100);
+                }, delay);
             });
         } else {
             // Délai pour éviter le blocage du rendu
+            const delay = document.body.hasAttribute('bb-performance-boost') ? 300 : 100;
             setTimeout(function() {
                 bbContents.init();
-            }, 100);
+            }, delay);
         }
         
         // Initialisation différée supplémentaire pour les cas difficiles
         window.addEventListener('load', function() {
+            const loadDelay = document.body.hasAttribute('bb-performance-boost') ? 2000 : 1000;
             setTimeout(function() {
                 // Vérifier s'il y a des éléments non initialisés
                 const unprocessedMarquees = document.querySelectorAll('[bb-marquee]:not([data-bb-marquee-processed])');
@@ -994,7 +1009,7 @@
                     bbContents.utils.log('Éléments marquee non initialisés détectés après load, réinitialisation...');
                     bbContents.reinit();
                 }
-            }, 1000);
+            }, loadDelay);
         });
     }
 
