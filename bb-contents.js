@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.37-beta',
+        version: '1.0.38-beta',
         debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -397,7 +397,7 @@
                     // Récupérer les options
                     const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
                     const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
-                    const pauseOnHover = bbContents._getAttr(element, 'bb-marquee-pause') || 'true';
+                    const pauseOnHover = bbContents._getAttr(element, 'bb-marquee-pause');
                     const gap = bbContents._getAttr(element, 'bb-marquee-gap') || '50';
                     const orientation = bbContents._getAttr(element, 'bb-marquee-orientation') || 'horizontal';
                     const height = bbContents._getAttr(element, 'bb-marquee-height') || '300';
@@ -521,26 +521,26 @@
                                 }
                                 
                                 let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
-                                const step = (parseFloat(speed) * 2) / 60; // Vitesse différente
+                                const baseStep = (parseFloat(speed) * 2) / 60; // Vitesse de base
+                                let currentStep = baseStep;
                                 let isPaused = false;
+                                let pauseTransition = null;
                                 
                                 // Fonction d'animation JavaScript
                                 const animate = () => {
-                                    if (!isPaused) {
-                                        if (direction === 'bottom') {
-                                            currentPosition += step;
-                                            if (currentPosition >= 0) {
-                                                currentPosition = -contentSize - parseInt(gap);
-                                            }
-                                        } else {
-                                            currentPosition -= step;
-                                            if (currentPosition <= -contentSize - parseInt(gap)) {
-                                                currentPosition = 0;
-                                            }
+                                    if (direction === 'bottom') {
+                                        currentPosition += currentStep;
+                                        if (currentPosition >= 0) {
+                                            currentPosition = -contentSize - parseInt(gap);
                                         }
-                                        
-                                        scrollContainer.style.transform = `translate3d(0px, ${currentPosition}px, 0px)`;
+                                    } else {
+                                        currentPosition -= currentStep;
+                                        if (currentPosition <= -contentSize - parseInt(gap)) {
+                                            currentPosition = 0;
+                                        }
                                     }
+                                    
+                                    scrollContainer.style.transform = `translate3d(0px, ${currentPosition}px, 0px)`;
                                     requestAnimationFrame(animate);
                                 };
                                 
@@ -549,13 +549,49 @@
                                 
                                 bbContents.utils.log('Marquee vertical créé avec animation JS - direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px', 'hauteur-wrapper:', height + 'px');
                                 
-                                // Pause au survol
+                                // Pause au survol avec transition douce
                                 if (pauseOnHover === 'true') {
+                                    // Fonction de transition de vitesse
+                                    const transitionSpeed = (targetSpeed, duration = 400) => {
+                                        if (pauseTransition) {
+                                            cancelAnimationFrame(pauseTransition);
+                                        }
+                                        
+                                        const startSpeed = currentStep;
+                                        const speedDiff = targetSpeed - startSpeed;
+                                        const startTime = performance.now();
+                                        
+                                        const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+                                        const easeIn = (t) => t * t * t;
+                                        
+                                        const animateTransition = (currentTime) => {
+                                            const elapsed = currentTime - startTime;
+                                            const progress = Math.min(elapsed / duration, 1);
+                                            
+                                            if (targetSpeed === 0) {
+                                                // Ralentir (ease-out)
+                                                currentStep = startSpeed + speedDiff * easeOut(progress);
+                                            } else {
+                                                // Accélérer (ease-in)
+                                                currentStep = startSpeed + speedDiff * easeIn(progress);
+                                            }
+                                            
+                                            if (progress < 1) {
+                                                pauseTransition = requestAnimationFrame(animateTransition);
+                                            } else {
+                                                currentStep = targetSpeed;
+                                                pauseTransition = null;
+                                            }
+                                        };
+                                        
+                                        pauseTransition = requestAnimationFrame(animateTransition);
+                                    };
+                                    
                                     element.addEventListener('mouseenter', function() {
-                                        isPaused = true;
+                                        transitionSpeed(0); // Ralentir jusqu'à 0
                                     });
                                     element.addEventListener('mouseleave', function() {
-                                        isPaused = false;
+                                        transitionSpeed(baseStep); // Revenir à la vitesse normale
                                     });
                                 }
                             } else {
@@ -565,26 +601,26 @@
                                 scrollContainer.style.width = totalSize + 'px';
                                 
                                 let currentPosition = direction === 'right' ? -contentSize - parseInt(gap) : 0;
-                                const step = (parseFloat(speed) * 0.5) / 60; // Vitesse réduite pour l'horizontal
+                                const baseStep = (parseFloat(speed) * 0.5) / 60; // Vitesse de base
+                                let currentStep = baseStep;
                                 let isPaused = false;
+                                let pauseTransition = null;
                                 
                                 // Fonction d'animation JavaScript
                                 const animate = () => {
-                                    if (!isPaused) {
-                                        if (direction === 'right') {
-                                            currentPosition += step;
-                                            if (currentPosition >= 0) {
-                                                currentPosition = -contentSize - parseInt(gap);
-                                            }
-                                        } else {
-                                            currentPosition -= step;
-                                            if (currentPosition <= -contentSize - parseInt(gap)) {
-                                                currentPosition = 0;
-                                            }
+                                    if (direction === 'right') {
+                                        currentPosition += currentStep;
+                                        if (currentPosition >= 0) {
+                                            currentPosition = -contentSize - parseInt(gap);
                                         }
-                                        
-                                        scrollContainer.style.transform = `translate3d(${currentPosition}px, 0px, 0px)`;
+                                    } else {
+                                        currentPosition -= currentStep;
+                                        if (currentPosition <= -contentSize - parseInt(gap)) {
+                                            currentPosition = 0;
+                                        }
                                     }
+                                    
+                                    scrollContainer.style.transform = `translate3d(${currentPosition}px, 0px, 0px)`;
                                     requestAnimationFrame(animate);
                                 };
                                 
@@ -593,13 +629,49 @@
                                 
                                 bbContents.utils.log('Marquee horizontal créé avec animation JS - direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px');
                                 
-                                // Pause au survol
+                                // Pause au survol avec transition douce
                                 if (pauseOnHover === 'true') {
+                                    // Fonction de transition de vitesse
+                                    const transitionSpeed = (targetSpeed, duration = 400) => {
+                                        if (pauseTransition) {
+                                            cancelAnimationFrame(pauseTransition);
+                                        }
+                                        
+                                        const startSpeed = currentStep;
+                                        const speedDiff = targetSpeed - startSpeed;
+                                        const startTime = performance.now();
+                                        
+                                        const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+                                        const easeIn = (t) => t * t * t;
+                                        
+                                        const animateTransition = (currentTime) => {
+                                            const elapsed = currentTime - startTime;
+                                            const progress = Math.min(elapsed / duration, 1);
+                                            
+                                            if (targetSpeed === 0) {
+                                                // Ralentir (ease-out)
+                                                currentStep = startSpeed + speedDiff * easeOut(progress);
+                                            } else {
+                                                // Accélérer (ease-in)
+                                                currentStep = startSpeed + speedDiff * easeIn(progress);
+                                            }
+                                            
+                                            if (progress < 1) {
+                                                pauseTransition = requestAnimationFrame(animateTransition);
+                                            } else {
+                                                currentStep = targetSpeed;
+                                                pauseTransition = null;
+                                            }
+                                        };
+                                        
+                                        pauseTransition = requestAnimationFrame(animateTransition);
+                                    };
+                                    
                                     element.addEventListener('mouseenter', function() {
-                                        isPaused = true;
+                                        transitionSpeed(0); // Ralentir jusqu'à 0
                                     });
                                     element.addEventListener('mouseleave', function() {
-                                        isPaused = false;
+                                        transitionSpeed(baseStep); // Revenir à la vitesse normale
                                     });
                                 }
                             }
