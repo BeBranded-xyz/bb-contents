@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.32-beta
+ * @version 1.0.33-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.32-beta',
+        version: '1.0.33-beta',
         debug: false, // Désactivé par défaut pour une console propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         i18n: {
@@ -31,6 +31,8 @@
         modules: {},
         _observer: null,
         _reinitScheduled: false,
+        _initRetryCount: 0,
+        _maxInitRetries: 3,
         
         // Utilitaires
         utils: {
@@ -100,6 +102,47 @@
 
             // Activer l'observer DOM pour contenu dynamique
             this.setupObserver();
+            
+            // Vérifier et réinitialiser les éléments non initialisés
+            this.checkAndReinitFailedElements();
+        },
+        
+        // Nouvelle méthode pour vérifier et réinitialiser les éléments échoués
+        checkAndReinitFailedElements: function() {
+            const scope = document.querySelector('[data-bb-scope]') || document;
+            let needsReinit = false;
+            
+            // Vérifier les marquees non initialisés
+            const marqueeElements = scope.querySelectorAll('[bb-marquee]:not([data-bb-marquee-processed])');
+            if (marqueeElements.length > 0) {
+                bbContents.utils.log('Marquees non initialisés détectés:', marqueeElements.length);
+                needsReinit = true;
+            }
+            
+            // Vérifier les autres modules si nécessaire
+            Object.keys(this.modules).forEach(function(moduleName) {
+                const module = bbContents.modules[moduleName];
+                if (module.checkFailed && module.checkFailed(scope)) {
+                    bbContents.utils.log('Module', moduleName, 'a des éléments échoués');
+                    needsReinit = true;
+                }
+            });
+            
+            // Réinitialiser si nécessaire et si on n'a pas dépassé le nombre max de tentatives
+            if (needsReinit && this._initRetryCount < this._maxInitRetries) {
+                this._initRetryCount++;
+                bbContents.utils.log('Tentative de réinitialisation', this._initRetryCount, '/', this._maxInitRetries);
+                
+                setTimeout(() => {
+                    this.init();
+                }, 500 * this._initRetryCount); // Délai progressif
+            }
+        },
+        
+        // Méthode publique pour forcer la réinitialisation
+        reinit: function() {
+            this._initRetryCount = 0;
+            this.init();
         },
 
         // Observer DOM pour contenu dynamique
@@ -307,11 +350,18 @@
             }
         },
 
-        // Module Marquee - Version live 1.0.0 avec protections
+        // Module Marquee - Version live 1.0.33-beta avec améliorations d'initialisation
         marquee: {
             detect: function(scope) {
                 const s = scope || document;
                 return s.querySelector(bbContents._attrSelector('marquee')) !== null;
+            },
+            
+            // Nouvelle méthode pour vérifier les éléments échoués
+            checkFailed: function(scope) {
+                const s = scope || document;
+                const failedElements = s.querySelectorAll('[bb-marquee]:not([data-bb-marquee-processed])');
+                return failedElements.length > 0;
             },
             
             init: function(root) {
@@ -399,28 +449,38 @@
                     // Marquer l'élément comme traité par le module marquee
                     element.setAttribute('data-bb-marquee-processed', 'true');
 
-                    // Fonction pour initialiser l'animation
-                    const initAnimation = () => {
+                    // Fonction pour initialiser l'animation avec retry amélioré
+                    const initAnimation = (retryCount = 0) => {
                         // Attendre que le contenu soit dans le DOM
                         requestAnimationFrame(() => {
                             const contentWidth = mainBlock.offsetWidth;
                             const contentHeight = mainBlock.offsetHeight;
                             
-                            // Debug
-                            bbContents.utils.log('Debug - Largeur du contenu:', contentWidth, 'px', 'Hauteur:', contentHeight, 'px', 'Enfants:', mainBlock.children.length, 'Vertical:', isVertical, 'Direction:', direction);
+                            // Debug amélioré
+                            bbContents.utils.log('Debug - Largeur du contenu:', contentWidth, 'px', 'Hauteur:', contentHeight, 'px', 'Enfants:', mainBlock.children.length, 'Vertical:', isVertical, 'Direction:', direction, 'Tentative:', retryCount + 1);
                             
-                            // Si pas de contenu, réessayer
+                            // Si pas de contenu, réessayer avec délai progressif
                             if ((isVertical && contentHeight === 0) || (!isVertical && contentWidth === 0)) {
-                                bbContents.utils.log('Contenu non prêt, nouvelle tentative dans 200ms');
-                                setTimeout(initAnimation, 200);
-                                return;
+                                if (retryCount < 5) {
+                                    bbContents.utils.log('Contenu non prêt, nouvelle tentative dans', (200 + retryCount * 100), 'ms');
+                                    setTimeout(() => initAnimation(retryCount + 1), 200 + retryCount * 100);
+                                    return;
+                                } else {
+                                    bbContents.utils.log('Échec d\'initialisation après 5 tentatives');
+                                    return;
+                                }
                             }
                             
                             // Pour le vertical, s'assurer qu'on a une hauteur minimale
                             if (isVertical && contentHeight < 50) {
-                                bbContents.utils.log('Hauteur insuffisante pour le marquee vertical (' + contentHeight + 'px), nouvelle tentative dans 200ms');
-                                setTimeout(initAnimation, 200);
-                                return;
+                                if (retryCount < 5) {
+                                    bbContents.utils.log('Hauteur insuffisante pour le marquee vertical (' + contentHeight + 'px), nouvelle tentative dans', (200 + retryCount * 100), 'ms');
+                                    setTimeout(() => initAnimation(retryCount + 1), 200 + retryCount * 100);
+                                    return;
+                                } else {
+                                    bbContents.utils.log('Échec d\'initialisation - hauteur insuffisante après 5 tentatives');
+                                    return;
+                                }
                             }
                             
                             if (isVertical) {
@@ -519,8 +579,9 @@
                         });
                     };
                     
-                    // Démarrer l'initialisation
-                    setTimeout(initAnimation, isVertical ? 300 : 100);
+                    // Démarrer l'initialisation avec délai adaptatif
+                    const initDelay = isVertical ? 300 : 100;
+                    setTimeout(() => initAnimation(0), initDelay);
                 });
 
                 bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
@@ -923,6 +984,18 @@
                 bbContents.init();
             }, 100);
         }
+        
+        // Initialisation différée supplémentaire pour les cas difficiles
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                // Vérifier s'il y a des éléments non initialisés
+                const unprocessedMarquees = document.querySelectorAll('[bb-marquee]:not([data-bb-marquee-processed])');
+                if (unprocessedMarquees.length > 0) {
+                    bbContents.utils.log('Éléments marquee non initialisés détectés après load, réinitialisation...');
+                    bbContents.reinit();
+                }
+            }, 1000);
+        });
     }
 
     // Initialisation
