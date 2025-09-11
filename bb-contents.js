@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.1
+ * @version 1.0.40-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,9 +17,10 @@
 
     // Configuration
     const config = {
-        version: '1.0.1',
+        version: '1.0.40-beta',
         debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
+        youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
         i18n: {
             copied: 'Lien copié !'
         }
@@ -84,18 +85,12 @@
             
             this.utils.log('Initialisation v' + this.config.version);
             
-            // Debug: Analyser l'environnement
-            this.utils.log('=== DEBUG ENVIRONNEMENT ===');
-            this.utils.log('Body attributes:', Array.from(document.body.attributes).map(attr => attr.name + '=' + attr.value));
-            this.utils.log('Scripts chargés:', document.querySelectorAll('script').length);
-            this.utils.log('Stylesheets chargés:', document.querySelectorAll('link[rel="stylesheet"]').length);
-            this.utils.log('Marquees détectés:', document.querySelectorAll('[bb-marquee]').length);
-            this.utils.log('Marquees déjà traités:', document.querySelectorAll('[bb-marquee][data-bb-marquee-processed]').length);
+            // Debug environnement supprimé pour console propre
             
             // Détection du bb-performance-boost
             this._performanceBoostDetected = document.body.hasAttribute('bb-performance-boost');
             if (this._performanceBoostDetected) {
-                this.utils.log('bb-performance-boost détecté - mode de compatibilité activé');
+                // bb-performance-boost détecté - mode de compatibilité activé
             }
             
             // Déterminer la portée
@@ -105,7 +100,7 @@
             Object.keys(this.modules).forEach(function(moduleName) {
                 const module = bbContents.modules[moduleName];
                 if (module.detect && module.detect(scope)) {
-                    bbContents.utils.log('Module détecté:', moduleName);
+                    // Module détecté
                     try {
                         module.init(scope);
                     } catch (error) {
@@ -130,7 +125,7 @@
             // Vérifier les marquees non initialisés
             const marqueeElements = scope.querySelectorAll('[bb-marquee]:not([data-bb-marquee-processed])');
             if (marqueeElements.length > 0) {
-                bbContents.utils.log('Marquees non initialisés détectés:', marqueeElements.length);
+                // Marquees non initialisés détectés
                 needsReinit = true;
             }
             
@@ -138,7 +133,7 @@
             Object.keys(this.modules).forEach(function(moduleName) {
                 const module = bbContents.modules[moduleName];
                 if (module.checkFailed && module.checkFailed(scope)) {
-                    bbContents.utils.log('Module', moduleName, 'a des éléments échoués');
+                    // Module a des éléments échoués
                     needsReinit = true;
                 }
             });
@@ -146,7 +141,7 @@
             // Réinitialiser si nécessaire et si on n'a pas dépassé le nombre max de tentatives
             if (needsReinit && this._initRetryCount < this._maxInitRetries) {
                 this._initRetryCount++;
-                bbContents.utils.log('Tentative de réinitialisation', this._initRetryCount, '/', this._maxInitRetries);
+                // Tentative de réinitialisation
                 
                 const delay = this._performanceBoostDetected ? 1000 * this._initRetryCount : 500 * this._initRetryCount;
                 setTimeout(() => {
@@ -208,166 +203,7 @@
 
     // Modules
     bbContents.modules = {
-        // Module SEO
-        seo: {
-            detect: function(scope) {
-                return scope.querySelector('[bb-seo]') !== null;
-            },
-            
-            init: function(scope) {
-                const elements = scope.querySelectorAll('[bb-seo]');
-                if (elements.length === 0) return;
-                
-                bbContents.utils.log('Module détecté: seo');
-                
-                elements.forEach(element => {
-                    if (element.bbProcessed) return;
-                    element.bbProcessed = true;
-                    
-                    const title = bbContents._getAttr(element, 'bb-seo-title');
-                    const description = bbContents._getAttr(element, 'bb-seo-description');
-                    const keywords = bbContents._getAttr(element, 'bb-seo-keywords');
-                    
-                    if (title) {
-                        document.title = title;
-                    }
-                    
-                    if (description) {
-                        let meta = document.querySelector('meta[name="description"]');
-                        if (!meta) {
-                            meta = document.createElement('meta');
-                            meta.name = 'description';
-                            document.head.appendChild(meta);
-                        }
-                        meta.content = description;
-                    }
-                    
-                    if (keywords) {
-                        let meta = document.querySelector('meta[name="keywords"]');
-                        if (!meta) {
-                            meta = document.createElement('meta');
-                            meta.name = 'keywords';
-                            document.head.appendChild(meta);
-                        }
-                        meta.content = keywords;
-                    }
-                });
-                
-                bbContents.utils.log('Module SEO initialisé:', elements.length, 'éléments');
-            }
-        },
-
-        // Module Images
-        images: {
-            detect: function(scope) {
-                return scope.querySelector('[bb-images]') !== null;
-            },
-            
-            init: function(scope) {
-                const elements = scope.querySelectorAll('[bb-images]');
-                if (elements.length === 0) return;
-                
-                bbContents.utils.log('Module détecté: images');
-                
-                elements.forEach(element => {
-                    if (element.bbProcessed) return;
-                    element.bbProcessed = true;
-                    
-                    const lazy = bbContents._getAttr(element, 'bb-images-lazy');
-                    const webp = bbContents._getAttr(element, 'bb-images-webp');
-                    
-                    if (lazy === 'true') {
-                        // Implémentation lazy loading basique
-                        const images = element.querySelectorAll('img');
-                        images.forEach(img => {
-                            if (!img.loading) {
-                                img.loading = 'lazy';
-                            }
-                        });
-                    }
-                    
-                    if (webp === 'true') {
-                        // Support WebP basique
-                        const images = element.querySelectorAll('img');
-                        images.forEach(img => {
-                            const src = img.src;
-                            if (src && !src.includes('.webp')) {
-                                // Logique de conversion WebP (à implémenter selon les besoins)
-                                bbContents.utils.log('Support WebP activé pour:', src);
-                            }
-                        });
-                    }
-                });
-                
-                bbContents.utils.log('Module Images initialisé:', elements.length, 'éléments');
-            }
-        },
-
-        // Module Infinite Scroll
-        infinite: {
-            detect: function(scope) {
-                return scope.querySelector('[bb-infinite]') !== null;
-            },
-            
-            init: function(scope) {
-                const elements = scope.querySelectorAll('[bb-infinite]');
-                if (elements.length === 0) return;
-                
-                bbContents.utils.log('Module détecté: infinite');
-                
-                elements.forEach(element => {
-                    if (element.bbProcessed) return;
-                    element.bbProcessed = true;
-                    
-                    const threshold = bbContents._getAttr(element, 'bb-infinite-threshold') || '0.1';
-                    const url = bbContents._getAttr(element, 'bb-infinite-url');
-                    
-                    if (!url) {
-                        bbContents.utils.log('Erreur: bb-infinite-url manquant');
-                        return;
-                    }
-                    
-                    // Implémentation basique d'infinite scroll
-                    let loading = false;
-                    let page = 1;
-                    
-                    const loadMore = () => {
-                        if (loading) return;
-                        loading = true;
-                        
-                        fetch(`${url}?page=${page}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.items && data.items.length > 0) {
-                                    // Ajouter le contenu
-                                    element.innerHTML += data.html || '';
-                                    page++;
-                                    loading = false;
-                                }
-                            })
-                            .catch(error => {
-                                bbContents.utils.log('Erreur infinite scroll:', error);
-                                loading = false;
-                            });
-                    };
-                    
-                    // Observer d'intersection pour déclencher le chargement
-                    const observer = new IntersectionObserver((entries) => {
-                        entries.forEach(entry => {
-                            if (entry.isIntersecting) {
-                                loadMore();
-                            }
-                        });
-                    }, { threshold: parseFloat(threshold) });
-                    
-                    observer.observe(element);
-                });
-                
-                bbContents.utils.log('Module Infinite Scroll initialisé:', elements.length, 'éléments');
-            }
-        },
-
-        // Module Marquee - Version live 1.0.33-beta avec améliorations d'initialisation
+        // Module Marquee - Version live 1.0.40-beta avec modules parasites supprimés
         marquee: {
             detect: function(scope) {
                 const s = scope || document;
@@ -389,7 +225,7 @@
                 elements.forEach(function(element) {
                     // Vérifier si l'élément a déjà été traité par un autre module
                     if (element.bbProcessed || element.hasAttribute('data-bb-youtube-processed')) {
-                        bbContents.utils.log('Élément marquee déjà traité par un autre module, ignoré:', element);
+                        // Élément marquee déjà traité par un autre module, ignoré
                         return;
                     }
                     element.bbProcessed = true;
@@ -488,11 +324,10 @@
                                 // Si largeur trop petite, utiliser la largeur du parent
                                 const parentRect = mainBlock.parentElement.getBoundingClientRect();
                                 finalWidth = parentRect.width || mainBlock.parentElement.offsetWidth;
-                                bbContents.utils.log('Largeur corrigée pour marquee vertical:', finalWidth, 'px (était:', contentWidth, 'px)');
+                                // Largeur corrigée pour marquee vertical
                             }
                             
-                            // Debug amélioré avec statut des images
-                            bbContents.utils.log('Debug - Largeur:', finalWidth, 'px, Hauteur:', finalHeight, 'px, Images chargées:', imagesLoaded, 'Enfants:', mainBlock.children.length, 'Vertical:', isVertical, 'Direction:', direction, 'Tentative:', retryCount + 1);
+                            // Debug supprimé pour console propre
                             
                             // Vérifications robustes avant initialisation
                             const hasValidDimensions = (isVertical && finalHeight > 50) || (!isVertical && finalWidth > 50);
@@ -502,11 +337,11 @@
                             if (!hasValidDimensions || !imagesLoaded) {
                                 if (retryCount < maxRetries) {
                                     const delay = 300 + retryCount * 200; // Délais plus longs pour attendre les images
-                                    bbContents.utils.log('Contenu/images non prêts, nouvelle tentative dans', delay, 'ms');
+                                    // Contenu/images non prêts, nouvelle tentative
                                     setTimeout(() => initAnimation(retryCount + 1), delay);
                                     return;
                                 } else {
-                                    bbContents.utils.log('Échec d\'initialisation après', maxRetries, 'tentatives - dimensions:', finalWidth + 'x' + finalHeight, 'images chargées:', imagesLoaded);
+                                    // Échec d'initialisation après plusieurs tentatives
                                     return;
                                 }
                             }
@@ -553,7 +388,7 @@
                                 // Démarrer l'animation
                                 animationId = requestAnimationFrame(animate);
                                 
-                                bbContents.utils.log('Marquee vertical créé avec animation JS - direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px', 'hauteur-wrapper:', height + 'px');
+                                // Marquee vertical créé avec animation JS
                                 
                                 // Pause au survol avec transition fluide CSS + JS
                                 if (pauseOnHover === 'true') {
@@ -632,7 +467,7 @@
                                 // Démarrer l'animation
                                 animationId = requestAnimationFrame(animate);
                                 
-                                bbContents.utils.log('Marquee horizontal créé avec animation JS - direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px');
+                                // Marquee horizontal créé avec animation JS
                                 
                                 // Pause au survol avec transition fluide CSS + JS
                                 if (pauseOnHover === 'true') {
@@ -685,7 +520,7 @@
                     
                     // Attendre window.load si pas encore déclenché
                     if (document.readyState !== 'complete') {
-                        bbContents.utils.log('Attente de window.load pour initialiser le marquee');
+                        // Attente de window.load pour initialiser le marquee
                         window.addEventListener('load', () => {
                             setTimeout(() => initAnimation(0), initDelay);
                         });
@@ -695,7 +530,7 @@
                     }
                 });
 
-                bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
+                // Module Marquee initialisé
             }
         },
 
@@ -757,7 +592,7 @@
             init: function(scope) {
                 // Vérifier si c'est un bot - pas d'appel API
                 if (this.isBot()) {
-                    bbContents.utils.log('Bot détecté, pas de chargement YouTube (économie API)');
+                    // Bot détecté, pas de chargement YouTube (économie API)
                     return;
                 }
                 
@@ -767,12 +602,12 @@
                 const elements = scope.querySelectorAll('[bb-youtube-channel]');
                 if (elements.length === 0) return;
                 
-                bbContents.utils.log('Module détecté: youtube');
+                // Module détecté: youtube
                 
                 elements.forEach(element => {
                     // Vérifier si l'élément a déjà été traité par un autre module
                     if (element.bbProcessed || element.hasAttribute('data-bb-marquee-processed')) {
-                        bbContents.utils.log('Élément youtube déjà traité par un autre module, ignoré:', element);
+                        // Élément youtube déjà traité par un autre module, ignoré
                         return;
                     }
                     element.bbProcessed = true;
@@ -784,13 +619,13 @@
                     const endpoint = bbContents.config.youtubeEndpoint;
                     
                     if (!channelId) {
-                        bbContents.utils.log('Erreur: bb-youtube-channel manquant');
+                        // Erreur: bb-youtube-channel manquant
                         return;
                     }
                     
                     if (!endpoint) {
-                        bbContents.utils.log('Erreur: youtubeEndpoint non configuré. Utilisez bbContents.config.youtubeEndpoint = "votre-worker-url"');
-                        element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez : bbContents.config.youtubeEndpoint = "votre-worker-url"</div>';
+                        // Erreur: youtubeEndpoint non configuré
+                        element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = \'https://youtube-worker.maxkonzelmann.workers.dev\';<br>&lt;/script&gt;</code></div>';
                         return;
                     }
                     
@@ -808,7 +643,7 @@
                     }
                     
                     if (!template) {
-                        bbContents.utils.log('Erreur: élément [bb-youtube-item] manquant');
+                        // Erreur: élément [bb-youtube-item] manquant
                         element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Template manquant</strong><br>Ajoutez un élément avec l\'attribut bb-youtube-item</div>';
                         return;
                     }
@@ -824,7 +659,7 @@
                     const cachedData = this.cache.get(cacheKey);
                     
                     if (cachedData) {
-                        bbContents.utils.log('Données YouTube récupérées du cache (économie API)');
+                        // Données YouTube récupérées du cache (économie API)
                         this.generateYouTubeFeed(container, template, cachedData, allowShorts, language);
                         return;
                     }
@@ -847,20 +682,20 @@
                             
                             // Sauvegarder en cache pour 24h
                             this.cache.set(cacheKey, data);
-                            bbContents.utils.log('Données YouTube mises en cache pour 24h (économie API)');
+                            // Données YouTube mises en cache pour 24h (économie API)
                             
                             this.generateYouTubeFeed(container, template, data, allowShorts, language);
                         })
                         .catch(error => {
-                            bbContents.utils.log('Erreur dans le module youtube:', error);
+                            // Erreur dans le module youtube
                             
                             // En cas d'erreur, essayer de récupérer du cache même expiré
                             const expiredCache = localStorage.getItem(cacheKey);
                             if (expiredCache) {
                                 try {
                                     const cachedData = JSON.parse(expiredCache);
-                                    bbContents.utils.log('Utilisation du cache expiré en cas d\'erreur API');
-                                    this.generateYouTubeFeed(container, template, cachedData.value, allowShorts);
+                                    // Utilisation du cache expiré en cas d'erreur API
+                                    this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
                                     return;
                                 } catch (e) {
                                     // Ignorer les erreurs de parsing
@@ -880,7 +715,7 @@
                 
                 // Les vidéos sont déjà filtrées par l'API YouTube selon allowShorts
                 let videos = data.items;
-                bbContents.utils.log(`Vidéos reçues de l'API: ${videos.length} (allowShorts: ${allowShorts})`);
+                // Vidéos reçues de l'API
                 
                 // Vider le conteneur (en préservant les éléments marquee)
                 const marqueeElements = container.querySelectorAll('[data-bb-marquee-processed]');
@@ -907,7 +742,7 @@
                     container.appendChild(clone);
                 });
                 
-                bbContents.utils.log(`YouTube Feed généré: ${videos.length} vidéos`);
+                // YouTube Feed généré
             },
             
             fillVideoData: function(element, videoId, snippet, language = 'fr') {
@@ -953,10 +788,10 @@
                         
                         // Debug: logger la qualité utilisée (en mode debug seulement)
                         if (bbContents.config.debug) {
-                            bbContents.utils.log(`Thumbnail optimisée pour ${snippet.title}: ${bestQuality}`);
+                            // Thumbnail optimisée
                         }
                     } else {
-                        bbContents.utils.log('Aucune thumbnail disponible pour:', snippet.title);
+                        // Aucune thumbnail disponible
                     }
                 }
                 
@@ -1067,7 +902,7 @@
                     });
                     
                     if (cleaned > 0) {
-                        bbContents.utils.log(`Cache YouTube nettoyé: ${cleaned} entrées supprimées`);
+                        // Cache YouTube nettoyé
                     }
                 } catch (e) {
                     // Ignorer les erreurs de nettoyage
@@ -1105,7 +940,7 @@
                 // Vérifier s'il y a des éléments non initialisés
                 const unprocessedMarquees = document.querySelectorAll('[bb-marquee]:not([data-bb-marquee-processed])');
                 if (unprocessedMarquees.length > 0) {
-                    bbContents.utils.log('Éléments marquee non initialisés détectés après load, réinitialisation...');
+                    // Éléments marquee non initialisés détectés après load, réinitialisation
                     bbContents.reinit();
                 }
                 
@@ -1113,7 +948,7 @@
                 const allImages = document.querySelectorAll('img');
                 const unloadedImages = Array.from(allImages).filter(img => !img.complete || img.naturalHeight === 0);
                 if (unloadedImages.length > 0) {
-                    bbContents.utils.log('Images non chargées détectées:', unloadedImages.length, '- attente supplémentaire...');
+                    // Images non chargées détectées, attente supplémentaire
                     setTimeout(() => {
                         bbContents.reinit();
                     }, 1000);
