@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.50-beta
+ * @version 1.0.51-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -22,7 +22,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.50-beta',
+        version: '1.0.51-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -425,7 +425,7 @@
                             // Si pas de contenu valide ou images pas chargées, réessayer (sauf si on force)
                             if ((!hasValidDimensions || !imagesLoaded) && !shouldForceInit && !shouldForceInitImages) {
                                 if (retryCount < maxRetries) {
-                                    const delay = 300 + retryCount * 200; // Délais plus longs pour attendre les images
+                                    const delay = 50 + retryCount * 50; // Délais rapides pour header
                                     console.log(`[bb-contents] Marquee ${index + 1}: RETRY dans ${delay}ms (dimensions: ${hasValidDimensions}, images: ${imagesLoaded})`);
                                     // Contenu/images non prêts, nouvelle tentative
                                     setTimeout(() => initAnimation(retryCount + 1), delay);
