@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.2
+ * @version 1.0.49-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -22,7 +22,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.2',
+        version: '1.0.49-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -253,13 +253,31 @@
             if (scope.closest && scope.closest('[data-bb-disable]')) return;
             const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
 
-            elements.forEach(function(element) {
+            // Debug: Log du nombre d'éléments marquee trouvés
+            console.log(`[bb-contents] Marquee init: ${elements.length} éléments trouvés`);
+
+            elements.forEach(function(element, index) {
+                // Debug: Log de chaque élément
+                console.log(`[bb-contents] Marquee ${index + 1}:`, {
+                    element: element,
+                    alreadyProcessed: element.bbProcessed,
+                    hasYouTubeProcessed: element.hasAttribute('data-bb-youtube-processed'),
+                    hasMarqueeProcessed: element.hasAttribute('data-bb-marquee-processed'),
+                    attributes: {
+                        speed: element.getAttribute('bb-marquee-speed'),
+                        direction: element.getAttribute('bb-marquee-direction'),
+                        orientation: element.getAttribute('bb-marquee-orientation'),
+                        height: element.getAttribute('bb-marquee-height')
+                    }
+                });
                     // Vérifier si l'élément a déjà été traité par un autre module
                     if (element.bbProcessed || element.hasAttribute('data-bb-youtube-processed')) {
                         // Élément marquee déjà traité par un autre module, ignoré
+                        console.log(`[bb-contents] Marquee ${index + 1}: IGNORÉ (déjà traité)`);
                         return;
                     }
                 element.bbProcessed = true;
+                console.log(`[bb-contents] Marquee ${index + 1}: TRAITEMENT EN COURS`);
 
                 // Récupérer les options
                     const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
@@ -336,9 +354,13 @@
 
                     // Fonction pour initialiser l'animation avec vérification robuste des dimensions
                     const initAnimation = (retryCount = 0) => {
+                        console.log(`[bb-contents] Marquee ${index + 1}: initAnimation tentative ${retryCount + 1}`);
+                        
                         // Vérifier que les images sont chargées
                         const images = mainBlock.querySelectorAll('img');
                         const imagesLoaded = Array.from(images).every(img => img.complete && img.naturalHeight > 0);
+                        
+                        console.log(`[bb-contents] Marquee ${index + 1}: Images chargées: ${imagesLoaded} (${images.length} images)`);
                         
                         // Attendre que le contenu soit dans le DOM et que les images soient chargées
                     requestAnimationFrame(() => {
@@ -346,6 +368,13 @@
                             const rect = mainBlock.getBoundingClientRect();
                             const contentWidth = rect.width || mainBlock.offsetWidth;
                             const contentHeight = rect.height || mainBlock.offsetHeight;
+                            
+                            console.log(`[bb-contents] Marquee ${index + 1}: Dimensions calculées:`, {
+                                rect: rect,
+                                contentWidth: contentWidth,
+                                contentHeight: contentHeight,
+                                isVertical: isVertical
+                            });
                             
                             // Pour les marquees verticaux, utiliser la largeur du parent si nécessaire
                             let finalWidth = contentWidth;
@@ -362,20 +391,48 @@
                             
                             // Vérifications robustes avant initialisation
                             const hasValidDimensions = (isVertical && finalHeight > 50) || (!isVertical && finalWidth > 50);
+                            const hasContent = mainBlock.innerHTML.trim().length > 0;
                             const maxRetries = 8; // Plus de tentatives pour attendre les images
                             
-                            // Si pas de contenu valide ou images pas chargées, réessayer
-                            if (!hasValidDimensions || !imagesLoaded) {
+                            // Fallback: si pas de dimensions valides mais qu'il y a du contenu, forcer l'initialisation
+                            const shouldForceInit = !hasValidDimensions && hasContent && retryCount >= 3;
+                            
+                            console.log(`[bb-contents] Marquee ${index + 1}: Vérifications:`, {
+                                hasValidDimensions: hasValidDimensions,
+                                hasContent: hasContent,
+                                imagesLoaded: imagesLoaded,
+                                retryCount: retryCount,
+                                maxRetries: maxRetries,
+                                shouldForceInit: shouldForceInit
+                            });
+                            
+                            // Si pas de contenu valide ou images pas chargées, réessayer (sauf si on force)
+                            if ((!hasValidDimensions || !imagesLoaded) && !shouldForceInit) {
                                 if (retryCount < maxRetries) {
                                     const delay = 300 + retryCount * 200; // Délais plus longs pour attendre les images
+                                    console.log(`[bb-contents] Marquee ${index + 1}: RETRY dans ${delay}ms (dimensions: ${hasValidDimensions}, images: ${imagesLoaded})`);
                                     // Contenu/images non prêts, nouvelle tentative
                                     setTimeout(() => initAnimation(retryCount + 1), delay);
                                     return;
                                 } else {
                                     // Échec d'initialisation après plusieurs tentatives
+                                    console.log(`[bb-contents] Marquee ${index + 1}: ÉCHEC après ${maxRetries} tentatives`);
                             return;
                                 }
                         }
+                        
+                        if (shouldForceInit) {
+                            console.log(`[bb-contents] Marquee ${index + 1}: FORÇAGE DE L'INITIALISATION (fallback)`);
+                            // Utiliser des dimensions par défaut si les vraies dimensions ne sont pas disponibles
+                            if (isVertical && finalHeight <= 50) {
+                                finalHeight = 200; // Hauteur par défaut pour vertical
+                            }
+                            if (!isVertical && finalWidth <= 50) {
+                                finalWidth = 300; // Largeur par défaut pour horizontal
+                            }
+                        }
+                        
+                        console.log(`[bb-contents] Marquee ${index + 1}: INITIALISATION DE L'ANIMATION`);
                         
                         if (isVertical) {
                             // Animation JavaScript pour le vertical
@@ -553,11 +610,17 @@
                     if (document.readyState !== 'complete') {
                         // Attente de window.load pour initialiser le marquee
                         window.addEventListener('load', () => {
-                            setTimeout(() => initAnimation(0), initDelay);
+                            setTimeout(() => {
+                                initAnimation(0);
+                                console.log(`[bb-contents] Marquee ${index + 1}: Animation démarrée`);
+                            }, initDelay);
                         });
                     } else {
                         // window.load déjà déclenché, initialiser directement
-                        setTimeout(() => initAnimation(0), initDelay);
+                        setTimeout(() => {
+                            initAnimation(0);
+                            console.log(`[bb-contents] Marquee ${index + 1}: Animation démarrée`);
+                        }, initDelay);
                     }
                 });
 
