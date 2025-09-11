@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.57-beta
+ * @version 1.0.58-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -28,7 +28,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.57-beta',
+        version: '1.0.58-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -240,224 +240,158 @@
 
     // Modules
     bbContents.modules = {
-        // Module Marquee - Version live 1.0.41-beta avec modules parasites supprimés
+        // Module Marquee - Version 1.0.37-beta robuste avec attente window.load et vérification images
         marquee: {
-        detect: function(scope) {
-            const s = scope || document;
+            detect: function(scope) {
+                const s = scope || document;
                 return s.querySelector(bbContents._attrSelector('marquee')) !== null;
             },
             
             // Nouvelle méthode pour vérifier les éléments échoués
             checkFailed: function(scope) {
-            const s = scope || document;
+                const s = scope || document;
                 const failedElements = s.querySelectorAll('[bb-marquee]:not([data-bb-marquee-processed])');
                 return failedElements.length > 0;
-        },
-        
-        init: function(root) {
-            const scope = root || document;
-            if (scope.closest && scope.closest('[data-bb-disable]')) return;
-            const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
+            },
+            
+            init: function(root) {
+                const scope = root || document;
+                if (scope.closest && scope.closest('[data-bb-disable]')) return;
+                const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
 
-            // Debug: Log du nombre d'éléments marquee trouvés
-            console.log(`[bb-contents] Marquee init: ${elements.length} éléments trouvés`);
-
-            elements.forEach(function(element, index) {
-                // Debug: Log de chaque élément
-                console.log(`[bb-contents] Marquee ${index + 1}:`, {
-                    element: element,
-                    alreadyProcessed: element.bbProcessed,
-                    hasYouTubeProcessed: element.hasAttribute('data-bb-youtube-processed'),
-                    hasMarqueeProcessed: element.hasAttribute('data-bb-marquee-processed'),
-                    attributes: {
-                        speed: element.getAttribute('bb-marquee-speed'),
-                        direction: element.getAttribute('bb-marquee-direction'),
-                        orientation: element.getAttribute('bb-marquee-orientation'),
-                        height: element.getAttribute('bb-marquee-height')
-                    }
-                });
+                elements.forEach(function(element) {
                     // Vérifier si l'élément a déjà été traité par un autre module
                     if (element.bbProcessed || element.hasAttribute('data-bb-youtube-processed')) {
-                        // Élément marquee déjà traité par un autre module, ignoré
-                        console.log(`[bb-contents] Marquee ${index + 1}: IGNORÉ (déjà traité)`);
+                        bbContents.utils.log('Élément marquee déjà traité par un autre module, ignoré:', element);
                         return;
                     }
-                element.bbProcessed = true;
-                console.log(`[bb-contents] Marquee ${index + 1}: TRAITEMENT EN COURS`);
+                    element.bbProcessed = true;
 
-                // Récupérer les options
+                    // Récupérer les options
                     const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
                     const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
+                    const pauseOnHover = bbContents._getAttr(element, 'bb-marquee-pause') || 'true';
                     const gap = bbContents._getAttr(element, 'bb-marquee-gap') || '50';
                     const orientation = bbContents._getAttr(element, 'bb-marquee-orientation') || 'horizontal';
                     const height = bbContents._getAttr(element, 'bb-marquee-height') || '300';
                     const minHeight = bbContents._getAttr(element, 'bb-marquee-min-height');
 
-                // Sauvegarder le contenu original
-                const originalHTML = element.innerHTML;
-                
-                // Créer le conteneur principal
-                const mainContainer = document.createElement('div');
-                const isVertical = orientation === 'vertical';
+                    // Sauvegarder le contenu original
+                    const originalHTML = element.innerHTML;
+                    
+                    // Créer le conteneur principal
+                    const mainContainer = document.createElement('div');
+                    const isVertical = orientation === 'vertical';
                     const useAutoHeight = isVertical && height === 'auto';
                     
-                mainContainer.style.cssText = `
-                    position: relative;
-                    width: 100%;
+                    mainContainer.style.cssText = `
+                        position: relative;
+                        width: 100%;
                         height: ${isVertical ? (height === 'auto' ? 'auto' : height + 'px') : 'auto'};
-                    overflow: hidden;
-                    min-height: ${isVertical ? '100px' : '50px'};
+                        overflow: hidden;
+                        min-height: ${isVertical ? '100px' : '50px'};
                         ${minHeight ? `min-height: ${minHeight};` : ''}
-                `;
+                    `;
 
-                // Créer le conteneur de défilement
-                const scrollContainer = document.createElement('div');
-                scrollContainer.style.cssText = `
+                    // Créer le conteneur de défilement
+                    const scrollContainer = document.createElement('div');
+                    scrollContainer.style.cssText = `
                         ${useAutoHeight ? 'position: relative;' : 'position: absolute;'}
-                    will-change: transform;
+                        will-change: transform;
                         ${useAutoHeight ? '' : 'height: 100%; top: 0px; left: 0px;'}
-                    display: flex;
-                    ${isVertical ? 'flex-direction: column;' : ''}
-                    align-items: center;
-                    gap: ${gap}px;
-                    ${isVertical ? '' : 'white-space: nowrap;'}
-                    flex-shrink: 0;
-                        transition: transform 0.1s ease-out;
-                `;
+                        display: flex;
+                        ${isVertical ? 'flex-direction: column;' : ''}
+                        align-items: center;
+                        gap: ${gap}px;
+                        ${isVertical ? '' : 'white-space: nowrap;'}
+                        flex-shrink: 0;
+                    `;
 
-                // Créer le bloc de contenu principal
-                const mainBlock = document.createElement('div');
-                mainBlock.innerHTML = originalHTML;
-                mainBlock.style.cssText = `
-                    display: flex;
-                    ${isVertical ? 'flex-direction: column;' : ''}
-                    align-items: center;
-                    gap: ${gap}px;
-                    ${isVertical ? '' : 'white-space: nowrap;'}
-                    flex-shrink: 0;
-                    ${isVertical ? 'min-height: 100px;' : ''}
-                `;
+                    // Créer le bloc de contenu principal
+                    const mainBlock = document.createElement('div');
+                    mainBlock.innerHTML = originalHTML;
+                    mainBlock.style.cssText = `
+                        display: flex;
+                        ${isVertical ? 'flex-direction: column;' : ''}
+                        align-items: center;
+                        gap: ${gap}px;
+                        ${isVertical ? '' : 'white-space: nowrap;'}
+                        flex-shrink: 0;
+                        ${isVertical ? 'min-height: 100px;' : ''}
+                    `;
 
-                // Créer plusieurs répétitions pour un défilement continu
-                const repeatBlock1 = mainBlock.cloneNode(true);
-                const repeatBlock2 = mainBlock.cloneNode(true);
-                const repeatBlock3 = mainBlock.cloneNode(true);
-                
-                // Assembler la structure
-                scrollContainer.appendChild(mainBlock);
-                scrollContainer.appendChild(repeatBlock1);
-                scrollContainer.appendChild(repeatBlock2);
-                scrollContainer.appendChild(repeatBlock3);
-                mainContainer.appendChild(scrollContainer);
-                
-                // Vider et remplacer le contenu original
-                element.innerHTML = '';
-                element.appendChild(mainContainer);
-
+                    // Créer plusieurs répétitions pour un défilement continu
+                    const repeatBlock1 = mainBlock.cloneNode(true);
+                    const repeatBlock2 = mainBlock.cloneNode(true);
+                    const repeatBlock3 = mainBlock.cloneNode(true);
+                    
+                    // Assembler la structure
+                    scrollContainer.appendChild(mainBlock);
+                    scrollContainer.appendChild(repeatBlock1);
+                    scrollContainer.appendChild(repeatBlock2);
+                    scrollContainer.appendChild(repeatBlock3);
+                    mainContainer.appendChild(scrollContainer);
+                    
+                    // Vider et remplacer le contenu original
+                    element.innerHTML = '';
+                    element.appendChild(mainContainer);
+                    
                     // Marquer l'élément comme traité par le module marquee
                     element.setAttribute('data-bb-marquee-processed', 'true');
 
-                    // Fonction pour initialiser l'animation avec vérification robuste des dimensions
+                    // Fonction pour initialiser l'animation avec retry amélioré - Version 1.0.37-beta robuste
                     const initAnimation = (retryCount = 0) => {
-                        console.log(`[bb-contents] Marquee ${index + 1}: initAnimation tentative ${retryCount + 1}`);
-                        
-                        // Vérifier que les images sont chargées
-                        const images = mainBlock.querySelectorAll('img');
-                        
-                        // Forcer le chargement des images lazy loading
-                        images.forEach(img => {
-                            if (img.loading === 'lazy' || img.hasAttribute('data-src')) {
-                                // Forcer le chargement de l'image lazy
-                                if (img.hasAttribute('data-src')) {
-                                    img.src = img.getAttribute('data-src');
-                                }
-                                img.loading = 'eager';
-                            }
-                        });
-                        
-                        const imagesLoaded = Array.from(images).every(img => img.complete && img.naturalHeight > 0);
-                        
-                        console.log(`[bb-contents] Marquee ${index + 1}: Images chargées: ${imagesLoaded} (${images.length} images)`);
-                        
-                        // Attendre que le contenu soit dans le DOM et que les images soient chargées
-                    requestAnimationFrame(() => {
-                            // Calcul plus robuste des dimensions
-                            const rect = mainBlock.getBoundingClientRect();
-                            const contentWidth = rect.width || mainBlock.offsetWidth;
-                            const contentHeight = rect.height || mainBlock.offsetHeight;
+                        // Attendre que le contenu soit dans le DOM
+                        requestAnimationFrame(() => {
+                            const contentWidth = mainBlock.offsetWidth;
+                            const contentHeight = mainBlock.offsetHeight;
                             
-                            console.log(`[bb-contents] Marquee ${index + 1}: Dimensions calculées:`, {
-                                rect: rect,
-                                contentWidth: contentWidth,
-                                contentHeight: contentHeight,
-                                isVertical: isVertical
-                            });
+                            // Debug amélioré
+                            bbContents.utils.log('Debug - Largeur du contenu:', contentWidth, 'px', 'Hauteur:', contentHeight, 'px', 'Enfants:', mainBlock.children.length, 'Vertical:', isVertical, 'Direction:', direction, 'Tentative:', retryCount + 1);
                             
-                            // Pour les marquees verticaux, utiliser la largeur du parent si nécessaire
-                            let finalWidth = contentWidth;
-                            let finalHeight = contentHeight;
+                            // Vérifier que les images sont chargées
+                            const images = mainBlock.querySelectorAll('img');
+                            const imagesLoaded = Array.from(images).every(img => img.complete && img.naturalHeight > 0);
                             
-                            if (isVertical && contentWidth < 10) {
-                                // Si largeur trop petite, utiliser la largeur du parent
-                                const parentRect = mainBlock.parentElement.getBoundingClientRect();
-                                finalWidth = parentRect.width || mainBlock.parentElement.offsetWidth;
-                                // Largeur corrigée pour marquee vertical
-                            }
-                            
-                            // Debug supprimé pour console propre
-                            
-                            // Vérifications robustes avant initialisation
-                            const hasValidDimensions = (isVertical && finalHeight > 50) || (!isVertical && finalWidth > 50);
-                            const hasContent = mainBlock.innerHTML.trim().length > 0;
-                            const maxRetries = 8; // Plus de tentatives pour attendre les images
-                            
-                            // Fallback: si pas de dimensions valides mais qu'il y a du contenu, forcer l'initialisation
-                            const shouldForceInit = !hasValidDimensions && hasContent && retryCount >= 3;
-                            
-                            // Fallback pour images: forcer l'initialisation après 3 tentatives même si images pas chargées
-                            const shouldForceInitImages = !imagesLoaded && hasContent && retryCount >= 3;
-                            
-                            console.log(`[bb-contents] Marquee ${index + 1}: Vérifications:`, {
-                                hasValidDimensions: hasValidDimensions,
-                                hasContent: hasContent,
-                                imagesLoaded: imagesLoaded,
-                                retryCount: retryCount,
-                                maxRetries: maxRetries,
-                                shouldForceInit: shouldForceInit,
-                                shouldForceInitImages: shouldForceInitImages
-                            });
-                            
-                            // Si pas de contenu valide ou images pas chargées, réessayer (sauf si on force)
-                            if ((!hasValidDimensions || !imagesLoaded) && !shouldForceInit && !shouldForceInitImages) {
-                                if (retryCount < maxRetries) {
-                                    const delay = 50 + retryCount * 50; // Délais rapides pour header
-                                    console.log(`[bb-contents] Marquee ${index + 1}: RETRY dans ${delay}ms (dimensions: ${hasValidDimensions}, images: ${imagesLoaded})`);
-                                    // Contenu/images non prêts, nouvelle tentative
-                                    setTimeout(() => initAnimation(retryCount + 1), delay);
+                            // Si pas de contenu, réessayer avec délai progressif
+                            if ((isVertical && contentHeight === 0) || (!isVertical && contentWidth === 0)) {
+                                if (retryCount < 8) { // Plus de tentatives
+                                    bbContents.utils.log('Contenu non prêt, nouvelle tentative dans', (200 + retryCount * 100), 'ms');
+                                    setTimeout(() => initAnimation(retryCount + 1), 200 + retryCount * 100);
                                     return;
                                 } else {
-                                    // Échec d'initialisation après plusieurs tentatives
-                                    console.log(`[bb-contents] Marquee ${index + 1}: ÉCHEC après ${maxRetries} tentatives`);
-                            return;
+                                    bbContents.utils.log('Échec d\'initialisation après 8 tentatives');
+                                    return;
                                 }
-                        }
-                        
-                        if (shouldForceInit || shouldForceInitImages) {
-                            console.log(`[bb-contents] Marquee ${index + 1}: FORÇAGE DE L'INITIALISATION (fallback)`);
-                            // Utiliser des dimensions par défaut si les vraies dimensions ne sont pas disponibles
-                            if (isVertical && finalHeight <= 50) {
-                                finalHeight = 200; // Hauteur par défaut pour vertical
                             }
-                            if (!isVertical && finalWidth <= 50) {
-                                finalWidth = 300; // Largeur par défaut pour horizontal
+                            
+                            // Pour le vertical, s'assurer qu'on a une hauteur minimale
+                            if (isVertical && contentHeight < 50) {
+                                if (retryCount < 8) { // Plus de tentatives
+                                    bbContents.utils.log('Hauteur insuffisante pour le marquee vertical (' + contentHeight + 'px), nouvelle tentative dans', (200 + retryCount * 100), 'ms');
+                                    setTimeout(() => initAnimation(retryCount + 1), 200 + retryCount * 100);
+                                    return;
+                                } else {
+                                    bbContents.utils.log('Échec d\'initialisation - hauteur insuffisante après 8 tentatives');
+                                    return;
+                                }
                             }
-                        }
+                            
+                            // Vérifier que les images sont chargées
+                            if (!imagesLoaded && images.length > 0) {
+                                if (retryCount < 8) { // Plus de tentatives
+                                    bbContents.utils.log('Images non chargées, nouvelle tentative dans', (200 + retryCount * 100), 'ms');
+                                    setTimeout(() => initAnimation(retryCount + 1), 200 + retryCount * 100);
+                                    return;
+                                } else {
+                                    bbContents.utils.log('Échec d\'initialisation - images non chargées après 8 tentatives');
+                                    return;
+                                }
+                            }
                         
-                        console.log(`[bb-contents] Marquee ${index + 1}: INITIALISATION DE L'ANIMATION`);
-                        
-                        if (isVertical) {
-                            // Animation JavaScript pour le vertical - version 1.0.33-beta qui fonctionnait parfaitement
-                                const contentSize = finalHeight;
+                            if (isVertical) {
+                                // Animation JavaScript pour le vertical
+                                const contentSize = contentHeight;
                                 const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
                                 
                                 // Ajuster la hauteur du scrollContainer seulement si pas en mode auto
@@ -505,9 +439,9 @@
                                 }
                             
                                 // Marquee vertical créé avec animation JS
-                        } else {
+                            } else {
                                 // Animation JavaScript pour l'horizontal (comme le vertical pour éviter les saccades)
-                                const contentSize = finalWidth;
+                                const contentSize = contentWidth;
                                 const totalSize = contentSize * 4 + parseInt(gap) * 3;
                                 scrollContainer.style.width = totalSize + 'px';
                                 
@@ -552,34 +486,15 @@
                                 
                                 // Marquee horizontal créé avec animation JS
                         }
-                    });
-                };
-                
-                    // Démarrer l'initialisation avec délai adaptatif - Option 1: Attendre que tout soit prêt
-                    let initDelay = isVertical ? 500 : 200; // Délais plus longs par défaut
-                    if (bbContents._performanceBoostDetected) {
-                        initDelay = isVertical ? 800 : 500; // Délais encore plus longs avec bb-performance-boost
-                    }
-                    
-                    // Attendre window.load si pas encore déclenché
-                    if (document.readyState !== 'complete') {
-                        // Attente de window.load pour initialiser le marquee
-                        window.addEventListener('load', () => {
-                            setTimeout(() => {
-                                initAnimation(0);
-                                console.log(`[bb-contents] Marquee ${index + 1}: Animation démarrée`);
-                            }, initDelay);
                         });
-                    } else {
-                        // window.load déjà déclenché, initialiser directement
-                        setTimeout(() => {
-                            initAnimation(0);
-                            console.log(`[bb-contents] Marquee ${index + 1}: Animation démarrée`);
-                        }, initDelay);
-                    }
+                    };
+                    
+                    // Démarrer l'initialisation avec délai adaptatif - Version 1.0.37-beta robuste
+                    const initDelay = isVertical ? 500 : 200; // Délais plus longs pour attendre les images
+                    setTimeout(() => initAnimation(0), initDelay);
                 });
 
-                // Module Marquee initialisé
+                bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
             }
         },
 
