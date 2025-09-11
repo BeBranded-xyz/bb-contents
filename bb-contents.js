@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.52-beta
+ * @version 1.0.53-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -28,7 +28,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.52-beta',
+        version: '1.0.53-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -288,7 +288,6 @@
                 // Récupérer les options
                     const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
                     const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
-                    const pauseOnHover = bbContents._getAttr(element, 'bb-marquee-pause');
                     const gap = bbContents._getAttr(element, 'bb-marquee-gap') || '50';
                     const orientation = bbContents._getAttr(element, 'bb-marquee-orientation') || 'horizontal';
                     const height = bbContents._getAttr(element, 'bb-marquee-height') || '300';
@@ -500,46 +499,6 @@
                                 animationId = requestAnimationFrame(animate);
                             
                                 // Marquee vertical créé avec animation JS
-                            
-                                // Pause au survol avec transition fluide CSS + JS
-                            if (pauseOnHover === 'true') {
-                                    // Transition fluide avec easing naturel
-                                    const transitionSpeed = (targetSpeed, duration = 300) => {
-                                        const startSpeed = currentStep;
-                                        const speedDiff = targetSpeed - startSpeed;
-                                        const startTime = performance.now();
-                                        
-                                        // Easing naturel
-                                        const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-                                        const easeInCubic = (t) => t * t * t;
-                                        
-                                        const animateTransition = (currentTime) => {
-                                            const elapsed = currentTime - startTime;
-                                            const progress = Math.min(elapsed / duration, 1);
-                                            
-                                            // Easing différent selon la direction
-                                            const easedProgress = targetSpeed === 0 ? 
-                                                easeOutCubic(progress) : easeInCubic(progress);
-                                            
-                                            currentStep = startSpeed + speedDiff * easedProgress;
-                                            
-                                            if (progress < 1) {
-                                                requestAnimationFrame(animateTransition);
-                                            } else {
-                                                currentStep = targetSpeed;
-                                            }
-                                        };
-                                        
-                                        requestAnimationFrame(animateTransition);
-                                    };
-                                    
-                                element.addEventListener('mouseenter', function() {
-                                        transitionSpeed(0); // Ralentir jusqu'à 0
-                                });
-                                element.addEventListener('mouseleave', function() {
-                                        transitionSpeed(baseStep); // Revenir à la vitesse normale
-                                });
-                            }
                         } else {
                                 // Animation JavaScript pour l'horizontal (comme le vertical pour éviter les saccades)
                                 const contentSize = finalWidth;
@@ -579,46 +538,6 @@
                                 animationId = requestAnimationFrame(animate);
                                 
                                 // Marquee horizontal créé avec animation JS
-                                
-                                // Pause au survol avec transition fluide CSS + JS
-                            if (pauseOnHover === 'true') {
-                                    // Transition fluide avec easing naturel
-                                    const transitionSpeed = (targetSpeed, duration = 300) => {
-                                        const startSpeed = currentStep;
-                                        const speedDiff = targetSpeed - startSpeed;
-                                        const startTime = performance.now();
-                                        
-                                        // Easing naturel
-                                        const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-                                        const easeInCubic = (t) => t * t * t;
-                                        
-                                        const animateTransition = (currentTime) => {
-                                            const elapsed = currentTime - startTime;
-                                            const progress = Math.min(elapsed / duration, 1);
-                                            
-                                            // Easing différent selon la direction
-                                            const easedProgress = targetSpeed === 0 ? 
-                                                easeOutCubic(progress) : easeInCubic(progress);
-                                            
-                                            currentStep = startSpeed + speedDiff * easedProgress;
-                                            
-                                            if (progress < 1) {
-                                                requestAnimationFrame(animateTransition);
-                                            } else {
-                                                currentStep = targetSpeed;
-                                            }
-                                        };
-                                        
-                                        requestAnimationFrame(animateTransition);
-                                    };
-                                    
-                                element.addEventListener('mouseenter', function() {
-                                        transitionSpeed(0); // Ralentir jusqu'à 0
-                                });
-                                element.addEventListener('mouseleave', function() {
-                                        transitionSpeed(baseStep); // Revenir à la vitesse normale
-                                });
-                            }
                         }
                     });
                 };
