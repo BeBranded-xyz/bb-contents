@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.42-beta
+ * @version 1.0.43-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.42-beta',
+        version: '1.0.43-beta',
         debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -617,6 +617,8 @@
                     const videoCount = bbContents._getAttr(element, 'bb-youtube-video-count') || '10';
                     const allowShorts = bbContents._getAttr(element, 'bb-youtube-allow-shorts') === 'true';
                     const language = bbContents._getAttr(element, 'bb-youtube-language') || 'fr';
+                    
+                    // Vérifier la configuration au moment de l'initialisation
                     const endpoint = bbContents.config.youtubeEndpoint;
                     
                     console.log('[DEBUG] YouTube config:', {channelId, videoCount, allowShorts, language, endpoint});
@@ -627,9 +629,26 @@
                     }
                     
                     if (!endpoint) {
-                        // Erreur: youtubeEndpoint non configuré
-                        element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = \'votre-worker-url\';<br>&lt;/script&gt;</code></div>';
-                        return;
+                        // Attendre que la configuration soit définie (max 5 secondes)
+                        const retryCount = element.getAttribute('data-youtube-retry-count') || '0';
+                        const retries = parseInt(retryCount);
+                        
+                        if (retries < 50) { // 50 * 100ms = 5 secondes max
+                            console.log('[DEBUG] YouTube endpoint not configured yet, waiting... (attempt', retries + 1, ')');
+                            element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Configuration YouTube en cours...</div>';
+                            element.setAttribute('data-youtube-retry-count', (retries + 1).toString());
+                            
+                            // Réessayer dans 100ms
+                            setTimeout(() => {
+                                this.init(scope);
+                            }, 100);
+                            return;
+                        } else {
+                            // Timeout après 5 secondes
+                            console.log('[DEBUG] YouTube endpoint configuration timeout');
+                            element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = \'votre-worker-url\';<br>&lt;/script&gt;</code></div>';
+                            return;
+                        }
                     }
                     
                     // Chercher le template pour une vidéo (directement dans l'élément ou dans un conteneur)
