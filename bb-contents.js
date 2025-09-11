@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.54-beta
+ * @version 1.0.55-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -28,7 +28,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.54-beta',
+        version: '1.0.55-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -456,31 +456,35 @@
                         console.log(`[bb-contents] Marquee ${index + 1}: INITIALISATION DE L'ANIMATION`);
                         
                         if (isVertical) {
-                            // Animation JavaScript pour le vertical - version 1.0.33-beta
+                            // Animation JavaScript pour le vertical - défilement infini parfait
                                 const contentSize = finalHeight;
-                            const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
+                            const gapSize = parseInt(gap);
+                            const totalSize = contentSize * 4 + gapSize * 3; // 4 copies
                                 
                                 // Ajuster la hauteur du scrollContainer seulement si pas en mode auto
                                 if (!useAutoHeight) {
                             scrollContainer.style.height = totalSize + 'px';
                                 }
                             
-                            let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
-                                const step = (parseFloat(speed) * 2) / 60; // Vitesse différente
+                            // Position initiale : commencer à la 2ème copie pour défilement infini
+                            let currentPosition = direction === 'bottom' ? -(contentSize + gapSize) : 0;
+                                const step = (parseFloat(speed) * 2) / 60;
                                 let isPaused = false;
                                 
-                                // Fonction d'animation JavaScript
+                                // Fonction d'animation JavaScript avec défilement infini parfait
                                 const animate = () => {
                                     if (!isPaused) {
                                         if (direction === 'bottom') {
                                             currentPosition += step;
+                                            // Reset quand on arrive au début de la 1ère copie
                                             if (currentPosition >= 0) {
-                                                currentPosition = -contentSize - parseInt(gap);
+                                                currentPosition = -(contentSize + gapSize);
                                             }
                                         } else {
                                             currentPosition -= step;
-                                            if (currentPosition <= -contentSize - parseInt(gap)) {
-                                                currentPosition = 0;
+                                            // Reset quand on arrive au début de la 4ème copie
+                                            if (currentPosition <= -(3 * (contentSize + gapSize))) {
+                                                currentPosition = -(2 * (contentSize + gapSize));
                                             }
                                         }
                                         
@@ -502,27 +506,31 @@
                             
                                 // Marquee vertical créé avec animation JS
                         } else {
-                                // Animation JavaScript pour l'horizontal - version 1.0.33-beta
+                                // Animation JavaScript pour l'horizontal - défilement infini parfait
                                 const contentSize = finalWidth;
-                                const totalSize = contentSize * 4 + parseInt(gap) * 3;
+                                const gapSize = parseInt(gap);
+                                const totalSize = contentSize * 4 + gapSize * 3; // 4 copies
                             scrollContainer.style.width = totalSize + 'px';
                             
-                                let currentPosition = direction === 'right' ? -contentSize - parseInt(gap) : 0;
+                                // Position initiale : commencer à la 2ème copie pour défilement infini
+                                let currentPosition = direction === 'right' ? -(contentSize + gapSize) : 0;
                                 const step = (parseFloat(speed) * 0.5) / 60; // Vitesse réduite pour l'horizontal
                                 let isPaused = false;
                                 
-                                // Fonction d'animation JavaScript
+                                // Fonction d'animation JavaScript avec défilement infini parfait
                                 const animate = () => {
                                     if (!isPaused) {
                                         if (direction === 'right') {
                                             currentPosition += step;
+                                            // Reset quand on arrive au début de la 1ère copie
                                             if (currentPosition >= 0) {
-                                                currentPosition = -contentSize - parseInt(gap);
+                                                currentPosition = -(contentSize + gapSize);
                                             }
                                         } else {
                                             currentPosition -= step;
-                                            if (currentPosition <= -contentSize - parseInt(gap)) {
-                                                currentPosition = 0;
+                                            // Reset quand on arrive au début de la 4ème copie
+                                            if (currentPosition <= -(3 * (contentSize + gapSize))) {
+                                                currentPosition = -(2 * (contentSize + gapSize));
                                             }
                                         }
                                         
