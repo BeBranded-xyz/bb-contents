@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.44-beta
+ * @version 1.0.45-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.44-beta',
+        version: '1.0.45-beta',
         debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -25,6 +25,11 @@
             copied: 'Lien copié !'
         }
     };
+    
+    // Détecter la configuration YouTube définie avant le chargement
+    if (window.bbContents && window.bbContents.config && window.bbContents.config.youtubeEndpoint) {
+        config.youtubeEndpoint = window.bbContents.config.youtubeEndpoint;
+    }
 
     // Objet principal
     const bbContents = {
@@ -155,6 +160,24 @@
             this._initRetryCount = 0;
             this.init();
         },
+        
+        // Méthode pour détecter la configuration YouTube définie après le chargement
+        checkYouTubeConfig: function() {
+            // Vérifier si la configuration a été définie après le chargement
+            if (this.config.youtubeEndpoint) {
+                console.log('[DEBUG] YouTube endpoint found:', this.config.youtubeEndpoint);
+                return true;
+            }
+            
+            // Vérifier dans window.bbContents (au cas où)
+            if (window.bbContents && window.bbContents.config && window.bbContents.config.youtubeEndpoint) {
+                this.config.youtubeEndpoint = window.bbContents.config.youtubeEndpoint;
+                console.log('[DEBUG] YouTube endpoint found in window:', this.config.youtubeEndpoint);
+                return true;
+            }
+            
+            return false;
+        },
 
         // Observer DOM pour contenu dynamique
         setupObserver: function() {
@@ -205,32 +228,32 @@
     bbContents.modules = {
         // Module Marquee - Version live 1.0.41-beta avec modules parasites supprimés
         marquee: {
-            detect: function(scope) {
-                const s = scope || document;
+        detect: function(scope) {
+            const s = scope || document;
                 return s.querySelector(bbContents._attrSelector('marquee')) !== null;
             },
             
             // Nouvelle méthode pour vérifier les éléments échoués
             checkFailed: function(scope) {
-                const s = scope || document;
+            const s = scope || document;
                 const failedElements = s.querySelectorAll('[bb-marquee]:not([data-bb-marquee-processed])');
                 return failedElements.length > 0;
-            },
-            
-            init: function(root) {
-                const scope = root || document;
-                if (scope.closest && scope.closest('[data-bb-disable]')) return;
-                const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
+        },
+        
+        init: function(root) {
+            const scope = root || document;
+            if (scope.closest && scope.closest('[data-bb-disable]')) return;
+            const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
 
-                elements.forEach(function(element) {
+            elements.forEach(function(element) {
                     // Vérifier si l'élément a déjà été traité par un autre module
                     if (element.bbProcessed || element.hasAttribute('data-bb-youtube-processed')) {
                         // Élément marquee déjà traité par un autre module, ignoré
                         return;
                     }
-                    element.bbProcessed = true;
+                element.bbProcessed = true;
 
-                    // Récupérer les options
+                // Récupérer les options
                     const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
                     const direction = bbContents._getAttr(element, 'bb-marquee-direction') || 'left';
                     const pauseOnHover = bbContents._getAttr(element, 'bb-marquee-pause');
@@ -239,67 +262,67 @@
                     const height = bbContents._getAttr(element, 'bb-marquee-height') || '300';
                     const minHeight = bbContents._getAttr(element, 'bb-marquee-min-height');
 
-                    // Sauvegarder le contenu original
-                    const originalHTML = element.innerHTML;
-                    
-                    // Créer le conteneur principal
-                    const mainContainer = document.createElement('div');
-                    const isVertical = orientation === 'vertical';
+                // Sauvegarder le contenu original
+                const originalHTML = element.innerHTML;
+                
+                // Créer le conteneur principal
+                const mainContainer = document.createElement('div');
+                const isVertical = orientation === 'vertical';
                     const useAutoHeight = isVertical && height === 'auto';
                     
-                    mainContainer.style.cssText = `
-                        position: relative;
-                        width: 100%;
+                mainContainer.style.cssText = `
+                    position: relative;
+                    width: 100%;
                         height: ${isVertical ? (height === 'auto' ? 'auto' : height + 'px') : 'auto'};
-                        overflow: hidden;
-                        min-height: ${isVertical ? '100px' : '50px'};
+                    overflow: hidden;
+                    min-height: ${isVertical ? '100px' : '50px'};
                         ${minHeight ? `min-height: ${minHeight};` : ''}
-                    `;
+                `;
 
-                    // Créer le conteneur de défilement
-                    const scrollContainer = document.createElement('div');
-                    scrollContainer.style.cssText = `
+                // Créer le conteneur de défilement
+                const scrollContainer = document.createElement('div');
+                scrollContainer.style.cssText = `
                         ${useAutoHeight ? 'position: relative;' : 'position: absolute;'}
-                        will-change: transform;
+                    will-change: transform;
                         ${useAutoHeight ? '' : 'height: 100%; top: 0px; left: 0px;'}
-                        display: flex;
-                        ${isVertical ? 'flex-direction: column;' : ''}
-                        align-items: center;
-                        gap: ${gap}px;
-                        ${isVertical ? '' : 'white-space: nowrap;'}
-                        flex-shrink: 0;
+                    display: flex;
+                    ${isVertical ? 'flex-direction: column;' : ''}
+                    align-items: center;
+                    gap: ${gap}px;
+                    ${isVertical ? '' : 'white-space: nowrap;'}
+                    flex-shrink: 0;
                         transition: transform 0.1s ease-out;
-                    `;
+                `;
 
-                    // Créer le bloc de contenu principal
-                    const mainBlock = document.createElement('div');
-                    mainBlock.innerHTML = originalHTML;
-                    mainBlock.style.cssText = `
-                        display: flex;
-                        ${isVertical ? 'flex-direction: column;' : ''}
-                        align-items: center;
-                        gap: ${gap}px;
-                        ${isVertical ? '' : 'white-space: nowrap;'}
-                        flex-shrink: 0;
-                        ${isVertical ? 'min-height: 100px;' : ''}
-                    `;
+                // Créer le bloc de contenu principal
+                const mainBlock = document.createElement('div');
+                mainBlock.innerHTML = originalHTML;
+                mainBlock.style.cssText = `
+                    display: flex;
+                    ${isVertical ? 'flex-direction: column;' : ''}
+                    align-items: center;
+                    gap: ${gap}px;
+                    ${isVertical ? '' : 'white-space: nowrap;'}
+                    flex-shrink: 0;
+                    ${isVertical ? 'min-height: 100px;' : ''}
+                `;
 
-                    // Créer plusieurs répétitions pour un défilement continu
-                    const repeatBlock1 = mainBlock.cloneNode(true);
-                    const repeatBlock2 = mainBlock.cloneNode(true);
-                    const repeatBlock3 = mainBlock.cloneNode(true);
-                    
-                    // Assembler la structure
-                    scrollContainer.appendChild(mainBlock);
-                    scrollContainer.appendChild(repeatBlock1);
-                    scrollContainer.appendChild(repeatBlock2);
-                    scrollContainer.appendChild(repeatBlock3);
-                    mainContainer.appendChild(scrollContainer);
-                    
-                    // Vider et remplacer le contenu original
-                    element.innerHTML = '';
-                    element.appendChild(mainContainer);
-                    
+                // Créer plusieurs répétitions pour un défilement continu
+                const repeatBlock1 = mainBlock.cloneNode(true);
+                const repeatBlock2 = mainBlock.cloneNode(true);
+                const repeatBlock3 = mainBlock.cloneNode(true);
+                
+                // Assembler la structure
+                scrollContainer.appendChild(mainBlock);
+                scrollContainer.appendChild(repeatBlock1);
+                scrollContainer.appendChild(repeatBlock2);
+                scrollContainer.appendChild(repeatBlock3);
+                mainContainer.appendChild(scrollContainer);
+                
+                // Vider et remplacer le contenu original
+                element.innerHTML = '';
+                element.appendChild(mainContainer);
+
                     // Marquer l'élément comme traité par le module marquee
                     element.setAttribute('data-bb-marquee-processed', 'true');
 
@@ -310,7 +333,7 @@
                         const imagesLoaded = Array.from(images).every(img => img.complete && img.naturalHeight > 0);
                         
                         // Attendre que le contenu soit dans le DOM et que les images soient chargées
-                        requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
                             // Calcul plus robuste des dimensions
                             const rect = mainBlock.getBoundingClientRect();
                             const contentWidth = rect.width || mainBlock.offsetWidth;
@@ -342,24 +365,24 @@
                                     return;
                                 } else {
                                     // Échec d'initialisation après plusieurs tentatives
-                                    return;
+                            return;
                                 }
-                            }
-                            
-                            if (isVertical) {
-                                // Animation JavaScript pour le vertical
+                        }
+                        
+                        if (isVertical) {
+                            // Animation JavaScript pour le vertical
                                 const contentSize = finalHeight;
-                                const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
+                            const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
                                 
                                 // Ajuster la hauteur du scrollContainer seulement si pas en mode auto
                                 if (!useAutoHeight) {
-                                    scrollContainer.style.height = totalSize + 'px';
+                            scrollContainer.style.height = totalSize + 'px';
                                 }
-                                
-                                let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
+                            
+                            let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
                                 const baseStep = (parseFloat(speed) * 2) / 60; // Vitesse de base
                                 let currentStep = baseStep;
-                                let isPaused = false;
+                            let isPaused = false;
                                 let animationId = null;
                                 let lastTime = 0;
                                 
@@ -383,15 +406,15 @@
                                     
                                     scrollContainer.style.transform = `translate3d(0px, ${currentPosition}px, 0px)`;
                                     animationId = requestAnimationFrame(animate);
-                                };
-                                
-                                // Démarrer l'animation
+                            };
+                            
+                            // Démarrer l'animation
                                 animationId = requestAnimationFrame(animate);
-                                
+                            
                                 // Marquee vertical créé avec animation JS
-                                
+                            
                                 // Pause au survol avec transition fluide CSS + JS
-                                if (pauseOnHover === 'true') {
+                            if (pauseOnHover === 'true') {
                                     // Transition fluide avec easing naturel
                                     const transitionSpeed = (targetSpeed, duration = 300) => {
                                         const startSpeed = currentStep;
@@ -422,19 +445,19 @@
                                         requestAnimationFrame(animateTransition);
                                     };
                                     
-                                    element.addEventListener('mouseenter', function() {
+                                element.addEventListener('mouseenter', function() {
                                         transitionSpeed(0); // Ralentir jusqu'à 0
-                                    });
-                                    element.addEventListener('mouseleave', function() {
+                                });
+                                element.addEventListener('mouseleave', function() {
                                         transitionSpeed(baseStep); // Revenir à la vitesse normale
-                                    });
-                                }
-                            } else {
+                                });
+                            }
+                        } else {
                                 // Animation JavaScript pour l'horizontal (comme le vertical pour éviter les saccades)
                                 const contentSize = finalWidth;
                                 const totalSize = contentSize * 4 + parseInt(gap) * 3;
-                                scrollContainer.style.width = totalSize + 'px';
-                                
+                            scrollContainer.style.width = totalSize + 'px';
+                            
                                 let currentPosition = direction === 'right' ? -contentSize - parseInt(gap) : 0;
                                 const baseStep = (parseFloat(speed) * 0.5) / 60; // Vitesse de base
                                 let currentStep = baseStep;
@@ -448,12 +471,12 @@
                                     const deltaTime = currentTime - lastTime;
                                     lastTime = currentTime;
                                     
-                                    if (direction === 'right') {
+                            if (direction === 'right') {
                                         currentPosition += currentStep * (deltaTime / 16.67); // Normaliser à 60fps
                                         if (currentPosition >= 0) {
                                             currentPosition = -contentSize - parseInt(gap);
                                         }
-                                    } else {
+                            } else {
                                         currentPosition -= currentStep * (deltaTime / 16.67);
                                         if (currentPosition <= -contentSize - parseInt(gap)) {
                                             currentPosition = 0;
@@ -470,7 +493,7 @@
                                 // Marquee horizontal créé avec animation JS
                                 
                                 // Pause au survol avec transition fluide CSS + JS
-                                if (pauseOnHover === 'true') {
+                            if (pauseOnHover === 'true') {
                                     // Transition fluide avec easing naturel
                                     const transitionSpeed = (targetSpeed, duration = 300) => {
                                         const startSpeed = currentStep;
@@ -501,17 +524,17 @@
                                         requestAnimationFrame(animateTransition);
                                     };
                                     
-                                    element.addEventListener('mouseenter', function() {
+                                element.addEventListener('mouseenter', function() {
                                         transitionSpeed(0); // Ralentir jusqu'à 0
-                                    });
-                                    element.addEventListener('mouseleave', function() {
+                                });
+                                element.addEventListener('mouseleave', function() {
                                         transitionSpeed(baseStep); // Revenir à la vitesse normale
-                                    });
-                                }
+                                });
                             }
-                        });
-                    };
-                    
+                        }
+                    });
+                };
+                
                     // Démarrer l'initialisation avec délai adaptatif - Option 1: Attendre que tout soit prêt
                     let initDelay = isVertical ? 500 : 200; // Délais plus longs par défaut
                     if (bbContents._performanceBoostDetected) {
@@ -631,7 +654,7 @@
                 const language = bbContents._getAttr(element, 'bb-youtube-language') || 'fr';
                 
                 // Vérifier la configuration au moment de l'initialisation
-                const endpoint = bbContents.config.youtubeEndpoint;
+                const endpoint = bbContents.checkYouTubeConfig() ? bbContents.config.youtubeEndpoint : null;
                 
                 console.log('[DEBUG] YouTube element config:', {channelId, videoCount, allowShorts, language, endpoint});
                 
@@ -953,6 +976,16 @@
 
     // Exposer globalement
     window.bbContents = bbContents;
+    
+    // Méthode globale pour configurer YouTube après le chargement
+    window.configureYouTube = function(endpoint) {
+        if (bbContents) {
+            bbContents.config.youtubeEndpoint = endpoint;
+            console.log('[DEBUG] YouTube endpoint configured globally:', endpoint);
+            // Réinitialiser les modules YouTube
+            bbContents.reinit();
+        }
+    };
 
     // Initialisation automatique avec délai pour éviter le blocage
     function initBBContents() {
