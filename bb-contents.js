@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.48-beta
+ * @version 1.0.2
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -22,7 +22,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.48-beta',
+        version: '1.0.2',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
