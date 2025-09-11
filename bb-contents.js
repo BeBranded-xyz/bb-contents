@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.47-beta
+ * @version 1.0.48-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -22,8 +22,8 @@
 
     // Configuration
     const config = {
-        version: '1.0.47-beta',
-        debug: true, // Activé temporairement pour debug
+        version: '1.0.48-beta',
+        debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
         i18n: {
@@ -175,14 +175,12 @@
         checkYouTubeConfig: function() {
             // Vérifier si la configuration a été définie après le chargement
             if (this.config.youtubeEndpoint) {
-                console.log('[DEBUG] YouTube endpoint found:', this.config.youtubeEndpoint);
                 return true;
             }
             
             // Vérifier dans l'objet temporaire
             if (window._bbContentsConfig && window._bbContentsConfig.youtubeEndpoint) {
                 this.config.youtubeEndpoint = window._bbContentsConfig.youtubeEndpoint;
-                console.log('[DEBUG] YouTube endpoint found in temp config:', this.config.youtubeEndpoint);
                 return true;
             }
             
@@ -633,7 +631,6 @@
                 this.cleanCache();
                 
                 const elements = scope.querySelectorAll('[bb-youtube-channel]');
-                console.log('[DEBUG] YouTube elements found:', elements.length);
                 if (elements.length === 0) return;
                 
                 // Module détecté: youtube
@@ -666,7 +663,6 @@
                 // Vérifier la configuration au moment de l'initialisation
                 const endpoint = bbContents.checkYouTubeConfig() ? bbContents.config.youtubeEndpoint : null;
                 
-                console.log('[DEBUG] YouTube element config:', {channelId, videoCount, allowShorts, language, endpoint});
                 
                 if (!channelId) {
                     return;
@@ -678,7 +674,6 @@
                     const retries = parseInt(retryCount);
                     
                     if (retries < 50) { // 50 * 100ms = 5 secondes max
-                        console.log('[DEBUG] YouTube endpoint not configured yet, waiting... (attempt', retries + 1, ')');
                         element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Configuration YouTube en cours...</div>';
                         element.setAttribute('data-youtube-retry-count', (retries + 1).toString());
                         
@@ -689,7 +684,6 @@
                         return;
                     } else {
                         // Timeout après 5 secondes
-                        console.log('[DEBUG] YouTube endpoint configuration timeout');
                         element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = \'votre-worker-url\';<br>&lt;/script&gt;</code></div>';
                         return;
                     }
@@ -725,7 +719,6 @@
                 
                 if (cachedData && cachedData.value) {
                     // Données YouTube récupérées du cache (économie API)
-                    console.log('[DEBUG] Using cached YouTube data for element');
                     this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
                     return;
                 }
@@ -733,7 +726,6 @@
                 // Vérifier si un appel API est déjà en cours pour cette clé
                 const loadingKey = `loading_${cacheKey}`;
                 if (window[loadingKey]) {
-                    console.log('[DEBUG] API call already in progress, waiting...');
                     // Attendre que l'autre appel se termine
                     const checkLoading = () => {
                         if (!window[loadingKey]) {
@@ -759,17 +751,14 @@
                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
                 
                 // Appeler l'API via le Worker
-                console.log('[DEBUG] Fetching YouTube data from:', `${endpoint}?channelId=${channelId}&maxResults=${videoCount}&allowShorts=${allowShorts}`);
                 fetch(`${endpoint}?channelId=${channelId}&maxResults=${videoCount}&allowShorts=${allowShorts}`)
                     .then(response => {
-                        console.log('[DEBUG] YouTube API response status:', response.status);
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}`);
                         }
                         return response.json();
                     })
                     .then(data => {
-                        console.log('[DEBUG] YouTube API data received:', data);
                         if (data.error) {
                             throw new Error(data.error.message || 'Erreur API YouTube');
                         }
@@ -784,7 +773,7 @@
                         window[loadingKey] = false;
                     })
                     .catch(error => {
-                        console.error('[DEBUG] YouTube API error:', error);
+                        console.error('Erreur API YouTube:', error);
                         // Erreur dans le module youtube
                         
                         // Libérer le verrou en cas d'erreur
@@ -795,12 +784,10 @@
                         if (expiredCache) {
                             try {
                                 const cachedData = JSON.parse(expiredCache);
-                                console.log('[DEBUG] Using expired cache:', cachedData);
                                 // Utilisation du cache expiré en cas d'erreur API
                                 this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
                                 return;
                             } catch (e) {
-                                console.error('[DEBUG] Cache parsing error:', e);
                                 // Ignorer les erreurs de parsing
                             }
                         }
@@ -810,16 +797,13 @@
             },
             
             generateYouTubeFeed: function(container, template, data, allowShorts, language = 'fr') {
-                console.log('[DEBUG] generateYouTubeFeed called with data:', data);
                 if (!data || !data.items || data.items.length === 0) {
-                    console.log('[DEBUG] No videos found in data or data is undefined');
                     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vidéo trouvée</div>';
                     return;
                 }
                 
                 // Les vidéos sont déjà filtrées par l'API YouTube selon allowShorts
                 let videos = data.items;
-                console.log('[DEBUG] Processing', videos.length, 'videos');
                 // Vidéos reçues de l'API
                 
                 // Vider le conteneur (en préservant les éléments marquee)
@@ -1023,7 +1007,6 @@
     window.configureYouTube = function(endpoint) {
         if (bbContents) {
             bbContents.config.youtubeEndpoint = endpoint;
-            console.log('[DEBUG] YouTube endpoint configured globally:', endpoint);
             // Réinitialiser les modules YouTube
             bbContents.reinit();
         }
