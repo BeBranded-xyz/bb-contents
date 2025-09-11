@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.43-beta
+ * @version 1.0.44-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.43-beta',
+        version: '1.0.44-beta',
         debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -613,126 +613,135 @@
                     }
                     element.bbProcessed = true;
                     
-                    const channelId = bbContents._getAttr(element, 'bb-youtube-channel');
-                    const videoCount = bbContents._getAttr(element, 'bb-youtube-video-count') || '10';
-                    const allowShorts = bbContents._getAttr(element, 'bb-youtube-allow-shorts') === 'true';
-                    const language = bbContents._getAttr(element, 'bb-youtube-language') || 'fr';
-                    
-                    // Vérifier la configuration au moment de l'initialisation
-                    const endpoint = bbContents.config.youtubeEndpoint;
-                    
-                    console.log('[DEBUG] YouTube config:', {channelId, videoCount, allowShorts, language, endpoint});
-                    
-                    if (!channelId) {
-                        // Erreur: bb-youtube-channel manquant
-                        return;
-                    }
-                    
-                    if (!endpoint) {
-                        // Attendre que la configuration soit définie (max 5 secondes)
-                        const retryCount = element.getAttribute('data-youtube-retry-count') || '0';
-                        const retries = parseInt(retryCount);
-                        
-                        if (retries < 50) { // 50 * 100ms = 5 secondes max
-                            console.log('[DEBUG] YouTube endpoint not configured yet, waiting... (attempt', retries + 1, ')');
-                            element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Configuration YouTube en cours...</div>';
-                            element.setAttribute('data-youtube-retry-count', (retries + 1).toString());
-                            
-                            // Réessayer dans 100ms
-                            setTimeout(() => {
-                                this.init(scope);
-                            }, 100);
-                            return;
-                        } else {
-                            // Timeout après 5 secondes
-                            console.log('[DEBUG] YouTube endpoint configuration timeout');
-                            element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = \'votre-worker-url\';<br>&lt;/script&gt;</code></div>';
-                            return;
-                        }
-                    }
-                    
-                    // Chercher le template pour une vidéo (directement dans l'élément ou dans un conteneur)
-                    let template = element.querySelector('[bb-youtube-item]');
-                    let container = element;
-                    
-                    // Si pas de template direct, chercher dans un conteneur
-                    if (!template) {
-                        const containerElement = element.querySelector('[bb-youtube-container]');
-                        if (containerElement) {
-                            container = containerElement;
-                            template = containerElement.querySelector('[bb-youtube-item]');
-                        }
-                    }
-                    
-                    if (!template) {
-                        // Erreur: élément [bb-youtube-item] manquant
-                        element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Template manquant</strong><br>Ajoutez un élément avec l\'attribut bb-youtube-item</div>';
-                        return;
-                    }
-                    
-                    // Cacher le template original
-                    template.style.display = 'none';
-                    
-                    // Marquer l'élément comme traité par le module YouTube
-                    element.setAttribute('data-bb-youtube-processed', 'true');
-                    
-                    // Vérifier le cache d'abord
-                    const cacheKey = `youtube_${channelId}_${videoCount}_${allowShorts}_${language}`;
-                    const cachedData = this.cache.get(cacheKey);
-                    
-                    if (cachedData) {
-                        // Données YouTube récupérées du cache (économie API)
-                        this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
-                        return;
-                    }
-                    
-                    // Afficher un loader
-                    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
-                    
-                    // Appeler l'API via le Worker
-                    console.log('[DEBUG] Fetching YouTube data from:', `${endpoint}?channelId=${channelId}&maxResults=${videoCount}&allowShorts=${allowShorts}`);
-                    fetch(`${endpoint}?channelId=${channelId}&maxResults=${videoCount}&allowShorts=${allowShorts}`)
-                        .then(response => {
-                            console.log('[DEBUG] YouTube API response status:', response.status);
-                            if (!response.ok) {
-                                throw new Error(`HTTP ${response.status}`);
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log('[DEBUG] YouTube API data received:', data);
-                            if (data.error) {
-                                throw new Error(data.error.message || 'Erreur API YouTube');
-                            }
-                            
-                            // Sauvegarder en cache pour 24h
-                            this.cache.set(cacheKey, data);
-                            // Données YouTube mises en cache pour 24h (économie API)
-                            
-                            this.generateYouTubeFeed(container, template, data, allowShorts, language);
-                        })
-                        .catch(error => {
-                            console.error('[DEBUG] YouTube API error:', error);
-                            // Erreur dans le module youtube
-                            
-                            // En cas d'erreur, essayer de récupérer du cache même expiré
-                            const expiredCache = localStorage.getItem(cacheKey);
-                            if (expiredCache) {
-                                try {
-                                    const cachedData = JSON.parse(expiredCache);
-                                    console.log('[DEBUG] Using expired cache:', cachedData);
-                                    // Utilisation du cache expiré en cas d'erreur API
-                                    this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
-                                    return;
-                                } catch (e) {
-                                    console.error('[DEBUG] Cache parsing error:', e);
-                                    // Ignorer les erreurs de parsing
-                                }
-                            }
-                            
-                            container.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${error.message}</div>`;
-                        });
+                    // Utiliser la nouvelle fonction initElement
+                    this.initElement(element);
                 });
+            },
+            
+            // Fonction pour initialiser un seul élément YouTube
+            initElement: function(element) {
+                // Vérifier si c'est un bot - pas d'appel API
+                if (this.isBot()) {
+                    return;
+                }
+                
+                const channelId = bbContents._getAttr(element, 'bb-youtube-channel');
+                const videoCount = bbContents._getAttr(element, 'bb-youtube-video-count') || '10';
+                const allowShorts = bbContents._getAttr(element, 'bb-youtube-allow-shorts') === 'true';
+                const language = bbContents._getAttr(element, 'bb-youtube-language') || 'fr';
+                
+                // Vérifier la configuration au moment de l'initialisation
+                const endpoint = bbContents.config.youtubeEndpoint;
+                
+                console.log('[DEBUG] YouTube element config:', {channelId, videoCount, allowShorts, language, endpoint});
+                
+                if (!channelId) {
+                    return;
+                }
+                
+                if (!endpoint) {
+                    // Attendre que la configuration soit définie (max 5 secondes)
+                    const retryCount = element.getAttribute('data-youtube-retry-count') || '0';
+                    const retries = parseInt(retryCount);
+                    
+                    if (retries < 50) { // 50 * 100ms = 5 secondes max
+                        console.log('[DEBUG] YouTube endpoint not configured yet, waiting... (attempt', retries + 1, ')');
+                        element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Configuration YouTube en cours...</div>';
+                        element.setAttribute('data-youtube-retry-count', (retries + 1).toString());
+                        
+                        // Réessayer dans 100ms
+                        setTimeout(() => {
+                            this.initElement(element);
+                        }, 100);
+                        return;
+                    } else {
+                        // Timeout après 5 secondes
+                        console.log('[DEBUG] YouTube endpoint configuration timeout');
+                        element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = \'votre-worker-url\';<br>&lt;/script&gt;</code></div>';
+                        return;
+                    }
+                }
+                
+                // Chercher le template pour une vidéo (directement dans l'élément ou dans un conteneur)
+                let template = element.querySelector('[bb-youtube-item]');
+                let container = element;
+                
+                // Si pas de template direct, chercher dans un conteneur
+                if (!template) {
+                    const containerElement = element.querySelector('[bb-youtube-container]');
+                    if (containerElement) {
+                        container = containerElement;
+                        template = containerElement.querySelector('[bb-youtube-item]');
+                    }
+                }
+                
+                if (!template) {
+                    element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Template manquant</strong><br>Ajoutez un élément avec l\'attribut bb-youtube-item</div>';
+                    return;
+                }
+                
+                // Cacher le template original
+                template.style.display = 'none';
+                
+                // Marquer l'élément comme traité par le module YouTube
+                element.setAttribute('data-bb-youtube-processed', 'true');
+                
+                // Vérifier le cache d'abord
+                const cacheKey = `youtube_${channelId}_${videoCount}_${allowShorts}_${language}`;
+                const cachedData = this.cache.get(cacheKey);
+                
+                if (cachedData) {
+                    // Données YouTube récupérées du cache (économie API)
+                    this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
+                    return;
+                }
+                
+                // Afficher un loader
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
+                
+                // Appeler l'API via le Worker
+                console.log('[DEBUG] Fetching YouTube data from:', `${endpoint}?channelId=${channelId}&maxResults=${videoCount}&allowShorts=${allowShorts}`);
+                fetch(`${endpoint}?channelId=${channelId}&maxResults=${videoCount}&allowShorts=${allowShorts}`)
+                    .then(response => {
+                        console.log('[DEBUG] YouTube API response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('[DEBUG] YouTube API data received:', data);
+                        if (data.error) {
+                            throw new Error(data.error.message || 'Erreur API YouTube');
+                        }
+                        
+                        // Sauvegarder en cache pour 24h
+                        this.cache.set(cacheKey, data);
+                        // Données YouTube mises en cache pour 24h (économie API)
+                        
+                        this.generateYouTubeFeed(container, template, data, allowShorts, language);
+                    })
+                    .catch(error => {
+                        console.error('[DEBUG] YouTube API error:', error);
+                        // Erreur dans le module youtube
+                        
+                        // En cas d'erreur, essayer de récupérer du cache même expiré
+                        const expiredCache = localStorage.getItem(cacheKey);
+                        if (expiredCache) {
+                            try {
+                                const cachedData = JSON.parse(expiredCache);
+                                console.log('[DEBUG] Using expired cache:', cachedData);
+                                // Utilisation du cache expiré en cas d'erreur API
+                                this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
+                                return;
+                            } catch (e) {
+                                console.error('[DEBUG] Cache parsing error:', e);
+                                // Ignorer les erreurs de parsing
+                            }
+                        }
+                        
+                        container.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${error.message}</div>`;
+                    });
             },
             
             generateYouTubeFeed: function(container, template, data, allowShorts, language = 'fr') {
