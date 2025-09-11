@@ -625,7 +625,7 @@
                     
                     if (!endpoint) {
                         // Erreur: youtubeEndpoint non configuré
-                        element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = \'https://youtube-worker.maxkonzelmann.workers.dev\';<br>&lt;/script&gt;</code></div>';
+                        element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = \'votre-worker-url\';<br>&lt;/script&gt;</code></div>';
                         return;
                     }
                     
@@ -660,7 +660,7 @@
                     
                     if (cachedData) {
                         // Données YouTube récupérées du cache (économie API)
-                        this.generateYouTubeFeed(container, template, cachedData, allowShorts, language);
+                        this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
                         return;
                     }
                     
