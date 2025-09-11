@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.41-beta
+ * @version 1.0.42-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.41-beta',
+        version: '1.0.42-beta',
         debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -600,6 +600,7 @@
                 this.cleanCache();
                 
                 const elements = scope.querySelectorAll('[bb-youtube-channel]');
+                console.log('[DEBUG] YouTube elements found:', elements.length);
                 if (elements.length === 0) return;
                 
                 // Module détecté: youtube
@@ -617,6 +618,8 @@
                     const allowShorts = bbContents._getAttr(element, 'bb-youtube-allow-shorts') === 'true';
                     const language = bbContents._getAttr(element, 'bb-youtube-language') || 'fr';
                     const endpoint = bbContents.config.youtubeEndpoint;
+                    
+                    console.log('[DEBUG] YouTube config:', {channelId, videoCount, allowShorts, language, endpoint});
                     
                     if (!channelId) {
                         // Erreur: bb-youtube-channel manquant
@@ -668,14 +671,17 @@
                     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
                     
                     // Appeler l'API via le Worker
+                    console.log('[DEBUG] Fetching YouTube data from:', `${endpoint}?channelId=${channelId}&maxResults=${videoCount}&allowShorts=${allowShorts}`);
                     fetch(`${endpoint}?channelId=${channelId}&maxResults=${videoCount}&allowShorts=${allowShorts}`)
                         .then(response => {
+                            console.log('[DEBUG] YouTube API response status:', response.status);
                             if (!response.ok) {
                                 throw new Error(`HTTP ${response.status}`);
                             }
                             return response.json();
                         })
                         .then(data => {
+                            console.log('[DEBUG] YouTube API data received:', data);
                             if (data.error) {
                                 throw new Error(data.error.message || 'Erreur API YouTube');
                             }
@@ -687,6 +693,7 @@
                             this.generateYouTubeFeed(container, template, data, allowShorts, language);
                         })
                         .catch(error => {
+                            console.error('[DEBUG] YouTube API error:', error);
                             // Erreur dans le module youtube
                             
                             // En cas d'erreur, essayer de récupérer du cache même expiré
@@ -694,10 +701,12 @@
                             if (expiredCache) {
                                 try {
                                     const cachedData = JSON.parse(expiredCache);
+                                    console.log('[DEBUG] Using expired cache:', cachedData);
                                     // Utilisation du cache expiré en cas d'erreur API
                                     this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
                                     return;
                                 } catch (e) {
+                                    console.error('[DEBUG] Cache parsing error:', e);
                                     // Ignorer les erreurs de parsing
                                 }
                             }
@@ -708,13 +717,16 @@
             },
             
             generateYouTubeFeed: function(container, template, data, allowShorts, language = 'fr') {
+                console.log('[DEBUG] generateYouTubeFeed called with data:', data);
                 if (!data.items || data.items.length === 0) {
+                    console.log('[DEBUG] No videos found in data');
                     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vidéo trouvée</div>';
                     return;
                 }
                 
                 // Les vidéos sont déjà filtrées par l'API YouTube selon allowShorts
                 let videos = data.items;
+                console.log('[DEBUG] Processing', videos.length, 'videos');
                 // Vidéos reçues de l'API
                 
                 // Vider le conteneur (en préservant les éléments marquee)
