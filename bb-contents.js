@@ -1,13 +1,18 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.45-beta
+ * @version 1.0.46-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
  */
 (function() {
     'use strict';
+
+    // Créer l'objet temporaire pour la configuration si il n'existe pas
+    if (!window._bbContentsConfig) {
+        window._bbContentsConfig = {};
+    }
 
     // Protection contre le double chargement
     if (window.bbContents) {
@@ -17,7 +22,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.45-beta',
+        version: '1.0.46-beta',
         debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -29,6 +34,11 @@
     // Détecter la configuration YouTube définie avant le chargement
     if (window.bbContents && window.bbContents.config && window.bbContents.config.youtubeEndpoint) {
         config.youtubeEndpoint = window.bbContents.config.youtubeEndpoint;
+    }
+    
+    // Détecter la configuration dans l'objet temporaire
+    if (window._bbContentsConfig && window._bbContentsConfig.youtubeEndpoint) {
+        config.youtubeEndpoint = window._bbContentsConfig.youtubeEndpoint;
     }
 
     // Objet principal
@@ -169,10 +179,10 @@
                 return true;
             }
             
-            // Vérifier dans window.bbContents (au cas où)
-            if (window.bbContents && window.bbContents.config && window.bbContents.config.youtubeEndpoint) {
-                this.config.youtubeEndpoint = window.bbContents.config.youtubeEndpoint;
-                console.log('[DEBUG] YouTube endpoint found in window:', this.config.youtubeEndpoint);
+            // Vérifier dans l'objet temporaire
+            if (window._bbContentsConfig && window._bbContentsConfig.youtubeEndpoint) {
+                this.config.youtubeEndpoint = window._bbContentsConfig.youtubeEndpoint;
+                console.log('[DEBUG] YouTube endpoint found in temp config:', this.config.youtubeEndpoint);
                 return true;
             }
             
