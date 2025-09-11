@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.49-beta
+ * @version 1.0.50-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -22,7 +22,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.49-beta',
+        version: '1.0.50-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -358,6 +358,18 @@
                         
                         // Vérifier que les images sont chargées
                         const images = mainBlock.querySelectorAll('img');
+                        
+                        // Forcer le chargement des images lazy loading
+                        images.forEach(img => {
+                            if (img.loading === 'lazy' || img.hasAttribute('data-src')) {
+                                // Forcer le chargement de l'image lazy
+                                if (img.hasAttribute('data-src')) {
+                                    img.src = img.getAttribute('data-src');
+                                }
+                                img.loading = 'eager';
+                            }
+                        });
+                        
                         const imagesLoaded = Array.from(images).every(img => img.complete && img.naturalHeight > 0);
                         
                         console.log(`[bb-contents] Marquee ${index + 1}: Images chargées: ${imagesLoaded} (${images.length} images)`);
@@ -397,17 +409,21 @@
                             // Fallback: si pas de dimensions valides mais qu'il y a du contenu, forcer l'initialisation
                             const shouldForceInit = !hasValidDimensions && hasContent && retryCount >= 3;
                             
+                            // Fallback pour images: forcer l'initialisation après 3 tentatives même si images pas chargées
+                            const shouldForceInitImages = !imagesLoaded && hasContent && retryCount >= 3;
+                            
                             console.log(`[bb-contents] Marquee ${index + 1}: Vérifications:`, {
                                 hasValidDimensions: hasValidDimensions,
                                 hasContent: hasContent,
                                 imagesLoaded: imagesLoaded,
                                 retryCount: retryCount,
                                 maxRetries: maxRetries,
-                                shouldForceInit: shouldForceInit
+                                shouldForceInit: shouldForceInit,
+                                shouldForceInitImages: shouldForceInitImages
                             });
                             
                             // Si pas de contenu valide ou images pas chargées, réessayer (sauf si on force)
-                            if ((!hasValidDimensions || !imagesLoaded) && !shouldForceInit) {
+                            if ((!hasValidDimensions || !imagesLoaded) && !shouldForceInit && !shouldForceInitImages) {
                                 if (retryCount < maxRetries) {
                                     const delay = 300 + retryCount * 200; // Délais plus longs pour attendre les images
                                     console.log(`[bb-contents] Marquee ${index + 1}: RETRY dans ${delay}ms (dimensions: ${hasValidDimensions}, images: ${imagesLoaded})`);
@@ -421,7 +437,7 @@
                                 }
                         }
                         
-                        if (shouldForceInit) {
+                        if (shouldForceInit || shouldForceInitImages) {
                             console.log(`[bb-contents] Marquee ${index + 1}: FORÇAGE DE L'INITIALISATION (fallback)`);
                             // Utiliser des dimensions par défaut si les vraies dimensions ne sont pas disponibles
                             if (isVertical && finalHeight <= 50) {
