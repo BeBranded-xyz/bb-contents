@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.40-beta
+ * @version 1.0.41-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -17,7 +17,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.40-beta',
+        version: '1.0.41-beta',
         debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -203,7 +203,7 @@
 
     // Modules
     bbContents.modules = {
-        // Module Marquee - Version live 1.0.40-beta avec modules parasites supprimés
+        // Module Marquee - Version live 1.0.41-beta avec modules parasites supprimés
         marquee: {
             detect: function(scope) {
                 const s = scope || document;
