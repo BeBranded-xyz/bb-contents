@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.55-beta
+ * @version 1.0.56-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -28,7 +28,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.55-beta',
+        version: '1.0.56-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -456,7 +456,7 @@
                         console.log(`[bb-contents] Marquee ${index + 1}: INITIALISATION DE L'ANIMATION`);
                         
                         if (isVertical) {
-                            // Animation JavaScript pour le vertical - défilement infini parfait
+                            // Animation JavaScript pour le vertical - logique simple et efficace
                                 const contentSize = finalHeight;
                             const gapSize = parseInt(gap);
                             const totalSize = contentSize * 4 + gapSize * 3; // 4 copies
@@ -466,25 +466,25 @@
                             scrollContainer.style.height = totalSize + 'px';
                                 }
                             
-                            // Position initiale : commencer à la 2ème copie pour défilement infini
+                            // Position initiale simple
                             let currentPosition = direction === 'bottom' ? -(contentSize + gapSize) : 0;
                                 const step = (parseFloat(speed) * 2) / 60;
                                 let isPaused = false;
                                 
-                                // Fonction d'animation JavaScript avec défilement infini parfait
+                                // Fonction d'animation JavaScript - logique simple
                                 const animate = () => {
                                     if (!isPaused) {
                                         if (direction === 'bottom') {
                                             currentPosition += step;
-                                            // Reset quand on arrive au début de la 1ère copie
+                                            // Reset simple : quand on arrive au début, on repart du début
                                             if (currentPosition >= 0) {
                                                 currentPosition = -(contentSize + gapSize);
                                             }
                                         } else {
                                             currentPosition -= step;
-                                            // Reset quand on arrive au début de la 4ème copie
-                                            if (currentPosition <= -(3 * (contentSize + gapSize))) {
-                                                currentPosition = -(2 * (contentSize + gapSize));
+                                            // Reset simple : quand on arrive à la fin, on repart du début
+                                            if (currentPosition <= -(contentSize + gapSize)) {
+                                                currentPosition = 0;
                                             }
                                         }
                                         
@@ -506,31 +506,31 @@
                             
                                 // Marquee vertical créé avec animation JS
                         } else {
-                                // Animation JavaScript pour l'horizontal - défilement infini parfait
+                                // Animation JavaScript pour l'horizontal - logique simple et efficace
                                 const contentSize = finalWidth;
                                 const gapSize = parseInt(gap);
                                 const totalSize = contentSize * 4 + gapSize * 3; // 4 copies
                             scrollContainer.style.width = totalSize + 'px';
                             
-                                // Position initiale : commencer à la 2ème copie pour défilement infini
+                                // Position initiale simple
                                 let currentPosition = direction === 'right' ? -(contentSize + gapSize) : 0;
                                 const step = (parseFloat(speed) * 0.5) / 60; // Vitesse réduite pour l'horizontal
                                 let isPaused = false;
                                 
-                                // Fonction d'animation JavaScript avec défilement infini parfait
+                                // Fonction d'animation JavaScript - logique simple
                                 const animate = () => {
                                     if (!isPaused) {
                                         if (direction === 'right') {
                                             currentPosition += step;
-                                            // Reset quand on arrive au début de la 1ère copie
+                                            // Reset simple : quand on arrive au début, on repart du début
                                             if (currentPosition >= 0) {
                                                 currentPosition = -(contentSize + gapSize);
                                             }
                                         } else {
                                             currentPosition -= step;
-                                            // Reset quand on arrive au début de la 4ème copie
-                                            if (currentPosition <= -(3 * (contentSize + gapSize))) {
-                                                currentPosition = -(2 * (contentSize + gapSize));
+                                            // Reset simple : quand on arrive à la fin, on repart du début
+                                            if (currentPosition <= -(contentSize + gapSize)) {
+                                                currentPosition = 0;
                                             }
                                         }
                                         
