@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.56-beta
+ * @version 1.0.57-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -28,7 +28,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.56-beta',
+        version: '1.0.57-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -456,34 +456,30 @@
                         console.log(`[bb-contents] Marquee ${index + 1}: INITIALISATION DE L'ANIMATION`);
                         
                         if (isVertical) {
-                            // Animation JavaScript pour le vertical - logique simple et efficace
+                            // Animation JavaScript pour le vertical - version 1.0.33-beta qui fonctionnait parfaitement
                                 const contentSize = finalHeight;
-                            const gapSize = parseInt(gap);
-                            const totalSize = contentSize * 4 + gapSize * 3; // 4 copies
+                                const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
                                 
                                 // Ajuster la hauteur du scrollContainer seulement si pas en mode auto
                                 if (!useAutoHeight) {
-                            scrollContainer.style.height = totalSize + 'px';
+                                    scrollContainer.style.height = totalSize + 'px';
                                 }
-                            
-                            // Position initiale simple
-                            let currentPosition = direction === 'bottom' ? -(contentSize + gapSize) : 0;
-                                const step = (parseFloat(speed) * 2) / 60;
+                                
+                                let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
+                                const step = (parseFloat(speed) * 2) / 60; // Vitesse différente
                                 let isPaused = false;
                                 
-                                // Fonction d'animation JavaScript - logique simple
+                                // Fonction d'animation JavaScript
                                 const animate = () => {
                                     if (!isPaused) {
                                         if (direction === 'bottom') {
                                             currentPosition += step;
-                                            // Reset simple : quand on arrive au début, on repart du début
                                             if (currentPosition >= 0) {
-                                                currentPosition = -(contentSize + gapSize);
+                                                currentPosition = -contentSize - parseInt(gap);
                                             }
                                         } else {
                                             currentPosition -= step;
-                                            // Reset simple : quand on arrive à la fin, on repart du début
-                                            if (currentPosition <= -(contentSize + gapSize)) {
+                                            if (currentPosition <= -contentSize - parseInt(gap)) {
                                                 currentPosition = 0;
                                             }
                                         }
@@ -496,40 +492,40 @@
                                 // Démarrer l'animation
                                 animate();
                                 
-                                // Pause au survol simple
-                                element.addEventListener('mouseenter', function() {
-                                    isPaused = true;
-                                });
-                                element.addEventListener('mouseleave', function() {
-                                    isPaused = false;
-                                });
+                                bbContents.utils.log('Marquee vertical créé avec animation JS - direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px', 'hauteur-wrapper:', height + 'px');
+                                
+                                // Pause au survol
+                                if (pauseOnHover === 'true') {
+                                    element.addEventListener('mouseenter', function() {
+                                        isPaused = true;
+                                    });
+                                    element.addEventListener('mouseleave', function() {
+                                        isPaused = false;
+                                    });
+                                }
                             
                                 // Marquee vertical créé avec animation JS
                         } else {
-                                // Animation JavaScript pour l'horizontal - logique simple et efficace
+                                // Animation JavaScript pour l'horizontal (comme le vertical pour éviter les saccades)
                                 const contentSize = finalWidth;
-                                const gapSize = parseInt(gap);
-                                const totalSize = contentSize * 4 + gapSize * 3; // 4 copies
-                            scrollContainer.style.width = totalSize + 'px';
-                            
-                                // Position initiale simple
-                                let currentPosition = direction === 'right' ? -(contentSize + gapSize) : 0;
+                                const totalSize = contentSize * 4 + parseInt(gap) * 3;
+                                scrollContainer.style.width = totalSize + 'px';
+                                
+                                let currentPosition = direction === 'right' ? -contentSize - parseInt(gap) : 0;
                                 const step = (parseFloat(speed) * 0.5) / 60; // Vitesse réduite pour l'horizontal
                                 let isPaused = false;
                                 
-                                // Fonction d'animation JavaScript - logique simple
+                                // Fonction d'animation JavaScript
                                 const animate = () => {
                                     if (!isPaused) {
                                         if (direction === 'right') {
                                             currentPosition += step;
-                                            // Reset simple : quand on arrive au début, on repart du début
                                             if (currentPosition >= 0) {
-                                                currentPosition = -(contentSize + gapSize);
+                                                currentPosition = -contentSize - parseInt(gap);
                                             }
                                         } else {
                                             currentPosition -= step;
-                                            // Reset simple : quand on arrive à la fin, on repart du début
-                                            if (currentPosition <= -(contentSize + gapSize)) {
+                                            if (currentPosition <= -contentSize - parseInt(gap)) {
                                                 currentPosition = 0;
                                             }
                                         }
@@ -542,13 +538,17 @@
                                 // Démarrer l'animation
                                 animate();
                                 
-                                // Pause au survol simple
-                                element.addEventListener('mouseenter', function() {
-                                    isPaused = true;
-                                });
-                                element.addEventListener('mouseleave', function() {
-                                    isPaused = false;
-                                });
+                                bbContents.utils.log('Marquee horizontal créé avec animation JS - direction:', direction, 'taille:', contentSize + 'px', 'total:', totalSize + 'px');
+                                
+                                // Pause au survol
+                                if (pauseOnHover === 'true') {
+                                    element.addEventListener('mouseenter', function() {
+                                        isPaused = true;
+                                    });
+                                    element.addEventListener('mouseleave', function() {
+                                        isPaused = false;
+                                    });
+                                }
                                 
                                 // Marquee horizontal créé avec animation JS
                         }
