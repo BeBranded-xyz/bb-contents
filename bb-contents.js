@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.46-beta
+ * @version 1.0.47-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -22,7 +22,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.46-beta',
+        version: '1.0.47-beta',
         debug: true, // Activé temporairement pour debug
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -723,11 +723,37 @@
                 const cacheKey = `youtube_${channelId}_${videoCount}_${allowShorts}_${language}`;
                 const cachedData = this.cache.get(cacheKey);
                 
-                if (cachedData) {
+                if (cachedData && cachedData.value) {
                     // Données YouTube récupérées du cache (économie API)
+                    console.log('[DEBUG] Using cached YouTube data for element');
                     this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
                     return;
                 }
+                
+                // Vérifier si un appel API est déjà en cours pour cette clé
+                const loadingKey = `loading_${cacheKey}`;
+                if (window[loadingKey]) {
+                    console.log('[DEBUG] API call already in progress, waiting...');
+                    // Attendre que l'autre appel se termine
+                    const checkLoading = () => {
+                        if (!window[loadingKey]) {
+                            // L'autre appel est terminé, vérifier le cache
+                            const newCachedData = this.cache.get(cacheKey);
+                            if (newCachedData && newCachedData.value) {
+                                this.generateYouTubeFeed(container, template, newCachedData.value, allowShorts, language);
+                            } else {
+                                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Erreur de chargement</div>';
+                            }
+                        } else {
+                            setTimeout(checkLoading, 100);
+                        }
+                    };
+                    checkLoading();
+                    return;
+                }
+                
+                // Marquer qu'un appel API est en cours
+                window[loadingKey] = true;
                 
                 // Afficher un loader
                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
@@ -753,10 +779,16 @@
                         // Données YouTube mises en cache pour 24h (économie API)
                         
                         this.generateYouTubeFeed(container, template, data, allowShorts, language);
+                        
+                        // Libérer le verrou
+                        window[loadingKey] = false;
                     })
                     .catch(error => {
                         console.error('[DEBUG] YouTube API error:', error);
                         // Erreur dans le module youtube
+                        
+                        // Libérer le verrou en cas d'erreur
+                        window[loadingKey] = false;
                         
                         // En cas d'erreur, essayer de récupérer du cache même expiré
                         const expiredCache = localStorage.getItem(cacheKey);
@@ -779,8 +811,8 @@
             
             generateYouTubeFeed: function(container, template, data, allowShorts, language = 'fr') {
                 console.log('[DEBUG] generateYouTubeFeed called with data:', data);
-                if (!data.items || data.items.length === 0) {
-                    console.log('[DEBUG] No videos found in data');
+                if (!data || !data.items || data.items.length === 0) {
+                    console.log('[DEBUG] No videos found in data or data is undefined');
                     container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vidéo trouvée</div>';
                     return;
                 }
