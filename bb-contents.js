@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.51-beta
+ * @version 1.0.52-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -19,10 +19,16 @@
         console.warn('BeBranded Contents est déjà chargé');
         return;
     }
+    
+    // Vérifier si la version a déjà été affichée
+    if (window._bbContentsVersionDisplayed) {
+        return;
+    }
+    window._bbContentsVersionDisplayed = true;
 
     // Configuration
     const config = {
-        version: '1.0.51-beta',
+        version: '1.0.52-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -451,23 +457,24 @@
                         console.log(`[bb-contents] Marquee ${index + 1}: INITIALISATION DE L'ANIMATION`);
                         
                         if (isVertical) {
-                            // Animation JavaScript pour le vertical
+                            // Animation JavaScript pour le vertical - défilement infini smooth
                                 const contentSize = finalHeight;
-                            const totalSize = contentSize * 4 + parseInt(gap) * 3; // 4 copies au lieu de 3
+                            const gapSize = parseInt(gap);
+                            const totalSize = contentSize + gapSize; // Taille d'un cycle complet
                                 
                                 // Ajuster la hauteur du scrollContainer seulement si pas en mode auto
                                 if (!useAutoHeight) {
                             scrollContainer.style.height = totalSize + 'px';
                                 }
                             
-                            let currentPosition = direction === 'bottom' ? -contentSize - parseInt(gap) : 0;
+                            let currentPosition = direction === 'bottom' ? -totalSize : 0;
                                 const baseStep = (parseFloat(speed) * 2) / 60; // Vitesse de base
                                 let currentStep = baseStep;
                             let isPaused = false;
                                 let animationId = null;
                                 let lastTime = 0;
                                 
-                                // Fonction d'animation JavaScript optimisée
+                                // Fonction d'animation JavaScript optimisée pour défilement infini
                                 const animate = (currentTime) => {
                                     if (!lastTime) lastTime = currentTime;
                                     const deltaTime = currentTime - lastTime;
@@ -476,12 +483,12 @@
                                     if (direction === 'bottom') {
                                         currentPosition += currentStep * (deltaTime / 16.67); // Normaliser à 60fps
                                         if (currentPosition >= 0) {
-                                            currentPosition = -contentSize - parseInt(gap);
+                                            currentPosition = -totalSize; // Reset smooth
                                         }
                                     } else {
                                         currentPosition -= currentStep * (deltaTime / 16.67);
-                                        if (currentPosition <= -contentSize - parseInt(gap)) {
-                                            currentPosition = 0;
+                                        if (currentPosition <= -totalSize) {
+                                            currentPosition = 0; // Reset smooth
                                         }
                                     }
                                     
