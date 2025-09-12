@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.69-beta
+ * @version 1.0.70-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -34,7 +34,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.69-beta',
+        version: '1.0.70-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -412,22 +412,24 @@
                 
                 console.log(`🔍 [MARQUEE] Safari - Position initiale: ${currentPosition}px, transform: ${initialTransform}`);
 
-                // Fonction d'animation Safari optimisée
+                // Fonction d'animation Safari optimisée avec logique de reset corrigée
                 const animate = () => {
                     if (!isPaused) {
                         if (direction === (isVertical ? 'bottom' : 'right')) {
                             currentPosition += step;
+                            // Reset Safari pour direction bottom/right - logique 3 copies
                             if (currentPosition >= 0) {
                                 currentPosition = -(contentSize + gapSize);
                             }
                         } else {
                             currentPosition -= step;
-                            if (currentPosition <= -(2 * (contentSize + gapSize))) {
-                                currentPosition = -(contentSize + gapSize);
+                            // Reset Safari pour direction top/left - logique 3 copies corrigée
+                            if (currentPosition <= -(contentSize + gapSize)) {
+                                currentPosition = 0;
                             }
                         }
                         
-                        // Transform optimisé pour Safari avec will-change
+                        // Transform optimisé pour Safari
                         const transform = isVertical 
                             ? `translate3d(0, ${currentPosition}px, 0)`
                             : `translate3d(${currentPosition}px, 0, 0)`;
