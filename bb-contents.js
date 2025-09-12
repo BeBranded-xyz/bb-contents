@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.76-beta
+ * @version 1.0.77-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -41,7 +41,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.76-beta',
+        version: '1.0.77-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -391,100 +391,133 @@
                 
                 console.log(`🔍 [MARQUEE] Safari Animation - direction: ${direction}, isVertical: ${isVertical}, contentSize: ${contentSize}`);
                 
-                // SOLUTION SAFARI SIMPLIFIÉE : Utiliser la taille du conteneur parent
-                let finalContentSize = contentSize;
-                if (contentSize < 200) {
-                    console.log(`⚠️ [MARQUEE] Safari - ContentSize incorrect, utilisation taille parent`);
-                    // Utiliser la taille du conteneur parent comme fallback
-                    const parentElement = element.parentElement;
-                    if (parentElement) {
-                        finalContentSize = isVertical ? parentElement.offsetHeight : parentElement.offsetWidth;
-                        console.log(`🔍 [MARQUEE] Safari - Taille parent: ${finalContentSize}px`);
+                // SOLUTION SAFARI : Forcer le chargement des images avant animation
+                const images = mainBlock.querySelectorAll('img');
+                let imagesLoaded = 0;
+                const totalImages = images.length;
+                
+                console.log(`🔍 [MARQUEE] Safari - ${totalImages} images détectées`);
+                
+                // Forcer le chargement de toutes les images
+                images.forEach(img => {
+                    if (img.dataset.src && !img.src) {
+                        img.src = img.dataset.src;
+                        img.loading = 'eager';
+                    }
+                    img.onload = () => {
+                        imagesLoaded++;
+                        console.log(`🖼️ [MARQUEE] Safari - Image ${imagesLoaded}/${totalImages} chargée`);
+                    };
+                });
+                
+                // Attendre que les images se chargent ou timeout
+                const waitForImages = () => {
+                    if (imagesLoaded >= totalImages || imagesLoaded === 0) {
+                        console.log(`✅ [MARQUEE] Safari - Images chargées: ${imagesLoaded}/${totalImages}`);
+                        startSafariAnimation();
+                    } else {
+                        setTimeout(waitForImages, 100);
+                    }
+                };
+                
+                const startSafariAnimation = () => {
+                    // Recalculer la taille après chargement des images
+                    const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
+                    console.log(`🔍 [MARQUEE] Safari - Nouvelle taille après images: ${newContentSize}px`);
+                    
+                    let finalContentSize = newContentSize > contentSize ? newContentSize : contentSize;
+                    
+                    // Fallback si toujours trop petit
+                    if (finalContentSize < 200) {
+                        const parentElement = element.parentElement;
+                        if (parentElement) {
+                            finalContentSize = isVertical ? parentElement.offsetHeight : parentElement.offsetWidth;
+                        }
+                        if (finalContentSize < 200) {
+                            finalContentSize = isVertical ? 400 : 800;
+                        }
                     }
                     
-                    // Si toujours trop petit, utiliser une valeur par défaut
-                    if (finalContentSize < 200) {
-                        finalContentSize = isVertical ? 400 : 800; // Valeurs par défaut
-                        console.log(`🔍 [MARQUEE] Safari - Utilisation valeur par défaut: ${finalContentSize}px`);
+                    // Solution Safari simplifiée
+                    const totalSize = finalContentSize * 3 + gapSize * 2;
+                    const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
+                    let isPaused = false;
+                    
+                    // Ajuster la taille du conteneur
+                    if (isVertical && !useAutoHeight) {
+                        scrollContainer.style.height = totalSize + 'px';
+                    } else if (!isVertical) {
+                        scrollContainer.style.width = totalSize + 'px';
                     }
-                }
-                
-                // Solution Safari simplifiée
-                const totalSize = finalContentSize * 3 + gapSize * 2;
-                const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
-                let isPaused = false;
-                
-                // Ajuster la taille du conteneur
-                if (isVertical && !useAutoHeight) {
-                    scrollContainer.style.height = totalSize + 'px';
-                } else if (!isVertical) {
-                    scrollContainer.style.width = totalSize + 'px';
-                }
 
-                // Position initiale optimisée pour Safari
-                let currentPosition;
-                if (direction === (isVertical ? 'bottom' : 'right')) {
-                    currentPosition = -(finalContentSize + gapSize);
-                } else {
-                    currentPosition = 0;
-                }
-
-                // Forcer la position initiale pour éviter l'invisibilité
-                const initialTransform = isVertical 
-                    ? `translate3d(0, ${currentPosition}px, 0)`
-                    : `translate3d(${currentPosition}px, 0, 0)`;
-                scrollContainer.style.transform = initialTransform;
-                
-                console.log(`🔍 [MARQUEE] Safari - Position initiale: ${currentPosition}px, transform: ${initialTransform}`);
-
-                // Fonction d'animation Safari avec debug des resets
-                let frameCount = 0;
-                const animate = () => {
-                    if (!isPaused) {
-                        frameCount++;
-                        
-                        if (direction === (isVertical ? 'bottom' : 'right')) {
-                            currentPosition += step;
-                            if (currentPosition >= 0) {
-                                console.log(`🔄 [MARQUEE] Safari RESET bottom/right: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
-                                currentPosition = -(finalContentSize + gapSize);
-                            }
-                        } else {
-                            currentPosition -= step;
-                            if (currentPosition <= -(2 * (finalContentSize + gapSize))) {
-                                console.log(`🔄 [MARQUEE] Safari RESET top/left: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
-                                currentPosition = -(finalContentSize + gapSize);
-                            }
-                        }
-                        
-                        // Log toutes les 60 frames (1 seconde)
-                        if (frameCount % 60 === 0) {
-                            console.log(`📍 [MARQUEE] Safari position: ${currentPosition}px (frame ${frameCount})`);
-                        }
-                        
-                        // ARRONDI pour éviter les erreurs de précision JavaScript
-                        currentPosition = Math.round(currentPosition * 100) / 100;
-                        
-                        // Transform optimisé pour Safari
-                        const transform = isVertical 
-                            ? `translate3d(0, ${currentPosition}px, 0)`
-                            : `translate3d(${currentPosition}px, 0, 0)`;
-                        scrollContainer.style.transform = transform;
+                    // Position initiale optimisée pour Safari
+                    let currentPosition;
+                    if (direction === (isVertical ? 'bottom' : 'right')) {
+                        currentPosition = -(finalContentSize + gapSize);
+                    } else {
+                        currentPosition = 0;
                     }
-                    requestAnimationFrame(animate);
+
+                    // Forcer la position initiale pour éviter l'invisibilité
+                    const initialTransform = isVertical 
+                        ? `translate3d(0, ${currentPosition}px, 0)`
+                        : `translate3d(${currentPosition}px, 0, 0)`;
+                    scrollContainer.style.transform = initialTransform;
+                    
+                    console.log(`🔍 [MARQUEE] Safari - Position initiale: ${currentPosition}px, transform: ${initialTransform}`);
+
+                    // Fonction d'animation Safari avec debug des resets
+                    let frameCount = 0;
+                    const animate = () => {
+                        if (!isPaused) {
+                            frameCount++;
+                            
+                            if (direction === (isVertical ? 'bottom' : 'right')) {
+                                currentPosition += step;
+                                if (currentPosition >= 0) {
+                                    console.log(`🔄 [MARQUEE] Safari RESET bottom/right: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
+                                    currentPosition = -(finalContentSize + gapSize);
+                                }
+                            } else {
+                                currentPosition -= step;
+                                if (currentPosition <= -(2 * (finalContentSize + gapSize))) {
+                                    console.log(`🔄 [MARQUEE] Safari RESET top/left: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
+                                    currentPosition = -(finalContentSize + gapSize);
+                                }
+                            }
+                            
+                            // Log toutes les 60 frames (1 seconde)
+                            if (frameCount % 60 === 0) {
+                                console.log(`📍 [MARQUEE] Safari position: ${currentPosition}px (frame ${frameCount})`);
+                            }
+                            
+                            // ARRONDI pour éviter les erreurs de précision JavaScript
+                            currentPosition = Math.round(currentPosition * 100) / 100;
+                            
+                            // Transform optimisé pour Safari
+                            const transform = isVertical 
+                                ? `translate3d(0, ${currentPosition}px, 0)`
+                                : `translate3d(${currentPosition}px, 0, 0)`;
+                            scrollContainer.style.transform = transform;
+                        }
+                        requestAnimationFrame(animate);
+                    };
+
+                    // Démarrer l'animation avec un petit délai pour Safari
+                    setTimeout(() => {
+                        animate();
+                        console.log('✅ [MARQUEE] Animation Safari démarrée avec JavaScript optimisé');
+                    }, 50);
+
+                    // Pause au survol pour Safari
+                    if (element.getAttribute('bb-marquee-pause') === 'true') {
+                        element.addEventListener('mouseenter', () => isPaused = true);
+                        element.addEventListener('mouseleave', () => isPaused = false);
+                    }
                 };
-
-                // Démarrer l'animation avec un petit délai pour Safari
-                setTimeout(() => {
-                    animate();
-                    console.log('✅ [MARQUEE] Animation Safari démarrée avec JavaScript optimisé');
-                }, 50);
-
-                // Pause au survol pour Safari
-                if (element.getAttribute('bb-marquee-pause') === 'true') {
-                    element.addEventListener('mouseenter', () => isPaused = true);
-                    element.addEventListener('mouseleave', () => isPaused = false);
-                }
+                
+                // Démarrer le processus de chargement des images
+                waitForImages();
             },
 
             initStandardAnimation: function(element, scrollContainer, mainBlock, options) {
