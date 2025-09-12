@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.62-beta
+ * @version 1.0.63-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -34,7 +34,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.62-beta',
+        version: '1.0.63-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -265,10 +265,23 @@
                 if (scope.closest && scope.closest('[data-bb-disable]')) return;
                 const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
 
-                elements.forEach(function(element, index) {
+                // Initialisation séquentielle de haut en bas - Hero en priorité
+                let currentIndex = 0;
+                
+                const initNextMarquee = () => {
+                    if (currentIndex >= elements.length) {
+                        bbContents.utils.log('Tous les marquees initialisés:', elements.length, 'éléments');
+                        return;
+                    }
+                    
+                    const element = elements[currentIndex];
+                    currentIndex++;
+                    
                     // Vérifier si l'élément a déjà été traité par un autre module
                     if (element.bbProcessed || element.hasAttribute('data-bb-youtube-processed')) {
                         bbContents.utils.log('Élément marquee déjà traité par un autre module, ignoré:', element);
+                        // Passer au suivant immédiatement
+                        setTimeout(initNextMarquee, 0);
                         return;
                     }
                     element.bbProcessed = true;
@@ -495,16 +508,19 @@
                         });
                     };
                     
-                    // Démarrer l'initialisation avec délai adaptatif - Solution simple et efficace
+                    // Démarrer l'initialisation avec délai adaptatif - Initialisation séquentielle
                     const baseDelay = isVertical ? 800 : 400; // Délais fixes selon le type
-                    const randomDelay = Math.random() * 100; // 0-100ms aléatoire pour éviter les conflits
-                    const initDelay = baseDelay + randomDelay;
                     
-                    bbContents.utils.log(`Marquee ${index + 1} (${isVertical ? 'vertical' : 'horizontal'}) initialisé dans ${initDelay}ms`);
-                    setTimeout(() => initAnimation(0), initDelay);
-                });
-
-                bbContents.utils.log('Module Marquee initialisé:', elements.length, 'éléments');
+                    bbContents.utils.log(`Marquee ${currentIndex} (${isVertical ? 'vertical' : 'horizontal'}) initialisé dans ${baseDelay}ms`);
+                    setTimeout(() => {
+                        initAnimation(0);
+                        // Après initialisation, passer au marquee suivant
+                        setTimeout(initNextMarquee, 100); // Petit délai entre les marquees
+                    }, baseDelay);
+                };
+                
+                // Démarrer l'initialisation séquentielle
+                initNextMarquee();
             }
         },
 
