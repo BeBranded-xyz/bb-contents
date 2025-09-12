@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.68-beta
+ * @version 1.0.69-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -34,7 +34,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.68-beta',
+        version: '1.0.69-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -382,11 +382,12 @@
             initSafariAnimation: function(element, scrollContainer, mainBlock, options) {
                 const { speed, direction, gap, isVertical, useAutoHeight, contentSize, gapSize } = options;
                 
-                console.log(`🔍 [MARQUEE] Safari Animation - direction: ${direction}, isVertical: ${isVertical}`);
+                console.log(`🔍 [MARQUEE] Safari Animation - direction: ${direction}, isVertical: ${isVertical}, contentSize: ${contentSize}`);
                 
-                // Créer les keyframes CSS pour Safari avec direction
+                // Solution Safari hybride : JavaScript avec optimisations Safari
                 const totalSize = contentSize * 3 + gapSize * 2;
-                const animationName = `marquee-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
+                let isPaused = false;
                 
                 // Ajuster la taille du conteneur
                 if (isVertical && !useAutoHeight) {
@@ -395,55 +396,56 @@
                     scrollContainer.style.width = totalSize + 'px';
                 }
 
-                // Calculer les positions selon la direction
-                let startPos, endPos;
-                const moveDistance = contentSize + gapSize;
-                
+                // Position initiale optimisée pour Safari
+                let currentPosition;
                 if (direction === (isVertical ? 'bottom' : 'right')) {
-                    // Direction bottom/right : commence en bas/à droite, va vers le haut/à gauche
-                    startPos = isVertical ? `translateY(${moveDistance}px)` : `translateX(${moveDistance}px)`;
-                    endPos = isVertical ? 'translateY(0px)' : 'translateX(0px)';
+                    currentPosition = -(contentSize + gapSize);
                 } else {
-                    // Direction top/left : commence en haut/à gauche, va vers le bas/à droite
-                    startPos = isVertical ? 'translateY(0px)' : 'translateX(0px)';
-                    endPos = isVertical ? `translateY(-${moveDistance}px)` : `translateX(-${moveDistance}px)`;
+                    currentPosition = 0;
                 }
 
-                // Créer les keyframes CSS avec direction
-                const keyframes = `
-                    @keyframes ${animationName} {
-                        0% {
-                            transform: ${startPos};
+                // Forcer la position initiale pour éviter l'invisibilité
+                const initialTransform = isVertical 
+                    ? `translate3d(0, ${currentPosition}px, 0)`
+                    : `translate3d(${currentPosition}px, 0, 0)`;
+                scrollContainer.style.transform = initialTransform;
+                
+                console.log(`🔍 [MARQUEE] Safari - Position initiale: ${currentPosition}px, transform: ${initialTransform}`);
+
+                // Fonction d'animation Safari optimisée
+                const animate = () => {
+                    if (!isPaused) {
+                        if (direction === (isVertical ? 'bottom' : 'right')) {
+                            currentPosition += step;
+                            if (currentPosition >= 0) {
+                                currentPosition = -(contentSize + gapSize);
+                            }
+                        } else {
+                            currentPosition -= step;
+                            if (currentPosition <= -(2 * (contentSize + gapSize))) {
+                                currentPosition = -(contentSize + gapSize);
+                            }
                         }
-                        100% {
-                            transform: ${endPos};
-                        }
+                        
+                        // Transform optimisé pour Safari avec will-change
+                        const transform = isVertical 
+                            ? `translate3d(0, ${currentPosition}px, 0)`
+                            : `translate3d(${currentPosition}px, 0, 0)`;
+                        scrollContainer.style.transform = transform;
                     }
-                `;
+                    requestAnimationFrame(animate);
+                };
 
-                // Injecter les keyframes dans le head
-                const style = document.createElement('style');
-                style.textContent = keyframes;
-                document.head.appendChild(style);
-
-                // Configuration de l'animation avec durée calculée correctement
-                const speedValue = parseFloat(speed);
-                const baseSpeed = isVertical ? 1.5 : 0.8;
-                const duration = Math.max(1, moveDistance / ((speedValue * baseSpeed) / 60));
-                
-                scrollContainer.style.animation = `${animationName} ${duration}s linear infinite`;
-                
-                console.log(`🔍 [MARQUEE] Safari - duration: ${duration}s, moveDistance: ${moveDistance}px`);
-                console.log('✅ [MARQUEE] Animation Safari démarrée avec keyframes CSS');
+                // Démarrer l'animation avec un petit délai pour Safari
+                setTimeout(() => {
+                    animate();
+                    console.log('✅ [MARQUEE] Animation Safari démarrée avec JavaScript optimisé');
+                }, 50);
 
                 // Pause au survol pour Safari
                 if (element.getAttribute('bb-marquee-pause') === 'true') {
-                    element.addEventListener('mouseenter', () => {
-                        scrollContainer.style.animationPlayState = 'paused';
-                    });
-                    element.addEventListener('mouseleave', () => {
-                        scrollContainer.style.animationPlayState = 'running';
-                    });
+                    element.addEventListener('mouseenter', () => isPaused = true);
+                    element.addEventListener('mouseleave', () => isPaused = false);
                 }
             },
 
