@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.78-beta
+ * @version 1.0.79-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -41,7 +41,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.78-beta',
+        version: '1.0.79-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -408,6 +408,10 @@
                         imagesLoaded++;
                         console.log(`🖼️ [MARQUEE] Safari - Image ${imagesLoaded}/${totalImages} chargée`);
                     };
+                    img.onerror = () => {
+                        imagesLoaded++;
+                        console.log(`❌ [MARQUEE] Safari - Image ${imagesLoaded}/${totalImages} erreur de chargement`);
+                    };
                 });
                 
                 // Attendre que les images se chargent avec timeout adapté mobile
@@ -422,7 +426,12 @@
                     
                     if (imagesLoaded >= totalImages || imagesLoaded === 0 || waitTimeout >= maxWaitTime) {
                         console.log(`✅ [MARQUEE] Safari - Images chargées: ${imagesLoaded}/${totalImages} (timeout: ${waitTimeout}ms)`);
-                        startSafariAnimation();
+                        
+                        // Attendre encore un peu pour que les images se rendent visuellement
+                        setTimeout(() => {
+                            console.log(`🖼️ [MARQUEE] Safari - Attente rendu visuel des images...`);
+                            startSafariAnimation();
+                        }, isMobile ? 500 : 200); // Plus de temps sur mobile
                     } else {
                         setTimeout(waitForImages, 100);
                     }
@@ -439,6 +448,15 @@
                             }
                         });
                     }
+                    
+                    // Vérifier que les images ont une taille visible
+                    let imagesWithSize = 0;
+                    images.forEach(img => {
+                        if (img.offsetWidth > 0 && img.offsetHeight > 0) {
+                            imagesWithSize++;
+                        }
+                    });
+                    console.log(`🖼️ [MARQUEE] Safari - Images avec taille visible: ${imagesWithSize}/${totalImages}`);
                     
                     // Recalculer la taille après chargement des images
                     const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
