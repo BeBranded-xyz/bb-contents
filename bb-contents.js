@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.66-beta
+ * @version 1.0.67-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -34,7 +34,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.66-beta',
+        version: '1.0.67-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -358,13 +358,82 @@
                     return;
                 }
 
-                // Configuration de l'animation - Logique Safari-compatible
+                // Détection Safari
+                const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                console.log(`🔍 [MARQUEE] Safari détecté: ${isSafari}`);
+
                 const gapSize = parseInt(gap);
-                const totalSize = contentSize * 3 + gapSize * 2;
                 const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
                 let isPaused = false;
+
+                if (isSafari) {
+                    // Solution Safari : Animation CSS avec keyframes
+                    this.initSafariAnimation(element, scrollContainer, mainBlock, {
+                        speed, direction, gap, isVertical, useAutoHeight, contentSize, gapSize
+                    });
+                } else {
+                    // Solution standard pour autres navigateurs
+                    this.initStandardAnimation(element, scrollContainer, mainBlock, {
+                        speed, direction, pauseOnHover, gap, isVertical, useAutoHeight, contentSize, gapSize, step
+                    });
+                }
+            },
+
+            initSafariAnimation: function(element, scrollContainer, mainBlock, options) {
+                const { speed, direction, gap, isVertical, useAutoHeight, contentSize, gapSize } = options;
                 
-                // Position initiale optimisée pour Safari
+                // Créer les keyframes CSS pour Safari
+                const totalSize = contentSize * 3 + gapSize * 2;
+                const animationName = `marquee-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                
+                // Ajuster la taille du conteneur
+                if (isVertical && !useAutoHeight) {
+                    scrollContainer.style.height = totalSize + 'px';
+                } else if (!isVertical) {
+                    scrollContainer.style.width = totalSize + 'px';
+                }
+
+                // Créer les keyframes CSS
+                const keyframes = `
+                    @keyframes ${animationName} {
+                        0% {
+                            transform: ${isVertical ? 'translateY(0px)' : 'translateX(0px)'};
+                        }
+                        100% {
+                            transform: ${isVertical ? `translateY(-${contentSize + gapSize}px)` : `translateX(-${contentSize + gapSize}px)`};
+                        }
+                    }
+                `;
+
+                // Injecter les keyframes dans le head
+                const style = document.createElement('style');
+                style.textContent = keyframes;
+                document.head.appendChild(style);
+
+                // Configuration de l'animation
+                const duration = (contentSize + gapSize) / ((parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60);
+                scrollContainer.style.animation = `${animationName} ${duration}s linear infinite`;
+
+                console.log('✅ [MARQUEE] Animation Safari démarrée avec keyframes CSS');
+
+                // Pause au survol pour Safari
+                if (element.getAttribute('bb-marquee-pause') === 'true') {
+                    element.addEventListener('mouseenter', () => {
+                        scrollContainer.style.animationPlayState = 'paused';
+                    });
+                    element.addEventListener('mouseleave', () => {
+                        scrollContainer.style.animationPlayState = 'running';
+                    });
+                }
+            },
+
+            initStandardAnimation: function(element, scrollContainer, mainBlock, options) {
+                const { speed, direction, pauseOnHover, gap, isVertical, useAutoHeight, contentSize, gapSize, step } = options;
+                
+                const totalSize = contentSize * 3 + gapSize * 2;
+                let isPaused = false;
+                
+                // Position initiale
                 let currentPosition;
                 if (direction === (isVertical ? 'bottom' : 'right')) {
                     currentPosition = -(contentSize + gapSize);
@@ -379,24 +448,21 @@
                     scrollContainer.style.width = totalSize + 'px';
                 }
 
-                // Fonction d'animation Safari-compatible
+                // Fonction d'animation standard
                 const animate = () => {
                     if (!isPaused) {
                         if (direction === (isVertical ? 'bottom' : 'right')) {
                             currentPosition += step;
-                            // Reset Safari-compatible pour direction bottom/right
                             if (currentPosition >= 0) {
                                 currentPosition = -(contentSize + gapSize);
                             }
                         } else {
                             currentPosition -= step;
-                            // Reset Safari-compatible pour direction top/left
                             if (currentPosition <= -(2 * (contentSize + gapSize))) {
                                 currentPosition = -(contentSize + gapSize);
                             }
                         }
                         
-                        // Transform optimisé pour Safari
                         const transform = isVertical 
                             ? `translate3d(0, ${currentPosition}px, 0)`
                             : `translate3d(${currentPosition}px, 0, 0)`;
@@ -407,7 +473,7 @@
 
                 // Démarrer l'animation
                 animate();
-                console.log('✅ [MARQUEE] Animation démarrée avec succès (Safari-compatible)');
+                console.log('✅ [MARQUEE] Animation standard démarrée');
 
                 // Pause au survol
                 if (pauseOnHover === 'true') {
