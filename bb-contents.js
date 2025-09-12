@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.71-beta
+ * @version 1.0.72-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -22,19 +22,26 @@
     
     // Vérifier si la version a déjà été affichée
     if (window._bbContentsVersionDisplayed) {
+        console.log('🔄 [BB Contents] Version déjà affichée, réinitialisation...');
         return;
     }
     window._bbContentsVersionDisplayed = true;
     
     // Protection supplémentaire contre la double initialisation
     if (window._bbContentsInitialized) {
+        console.log('🔄 [BB Contents] Déjà initialisé, réinitialisation...');
         return;
     }
     window._bbContentsInitialized = true;
 
+    // Log de démarrage très visible
+    console.log('🚀 [BB Contents] DÉMARRAGE v1.0.72-beta - Safari Debug');
+    console.log('🔍 [BB Contents] User Agent:', navigator.userAgent);
+    console.log('🔍 [BB Contents] Safari détecté:', /^((?!chrome|android).)*safari/i.test(navigator.userAgent));
+
     // Configuration
     const config = {
-        version: '1.0.71-beta',
+        version: '1.0.72-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -412,21 +419,31 @@
                 
                 console.log(`🔍 [MARQUEE] Safari - Position initiale: ${currentPosition}px, transform: ${initialTransform}`);
 
-                // Fonction d'animation Safari avec logique de reset standard (3 copies)
+                // Fonction d'animation Safari avec logs de debug
+                let frameCount = 0;
                 const animate = () => {
                     if (!isPaused) {
+                        frameCount++;
+                        
                         if (direction === (isVertical ? 'bottom' : 'right')) {
                             currentPosition += step;
                             // Reset standard pour direction bottom/right - 3 copies
                             if (currentPosition >= 0) {
+                                console.log(`🔄 [MARQUEE] Safari RESET bottom/right: ${currentPosition} → ${-(contentSize + gapSize)}`);
                                 currentPosition = -(contentSize + gapSize);
                             }
                         } else {
                             currentPosition -= step;
                             // Reset standard pour direction top/left - 3 copies
                             if (currentPosition <= -(2 * (contentSize + gapSize))) {
+                                console.log(`🔄 [MARQUEE] Safari RESET top/left: ${currentPosition} → ${-(contentSize + gapSize)}`);
                                 currentPosition = -(contentSize + gapSize);
                             }
+                        }
+                        
+                        // Log de position toutes les 60 frames (1 seconde)
+                        if (frameCount % 60 === 0) {
+                            console.log(`📍 [MARQUEE] Safari position: ${currentPosition}px (frame ${frameCount})`);
                         }
                         
                         // Transform optimisé pour Safari
