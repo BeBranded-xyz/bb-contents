@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.73-beta
+ * @version 1.0.74-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -41,7 +41,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.73-beta',
+        version: '1.0.74-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -391,8 +391,27 @@
                 
                 console.log(`🔍 [MARQUEE] Safari Animation - direction: ${direction}, isVertical: ${isVertical}, contentSize: ${contentSize}`);
                 
+                // Recalculer la taille si elle semble incorrecte (trop petite)
+                let finalContentSize = contentSize;
+                if (contentSize < 200) {
+                    console.log(`⚠️ [MARQUEE] ContentSize trop petit (${contentSize}px), recalcul...`);
+                    // Attendre un peu et recalculer
+                    setTimeout(() => {
+                        const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
+                        console.log(`🔍 [MARQUEE] Nouveau contentSize: ${newContentSize}px`);
+                        if (newContentSize > contentSize) {
+                            // Relancer l'animation avec la bonne taille
+                            this.initSafariAnimation(element, scrollContainer, mainBlock, {
+                                ...options,
+                                contentSize: newContentSize
+                            });
+                            return;
+                        }
+                    }, 100);
+                }
+                
                 // Solution Safari hybride : JavaScript avec optimisations Safari
-                const totalSize = contentSize * 3 + gapSize * 2;
+                const totalSize = finalContentSize * 3 + gapSize * 2;
                 const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
                 let isPaused = false;
                 
@@ -406,7 +425,7 @@
                 // Position initiale optimisée pour Safari
                 let currentPosition;
                 if (direction === (isVertical ? 'bottom' : 'right')) {
-                    currentPosition = -(contentSize + gapSize);
+                    currentPosition = -(finalContentSize + gapSize);
                 } else {
                     currentPosition = 0;
                 }
@@ -426,13 +445,13 @@
                             currentPosition += step;
                             // Reset standard pour direction bottom/right - 3 copies
                             if (currentPosition >= 0) {
-                                currentPosition = -(contentSize + gapSize);
+                                currentPosition = -(finalContentSize + gapSize);
                             }
                         } else {
                             currentPosition -= step;
                             // Reset standard pour direction top/left - 3 copies
-                            if (currentPosition <= -(2 * (contentSize + gapSize))) {
-                                currentPosition = -(contentSize + gapSize);
+                            if (currentPosition <= -(2 * (finalContentSize + gapSize))) {
+                                currentPosition = -(finalContentSize + gapSize);
                             }
                         }
                         
