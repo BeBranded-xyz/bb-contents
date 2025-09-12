@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.58-beta
+ * @version 1.0.59-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -28,7 +28,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.58-beta',
+        version: '1.0.59-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -489,8 +489,8 @@
                         });
                     };
                     
-                    // Démarrer l'initialisation avec délai adaptatif - Version 1.0.37-beta robuste
-                    const initDelay = isVertical ? 500 : 200; // Délais plus longs pour attendre les images
+                    // Démarrer l'initialisation avec délai adaptatif - Solution cache optimisée
+                    const initDelay = isVertical ? 1000 : 500; // Délais plus longs pour laisser le temps au cache
                     setTimeout(() => initAnimation(0), initDelay);
                 });
 
@@ -964,9 +964,9 @@
             }, delay);
         }
         
-        // Initialisation différée supplémentaire pour les cas difficiles - Option 1: Attendre que tout soit vraiment prêt
+        // Initialisation différée supplémentaire pour les cas difficiles - Solution cache optimisée
         window.addEventListener('load', function() {
-            const loadDelay = document.body.hasAttribute('bb-performance-boost') ? 3000 : 1500; // Délais plus longs
+            const loadDelay = document.body.hasAttribute('bb-performance-boost') ? 4000 : 3000; // Délais plus longs pour le cache
             setTimeout(function() {
                 // Vérifier s'il y a des éléments non initialisés
                 const unprocessedMarquees = document.querySelectorAll('[bb-marquee]:not([data-bb-marquee-processed])');
@@ -975,14 +975,14 @@
                     bbContents.reinit();
                 }
                 
-                // Vérification supplémentaire des images chargées
+                // Vérification supplémentaire des images chargées - Solution cache optimisée
                 const allImages = document.querySelectorAll('img');
                 const unloadedImages = Array.from(allImages).filter(img => !img.complete || img.naturalHeight === 0);
                 if (unloadedImages.length > 0) {
-                    // Images non chargées détectées, attente supplémentaire
+                    // Images non chargées détectées, attente supplémentaire plus longue
                     setTimeout(() => {
                         bbContents.reinit();
-                    }, 1000);
+                    }, 2000); // 2 secondes au lieu de 1 seconde
                 }
             }, loadDelay);
         });
