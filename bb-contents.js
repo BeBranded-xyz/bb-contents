@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.67-beta
+ * @version 1.0.68-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -34,7 +34,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.67-beta',
+        version: '1.0.68-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -382,7 +382,9 @@
             initSafariAnimation: function(element, scrollContainer, mainBlock, options) {
                 const { speed, direction, gap, isVertical, useAutoHeight, contentSize, gapSize } = options;
                 
-                // Créer les keyframes CSS pour Safari
+                console.log(`🔍 [MARQUEE] Safari Animation - direction: ${direction}, isVertical: ${isVertical}`);
+                
+                // Créer les keyframes CSS pour Safari avec direction
                 const totalSize = contentSize * 3 + gapSize * 2;
                 const animationName = `marquee-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                 
@@ -393,14 +395,28 @@
                     scrollContainer.style.width = totalSize + 'px';
                 }
 
-                // Créer les keyframes CSS
+                // Calculer les positions selon la direction
+                let startPos, endPos;
+                const moveDistance = contentSize + gapSize;
+                
+                if (direction === (isVertical ? 'bottom' : 'right')) {
+                    // Direction bottom/right : commence en bas/à droite, va vers le haut/à gauche
+                    startPos = isVertical ? `translateY(${moveDistance}px)` : `translateX(${moveDistance}px)`;
+                    endPos = isVertical ? 'translateY(0px)' : 'translateX(0px)';
+                } else {
+                    // Direction top/left : commence en haut/à gauche, va vers le bas/à droite
+                    startPos = isVertical ? 'translateY(0px)' : 'translateX(0px)';
+                    endPos = isVertical ? `translateY(-${moveDistance}px)` : `translateX(-${moveDistance}px)`;
+                }
+
+                // Créer les keyframes CSS avec direction
                 const keyframes = `
                     @keyframes ${animationName} {
                         0% {
-                            transform: ${isVertical ? 'translateY(0px)' : 'translateX(0px)'};
+                            transform: ${startPos};
                         }
                         100% {
-                            transform: ${isVertical ? `translateY(-${contentSize + gapSize}px)` : `translateX(-${contentSize + gapSize}px)`};
+                            transform: ${endPos};
                         }
                     }
                 `;
@@ -410,10 +426,14 @@
                 style.textContent = keyframes;
                 document.head.appendChild(style);
 
-                // Configuration de l'animation
-                const duration = (contentSize + gapSize) / ((parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60);
+                // Configuration de l'animation avec durée calculée correctement
+                const speedValue = parseFloat(speed);
+                const baseSpeed = isVertical ? 1.5 : 0.8;
+                const duration = Math.max(1, moveDistance / ((speedValue * baseSpeed) / 60));
+                
                 scrollContainer.style.animation = `${animationName} ${duration}s linear infinite`;
-
+                
+                console.log(`🔍 [MARQUEE] Safari - duration: ${duration}s, moveDistance: ${moveDistance}px`);
                 console.log('✅ [MARQUEE] Animation Safari démarrée avec keyframes CSS');
 
                 // Pause au survol pour Safari
