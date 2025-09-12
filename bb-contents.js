@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.65-beta
+ * @version 1.0.66-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -34,7 +34,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.65-beta',
+        version: '1.0.66-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -358,11 +358,19 @@
                     return;
                 }
 
-                // Configuration de l'animation
-                const totalSize = contentSize * 3 + parseInt(gap) * 2;
-                let currentPosition = direction === (isVertical ? 'bottom' : 'right') ? -contentSize - parseInt(gap) : 0;
+                // Configuration de l'animation - Logique Safari-compatible
+                const gapSize = parseInt(gap);
+                const totalSize = contentSize * 3 + gapSize * 2;
                 const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
                 let isPaused = false;
+                
+                // Position initiale optimisée pour Safari
+                let currentPosition;
+                if (direction === (isVertical ? 'bottom' : 'right')) {
+                    currentPosition = -(contentSize + gapSize);
+                } else {
+                    currentPosition = 0;
+                }
 
                 // Ajuster la taille du conteneur
                 if (isVertical && !useAutoHeight) {
@@ -371,24 +379,27 @@
                     scrollContainer.style.width = totalSize + 'px';
                 }
 
-                // Fonction d'animation
+                // Fonction d'animation Safari-compatible
                 const animate = () => {
                     if (!isPaused) {
                         if (direction === (isVertical ? 'bottom' : 'right')) {
                             currentPosition += step;
+                            // Reset Safari-compatible pour direction bottom/right
                             if (currentPosition >= 0) {
-                                currentPosition = -contentSize - parseInt(gap);
+                                currentPosition = -(contentSize + gapSize);
                             }
                         } else {
                             currentPosition -= step;
-                            if (currentPosition <= -contentSize - parseInt(gap)) {
-                                currentPosition = 0;
+                            // Reset Safari-compatible pour direction top/left
+                            if (currentPosition <= -(2 * (contentSize + gapSize))) {
+                                currentPosition = -(contentSize + gapSize);
                             }
                         }
                         
+                        // Transform optimisé pour Safari
                         const transform = isVertical 
-                            ? `translate3d(0px, ${currentPosition}px, 0px)`
-                            : `translate3d(${currentPosition}px, 0px, 0px)`;
+                            ? `translate3d(0, ${currentPosition}px, 0)`
+                            : `translate3d(${currentPosition}px, 0, 0)`;
                         scrollContainer.style.transform = transform;
                     }
                     requestAnimationFrame(animate);
@@ -396,7 +407,7 @@
 
                 // Démarrer l'animation
                 animate();
-                console.log('✅ [MARQUEE] Animation démarrée avec succès');
+                console.log('✅ [MARQUEE] Animation démarrée avec succès (Safari-compatible)');
 
                 // Pause au survol
                 if (pauseOnHover === 'true') {
