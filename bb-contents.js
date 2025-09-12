@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.59-beta
+ * @version 1.0.60-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -28,7 +28,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.59-beta',
+        version: '1.0.60-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -259,7 +259,7 @@
                 if (scope.closest && scope.closest('[data-bb-disable]')) return;
                 const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
 
-                elements.forEach(function(element) {
+                elements.forEach(function(element, index) {
                     // Vérifier si l'élément a déjà été traité par un autre module
                     if (element.bbProcessed || element.hasAttribute('data-bb-youtube-processed')) {
                         bbContents.utils.log('Élément marquee déjà traité par un autre module, ignoré:', element);
@@ -489,8 +489,12 @@
                         });
                     };
                     
-                    // Démarrer l'initialisation avec délai adaptatif - Solution cache optimisée
-                    const initDelay = isVertical ? 1000 : 500; // Délais plus longs pour laisser le temps au cache
+                    // Démarrer l'initialisation avec délai adaptatif - Gestion multiple marquees
+                    const baseDelay = isVertical ? 1000 : 500; // Délais de base selon le type
+                    const progressiveDelay = index * 200; // Délai progressif pour éviter les conflits
+                    const initDelay = baseDelay + progressiveDelay;
+                    
+                    bbContents.utils.log(`Marquee ${index + 1} (${isVertical ? 'vertical' : 'horizontal'}) initialisé dans ${initDelay}ms`);
                     setTimeout(() => initAnimation(0), initDelay);
                 });
 
