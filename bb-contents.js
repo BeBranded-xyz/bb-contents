@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.79-beta
+ * @version 1.0.80-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -41,7 +41,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.79-beta',
+        version: '1.0.80-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -414,12 +414,13 @@
                     };
                 });
                 
-                // Attendre que les images se chargent avec timeout adapté mobile
-                let waitTimeout = 0;
-                const maxWaitTime = 3000; // 3 secondes max sur mobile
+                // SOLUTION SAFARI MOBILE SIMPLE : Attendre plus longtemps
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                
                 console.log(`🔍 [MARQUEE] Safari - Mobile détecté: ${isMobile}`);
+                
+                // Timeout plus long sur mobile pour laisser le temps aux images de se charger
+                const maxWaitTime = isMobile ? 5000 : 3000; // 5 secondes sur mobile
+                let waitTimeout = 0;
                 
                 const waitForImages = () => {
                     waitTimeout += 100;
@@ -427,15 +428,18 @@
                     if (imagesLoaded >= totalImages || imagesLoaded === 0 || waitTimeout >= maxWaitTime) {
                         console.log(`✅ [MARQUEE] Safari - Images chargées: ${imagesLoaded}/${totalImages} (timeout: ${waitTimeout}ms)`);
                         
-                        // Attendre encore un peu pour que les images se rendent visuellement
+                        // Attendre plus longtemps sur mobile pour le rendu visuel
+                        const renderDelay = isMobile ? 1000 : 200;
                         setTimeout(() => {
                             console.log(`🖼️ [MARQUEE] Safari - Attente rendu visuel des images...`);
                             startSafariAnimation();
-                        }, isMobile ? 500 : 200); // Plus de temps sur mobile
+                        }, renderDelay);
                     } else {
                         setTimeout(waitForImages, 100);
                     }
                 };
+                
+                waitForImages();
                 
                 const startSafariAnimation = () => {
                     // Forcer le chargement des images restantes si timeout
