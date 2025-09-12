@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.61-beta
+ * @version 1.0.62-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -25,10 +25,16 @@
         return;
     }
     window._bbContentsVersionDisplayed = true;
+    
+    // Protection supplémentaire contre la double initialisation
+    if (window._bbContentsInitialized) {
+        return;
+    }
+    window._bbContentsInitialized = true;
 
     // Configuration
     const config = {
-        version: '1.0.61-beta',
+        version: '1.0.62-beta',
         debug: false, // Debug désactivé
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -489,10 +495,10 @@
                         });
                     };
                     
-                    // Démarrer l'initialisation avec délai adaptatif - Gestion multiple marquees
-                    const baseDelay = isVertical ? 1000 : 500; // Délais de base selon le type
-                    const progressiveDelay = index * 200; // Délai progressif pour éviter les conflits
-                    const initDelay = baseDelay + progressiveDelay;
+                    // Démarrer l'initialisation avec délai adaptatif - Solution simple et efficace
+                    const baseDelay = isVertical ? 800 : 400; // Délais fixes selon le type
+                    const randomDelay = Math.random() * 100; // 0-100ms aléatoire pour éviter les conflits
+                    const initDelay = baseDelay + randomDelay;
                     
                     bbContents.utils.log(`Marquee ${index + 1} (${isVertical ? 'vertical' : 'horizontal'}) initialisé dans ${initDelay}ms`);
                     setTimeout(() => initAnimation(0), initDelay);
