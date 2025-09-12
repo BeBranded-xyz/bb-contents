@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.70-beta
+ * @version 1.0.71-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -34,7 +34,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.70-beta',
+        version: '1.0.71-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -412,20 +412,20 @@
                 
                 console.log(`🔍 [MARQUEE] Safari - Position initiale: ${currentPosition}px, transform: ${initialTransform}`);
 
-                // Fonction d'animation Safari optimisée avec logique de reset corrigée
+                // Fonction d'animation Safari avec logique de reset standard (3 copies)
                 const animate = () => {
                     if (!isPaused) {
                         if (direction === (isVertical ? 'bottom' : 'right')) {
                             currentPosition += step;
-                            // Reset Safari pour direction bottom/right - logique 3 copies
+                            // Reset standard pour direction bottom/right - 3 copies
                             if (currentPosition >= 0) {
                                 currentPosition = -(contentSize + gapSize);
                             }
                         } else {
                             currentPosition -= step;
-                            // Reset Safari pour direction top/left - logique 3 copies corrigée
-                            if (currentPosition <= -(contentSize + gapSize)) {
-                                currentPosition = 0;
+                            // Reset standard pour direction top/left - 3 copies
+                            if (currentPosition <= -(2 * (contentSize + gapSize))) {
+                                currentPosition = -(contentSize + gapSize);
                             }
                         }
                         
