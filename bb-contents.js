@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.74-beta
+ * @version 1.0.75-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -41,7 +41,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.74-beta',
+        version: '1.0.75-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -391,26 +391,25 @@
                 
                 console.log(`🔍 [MARQUEE] Safari Animation - direction: ${direction}, isVertical: ${isVertical}, contentSize: ${contentSize}`);
                 
-                // Recalculer la taille si elle semble incorrecte (trop petite)
+                // SOLUTION SAFARI SIMPLIFIÉE : Utiliser la taille du conteneur parent
                 let finalContentSize = contentSize;
                 if (contentSize < 200) {
-                    console.log(`⚠️ [MARQUEE] ContentSize trop petit (${contentSize}px), recalcul...`);
-                    // Attendre un peu et recalculer
-                    setTimeout(() => {
-                        const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
-                        console.log(`🔍 [MARQUEE] Nouveau contentSize: ${newContentSize}px`);
-                        if (newContentSize > contentSize) {
-                            // Relancer l'animation avec la bonne taille
-                            this.initSafariAnimation(element, scrollContainer, mainBlock, {
-                                ...options,
-                                contentSize: newContentSize
-                            });
-                            return;
-                        }
-                    }, 100);
+                    console.log(`⚠️ [MARQUEE] Safari - ContentSize incorrect, utilisation taille parent`);
+                    // Utiliser la taille du conteneur parent comme fallback
+                    const parentElement = element.parentElement;
+                    if (parentElement) {
+                        finalContentSize = isVertical ? parentElement.offsetHeight : parentElement.offsetWidth;
+                        console.log(`🔍 [MARQUEE] Safari - Taille parent: ${finalContentSize}px`);
+                    }
+                    
+                    // Si toujours trop petit, utiliser une valeur par défaut
+                    if (finalContentSize < 200) {
+                        finalContentSize = isVertical ? 400 : 800; // Valeurs par défaut
+                        console.log(`🔍 [MARQUEE] Safari - Utilisation valeur par défaut: ${finalContentSize}px`);
+                    }
                 }
                 
-                // Solution Safari hybride : JavaScript avec optimisations Safari
+                // Solution Safari simplifiée
                 const totalSize = finalContentSize * 3 + gapSize * 2;
                 const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
                 let isPaused = false;
