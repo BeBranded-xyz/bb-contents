@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.77-beta
+ * @version 1.0.78-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -41,7 +41,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.77-beta',
+        version: '1.0.78-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -410,10 +410,18 @@
                     };
                 });
                 
-                // Attendre que les images se chargent ou timeout
+                // Attendre que les images se chargent avec timeout adapté mobile
+                let waitTimeout = 0;
+                const maxWaitTime = 3000; // 3 secondes max sur mobile
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                
+                console.log(`🔍 [MARQUEE] Safari - Mobile détecté: ${isMobile}`);
+                
                 const waitForImages = () => {
-                    if (imagesLoaded >= totalImages || imagesLoaded === 0) {
-                        console.log(`✅ [MARQUEE] Safari - Images chargées: ${imagesLoaded}/${totalImages}`);
+                    waitTimeout += 100;
+                    
+                    if (imagesLoaded >= totalImages || imagesLoaded === 0 || waitTimeout >= maxWaitTime) {
+                        console.log(`✅ [MARQUEE] Safari - Images chargées: ${imagesLoaded}/${totalImages} (timeout: ${waitTimeout}ms)`);
                         startSafariAnimation();
                     } else {
                         setTimeout(waitForImages, 100);
@@ -421,20 +429,33 @@
                 };
                 
                 const startSafariAnimation = () => {
+                    // Forcer le chargement des images restantes si timeout
+                    if (waitTimeout >= maxWaitTime && imagesLoaded < totalImages) {
+                        console.log(`⚠️ [MARQUEE] Safari - Timeout atteint, forcer chargement images restantes`);
+                        images.forEach(img => {
+                            if (img.dataset.src && !img.src) {
+                                img.src = img.dataset.src;
+                                img.loading = 'eager';
+                            }
+                        });
+                    }
+                    
                     // Recalculer la taille après chargement des images
                     const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
                     console.log(`🔍 [MARQUEE] Safari - Nouvelle taille après images: ${newContentSize}px`);
                     
                     let finalContentSize = newContentSize > contentSize ? newContentSize : contentSize;
                     
-                    // Fallback si toujours trop petit
+                    // Fallback si toujours trop petit (surtout sur mobile)
                     if (finalContentSize < 200) {
                         const parentElement = element.parentElement;
                         if (parentElement) {
                             finalContentSize = isVertical ? parentElement.offsetHeight : parentElement.offsetWidth;
                         }
                         if (finalContentSize < 200) {
-                            finalContentSize = isVertical ? 400 : 800;
+                            // Valeurs par défaut plus généreuses sur mobile
+                            finalContentSize = isVertical ? (isMobile ? 600 : 400) : (isMobile ? 1000 : 800);
+                            console.log(`🔍 [MARQUEE] Safari - Utilisation valeur par défaut mobile: ${finalContentSize}px`);
                         }
                     }
                     
