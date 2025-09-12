@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.75-beta
+ * @version 1.0.76-beta
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -41,7 +41,7 @@
 
     // Configuration
     const config = {
-        version: '1.0.75-beta',
+        version: '1.0.76-beta',
         debug: true, // Debug activé pour diagnostic
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -437,21 +437,29 @@
                 
                 console.log(`🔍 [MARQUEE] Safari - Position initiale: ${currentPosition}px, transform: ${initialTransform}`);
 
-                // Fonction d'animation Safari avec arrondi pour éviter les sauts
+                // Fonction d'animation Safari avec debug des resets
+                let frameCount = 0;
                 const animate = () => {
                     if (!isPaused) {
+                        frameCount++;
+                        
                         if (direction === (isVertical ? 'bottom' : 'right')) {
                             currentPosition += step;
-                            // Reset standard pour direction bottom/right - 3 copies
                             if (currentPosition >= 0) {
+                                console.log(`🔄 [MARQUEE] Safari RESET bottom/right: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
                                 currentPosition = -(finalContentSize + gapSize);
                             }
                         } else {
                             currentPosition -= step;
-                            // Reset standard pour direction top/left - 3 copies
                             if (currentPosition <= -(2 * (finalContentSize + gapSize))) {
+                                console.log(`🔄 [MARQUEE] Safari RESET top/left: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
                                 currentPosition = -(finalContentSize + gapSize);
                             }
+                        }
+                        
+                        // Log toutes les 60 frames (1 seconde)
+                        if (frameCount % 60 === 0) {
+                            console.log(`📍 [MARQUEE] Safari position: ${currentPosition}px (frame ${frameCount})`);
                         }
                         
                         // ARRONDI pour éviter les erreurs de précision JavaScript
