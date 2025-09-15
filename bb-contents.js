@@ -34,15 +34,13 @@
     }
     window._bbContentsInitialized = true;
 
-    // Log de démarrage très visible
-    console.log('🚀 [BB Contents] DÉMARRAGE v1.0.72-beta - Safari Debug');
-    console.log('🔍 [BB Contents] User Agent:', navigator.userAgent);
-    console.log('🔍 [BB Contents] Safari détecté:', /^((?!chrome|android).)*safari/i.test(navigator.userAgent));
+    // Log de démarrage simple
+    console.log('bb-contents | v1.0.82');
 
     // Configuration
     const config = {
-        version: '1.0.80-beta',
-        debug: true, // Debug activé pour diagnostic
+        version: '1.0.82',
+        debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
         i18n: {
@@ -247,7 +245,7 @@
                 subtree: true
             });
 
-            this.utils.log('MutationObserver actif');
+                this.utils.log('MutationObserver actif');
         }
     };
 
@@ -255,14 +253,14 @@
     bbContents.modules = {
         // Module Marquee - Version simplifiée et robuste
         marquee: {
-            detect: function(scope) {
-                const s = scope || document;
+        detect: function(scope) {
+            const s = scope || document;
                 return s.querySelector(bbContents._attrSelector('marquee')) !== null;
-            },
-            
-            init: function(root) {
-                const scope = root || document;
-                if (scope.closest && scope.closest('[data-bb-disable]')) return;
+        },
+        
+        init: function(root) {
+            const scope = root || document;
+            if (scope.closest && scope.closest('[data-bb-disable]')) return;
                 const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
 
                 console.log('🔍 [MARQUEE] Éléments trouvés:', elements.length);
@@ -273,9 +271,8 @@
                     if (element.bbProcessed || element.hasAttribute('data-bb-marquee-processed')) {
                         return;
                     }
-                    element.bbProcessed = true;
-
-                    console.log(`🔍 [MARQUEE] Initialisation ${index + 1}/${elements.length}`);
+                element.bbProcessed = true;
+                
 
                     // Récupérer les options
                     const speed = bbContents._getAttr(element, 'bb-marquee-speed') || '100';
@@ -357,7 +354,6 @@
                 // Calculer les dimensions
                 const contentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
                 
-                console.log(`🔍 [MARQUEE] Animation démarrée - contentSize: ${contentSize}px, isVertical: ${isVertical}`);
                 
                 if (contentSize === 0) {
                     console.log('⚠️ [MARQUEE] Contenu vide, retry dans 200ms');
@@ -367,7 +363,6 @@
 
                 // Détection Safari
                 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-                console.log(`🔍 [MARQUEE] Safari détecté: ${isSafari}`);
 
                 const gapSize = parseInt(gap);
                 const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
@@ -389,14 +384,12 @@
             initSafariAnimation: function(element, scrollContainer, mainBlock, options) {
                 const { speed, direction, gap, isVertical, useAutoHeight, contentSize, gapSize } = options;
                 
-                console.log(`🔍 [MARQUEE] Safari Animation - direction: ${direction}, isVertical: ${isVertical}, contentSize: ${contentSize}`);
                 
                 // SOLUTION SAFARI : Forcer le chargement des images avant animation
                 const images = mainBlock.querySelectorAll('img');
                 let imagesLoaded = 0;
                 const totalImages = images.length;
                 
-                console.log(`🔍 [MARQUEE] Safari - ${totalImages} images détectées`);
                 
                 // Forcer le chargement de toutes les images
                 images.forEach(img => {
@@ -406,17 +399,14 @@
                     }
                     img.onload = () => {
                         imagesLoaded++;
-                        console.log(`🖼️ [MARQUEE] Safari - Image ${imagesLoaded}/${totalImages} chargée`);
                     };
                     img.onerror = () => {
                         imagesLoaded++;
-                        console.log(`❌ [MARQUEE] Safari - Image ${imagesLoaded}/${totalImages} erreur de chargement`);
                     };
                 });
                 
                 // SOLUTION SAFARI MOBILE SIMPLE : Attendre plus longtemps
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                console.log(`🔍 [MARQUEE] Safari - Mobile détecté: ${isMobile}`);
                 
                 // Timeout plus long sur mobile pour laisser le temps aux images de se charger
                 const maxWaitTime = isMobile ? 5000 : 3000; // 5 secondes sur mobile
@@ -497,7 +487,7 @@
                     let currentPosition;
                     if (direction === (isVertical ? 'bottom' : 'right')) {
                         currentPosition = -(finalContentSize + gapSize);
-                    } else {
+            } else {
                         currentPosition = 0;
                     }
 
@@ -521,7 +511,7 @@
                                     console.log(`🔄 [MARQUEE] Safari RESET bottom/right: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
                                     currentPosition = -(finalContentSize + gapSize);
                                 }
-                            } else {
+            } else {
                                 currentPosition -= step;
                                 if (currentPosition <= -(2 * (finalContentSize + gapSize))) {
                                     console.log(`🔄 [MARQUEE] Safari RESET top/left: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
@@ -615,6 +605,392 @@
                 if (pauseOnHover === 'true') {
                     element.addEventListener('mouseenter', () => isPaused = true);
                     element.addEventListener('mouseleave', () => isPaused = false);
+                }
+            }
+        },
+
+        // Module Share (Partage Social)
+        share: {
+            // Configuration des réseaux
+            networks: {
+                twitter: function(data) {
+                    return 'https://twitter.com/intent/tweet?url=' + 
+                           encodeURIComponent(data.url) + 
+                           '&text=' + encodeURIComponent(data.text);
+                },
+                facebook: function(data) {
+                    return 'https://facebook.com/sharer/sharer.php?u=' + 
+                           encodeURIComponent(data.url);
+                },
+                linkedin: function(data) {
+                    // LinkedIn - URL de partage officielle (2024+)
+                    return 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(data.url);
+                },
+                whatsapp: function(data) {
+                    return 'https://wa.me/?text=' + 
+                           encodeURIComponent(data.text + ' ' + data.url);
+                },
+                telegram: function(data) {
+                    return 'https://t.me/share/url?url=' + 
+                           encodeURIComponent(data.url) + 
+                           '&text=' + encodeURIComponent(data.text);
+                },
+                email: function(data) {
+                    return 'mailto:?subject=' + 
+                           encodeURIComponent(data.text) + 
+                           '&body=' + encodeURIComponent(data.text + ' ' + data.url);
+                },
+                copy: function(data) {
+                    return 'copy:' + data.url;
+                },
+                native: function(data) {
+                    return 'native:' + JSON.stringify(data);
+                }
+            },
+            
+            // Détection
+            detect: function(scope) {
+                const s = scope || document;
+                return s.querySelector(bbContents._attrSelector('share')) !== null;
+            },
+            
+            // Initialisation
+            init: function(root) {
+                const scope = root || document;
+                if (scope.closest && scope.closest('[data-bb-disable]')) return;
+                const elements = scope.querySelectorAll(bbContents._attrSelector('share'));
+                
+                elements.forEach(function(element) {
+                    // Vérifier si déjà traité
+                    if (element.bbProcessed) return;
+                    element.bbProcessed = true;
+                    
+                    // Récupérer les données
+                    const network = bbContents._getAttr(element, 'bb-share');
+                    const customUrl = bbContents._getAttr(element, 'bb-url');
+                    const customText = bbContents._getAttr(element, 'bb-text');
+                    
+                    // Valeurs par défaut sécurisées
+                    const data = {
+                        url: bbContents.utils.isValidUrl(customUrl) ? customUrl : window.location.href,
+                        text: bbContents.utils.sanitize(customText || document.title || 'Découvrez ce site')
+                    };
+                    
+                    // Gestionnaire de clic
+                    element.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        bbContents.modules.share.share(network, data, element);
+                    });
+                    
+                    // Accessibilité
+                    if (element.tagName !== 'BUTTON' && element.tagName !== 'A') {
+                        element.setAttribute('role', 'button');
+                        element.setAttribute('tabindex', '0');
+                        
+                        // Support clavier
+                        element.addEventListener('keydown', function(e) {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                bbContents.modules.share.share(network, data, element);
+                            }
+                        });
+                    }
+                    
+                    element.style.cursor = 'pointer';
+                });
+                
+                bbContents.utils.log('Module Share initialisé:', elements.length, 'éléments');
+            },
+            
+            // Fonction de partage
+            share: function(network, data, element) {
+                const networkFunc = this.networks[network];
+                
+                if (!networkFunc) {
+                    console.error('[BB Contents] Réseau non supporté:', network);
+                    return;
+                }
+                
+                const shareUrl = networkFunc(data);
+                
+                // Cas spécial : copier le lien
+                if (shareUrl.startsWith('copy:')) {
+                    const url = shareUrl.substring(5);
+                    // Copie silencieuse (pas de feedback visuel)
+                    this.copyToClipboard(url, element, true);
+                    return;
+                }
+                
+                // Cas spécial : partage natif (Web Share API)
+                if (shareUrl.startsWith('native:')) {
+                    const shareData = JSON.parse(shareUrl.substring(7));
+                    this.nativeShare(shareData, element);
+                    return;
+                }
+                
+                // Ouvrir popup de partage
+                const width = 600;
+                const height = 400;
+                const left = (window.innerWidth - width) / 2;
+                const top = (window.innerHeight - height) / 2;
+                
+                window.open(
+                    shareUrl,
+                    'bbshare',
+                    'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',noopener,noreferrer'
+                );
+                
+                bbContents.utils.log('Partage sur', network, data);
+            },
+            
+            // Copier dans le presse-papier
+            copyToClipboard: function(text, element, silent) {
+                const isSilent = !!silent;
+                // Méthode moderne
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(function() {
+                        if (!isSilent) {
+                            bbContents.modules.share.showFeedback(element, '✓ ' + (bbContents.config.i18n.copied || 'Lien copié !'));
+                        }
+                    }).catch(function() {
+                        bbContents.modules.share.fallbackCopy(text, element, isSilent);
+                    });
+                } else {
+                    // Fallback pour environnements sans Clipboard API
+                    this.fallbackCopy(text, element, isSilent);
+                }
+            },
+            
+            // Fallback copie
+            fallbackCopy: function(text, element, silent) {
+                const isSilent = !!silent;
+                // Pas de UI si silencieux (exigence produit)
+                if (isSilent) return;
+                try {
+                    // Afficher un prompt natif pour permettre à l'utilisateur de copier manuellement
+                    // (solution universelle sans execCommand)
+                    window.prompt('Copiez le lien ci-dessous (Ctrl/Cmd+C) :', text);
+                } catch (err) {
+                    // Dernier recours: ne rien faire
+                }
+            },
+            
+            // Partage natif (Web Share API)
+            nativeShare: function(data, element) {
+                // Vérifier si Web Share API est disponible
+                if (navigator.share) {
+                    navigator.share({
+                        title: data.text,
+                        url: data.url
+                    }).then(function() {
+                        bbContents.utils.log('Partage natif réussi');
+                    }).catch(function(error) {
+                        if (error.name !== 'AbortError') {
+                            console.error('[BB Contents] Erreur partage natif:', error);
+                            // Fallback vers copie si échec
+                            bbContents.modules.share.copyToClipboard(data.url, element, false);
+                        }
+                    });
+                } else {
+                    // Fallback si Web Share API non disponible
+                    bbContents.utils.log('Web Share API non disponible, fallback vers copie');
+                    this.copyToClipboard(data.url, element, false);
+                }
+            },
+            
+            // Feedback visuel
+            showFeedback: function(element, message) {
+                const originalText = element.textContent;
+                element.textContent = message;
+                element.style.pointerEvents = 'none';
+                
+                setTimeout(function() {
+                    element.textContent = originalText;
+                    element.style.pointerEvents = '';
+                }, 2000);
+            }
+        },
+
+        // Module Current Year (Année courante)
+        currentYear: {
+            detect: function(scope) {
+                const s = scope || document;
+                return s.querySelector(bbContents._attrSelector('current-year')) !== null;
+            },
+            init: function(root) {
+                const scope = root || document;
+                if (scope.closest && scope.closest('[data-bb-disable]')) return;
+                const elements = scope.querySelectorAll(bbContents._attrSelector('current-year'));
+
+                const year = String(new Date().getFullYear());
+                elements.forEach(function(element) {
+                    if (element.bbProcessed) return;
+                    element.bbProcessed = true;
+
+                    const customFormat = bbContents._getAttr(element, 'bb-current-year-format');
+                    const prefix = bbContents._getAttr(element, 'bb-current-year-prefix');
+                    const suffix = bbContents._getAttr(element, 'bb-current-year-suffix');
+
+                    if (customFormat && customFormat.includes('{year}')) {
+                        element.textContent = customFormat.replace('{year}', year);
+                    } else if (prefix || suffix) {
+                        element.textContent = prefix + year + suffix;
+                    } else {
+                        element.textContent = year;
+                    }
+                });
+
+                bbContents.utils.log('Module CurrentYear initialisé:', elements.length, 'éléments');
+            }
+        },
+
+        // Module Reading Time (Temps de lecture)
+        readingTime: {
+            detect: function(scope) {
+                const s = scope || document;
+                return s.querySelector(bbContents._attrSelector('reading-time')) !== null;
+            },
+            init: function(root) {
+                const scope = root || document;
+                if (scope.closest && scope.closest('[data-bb-disable]')) return;
+                const elements = scope.querySelectorAll(bbContents._attrSelector('reading-time'));
+
+                elements.forEach(function(element) {
+                    if (element.bbProcessed) return;
+                    element.bbProcessed = true;
+
+                    const targetSelector = bbContents._getAttr(element, 'bb-reading-time-target');
+                    const speedAttr = bbContents._getAttr(element, 'bb-reading-time-speed');
+                    const imageSpeedAttr = bbContents._getAttr(element, 'bb-reading-time-image-speed');
+                    const format = bbContents._getAttr(element, 'bb-reading-time-format') || '{minutes} min';
+
+                    const wordsPerMinute = Number(speedAttr) > 0 ? Number(speedAttr) : 230;
+                    const secondsPerImage = Number(imageSpeedAttr) > 0 ? Number(imageSpeedAttr) : 12;
+                    
+                    // Validation des valeurs
+                    if (isNaN(wordsPerMinute) || wordsPerMinute <= 0) {
+                        bbContents.utils.log('Vitesse de lecture invalide, utilisation de la valeur par défaut (230)');
+                    }
+                    if (isNaN(secondsPerImage) || secondsPerImage < 0) {
+                        bbContents.utils.log('Temps par image invalide, utilisation de la valeur par défaut (12)');
+                    }
+
+                    let sourceNode = element;
+                    if (targetSelector) {
+                        const found = document.querySelector(targetSelector);
+                        if (found) sourceNode = found;
+                    }
+
+                    const text = (sourceNode.textContent || '').trim();
+                    const wordCount = text ? (text.match(/\b\w+\b/g) || []).length : 0;
+                    
+                    // Compter les images dans le contenu ciblé
+                    const images = sourceNode.querySelectorAll('img');
+                    const imageCount = images.length;
+                    const imageTimeInMinutes = (imageCount * secondsPerImage) / 60;
+                    
+                    let minutesFloat = (wordCount / wordsPerMinute) + imageTimeInMinutes;
+                    let minutes = Math.ceil(minutesFloat);
+
+                    if ((wordCount > 0 || imageCount > 0) && minutes < 1) minutes = 1; // affichage minimal 1 min si contenu non vide
+                    if (wordCount === 0 && imageCount === 0) minutes = 0;
+
+                    const output = format.replace('{minutes}', String(minutes));
+                    element.textContent = output;
+                });
+
+                bbContents.utils.log('Module ReadingTime initialisé:', elements.length, 'éléments');
+            }
+        },
+
+        // Module Favicon (Favicon Dynamique)
+        favicon: {
+            originalFavicon: null,
+            
+            // Détection
+            detect: function(scope) {
+                const s = scope || document;
+                return s.querySelector(bbContents._attrSelector('favicon')) !== null;
+            },
+            
+            // Initialisation
+            init: function(root) {
+                const scope = root || document;
+                if (scope.closest && scope.closest('[data-bb-disable]')) return;
+                
+                // Chercher les éléments avec bb-favicon ou bb-favicon-dark
+                const elements = scope.querySelectorAll(bbContents._attrSelector('favicon') + ', ' + bbContents._attrSelector('favicon-dark'));
+                if (elements.length === 0) return;
+                
+                // Sauvegarder le favicon original
+                const existingLink = document.querySelector("link[rel*='icon']");
+                if (existingLink) {
+                    this.originalFavicon = existingLink.href;
+                }
+                
+                // Collecter les URLs depuis tous les éléments
+                let faviconUrl = null;
+                let darkUrl = null;
+                
+                elements.forEach(function(element) {
+                    const light = bbContents._getAttr(element, 'bb-favicon') || bbContents._getAttr(element, 'favicon');
+                    const dark = bbContents._getAttr(element, 'bb-favicon-dark') || bbContents._getAttr(element, 'favicon-dark');
+                    
+                    if (light) faviconUrl = light;
+                    if (dark) darkUrl = dark;
+                });
+                
+                // Appliquer la logique
+                if (faviconUrl && darkUrl) {
+                    this.setupDarkMode(faviconUrl, darkUrl);
+                } else if (faviconUrl) {
+                    this.setFavicon(faviconUrl);
+                    bbContents.utils.log('Favicon changé:', faviconUrl);
+                }
+            },
+            
+            // Helper: Récupérer ou créer un élément favicon
+            getFaviconElement: function() {
+                let favicon = document.querySelector('link[rel="icon"]') ||
+                    document.querySelector('link[rel="shortcut icon"]');
+                if (!favicon) {
+                    favicon = document.createElement('link');
+                    favicon.rel = 'icon';
+                    document.head.appendChild(favicon);
+                }
+                return favicon;
+            },
+            
+            // Changer le favicon
+            setFavicon: function(url) {
+                if (!url) return;
+                
+                // Ajouter un timestamp pour forcer le rafraîchissement du cache
+                const cacheBuster = '?v=' + Date.now();
+                const urlWithCacheBuster = url + cacheBuster;
+                
+                const favicon = this.getFaviconElement();
+                favicon.href = urlWithCacheBuster;
+            },
+            
+            // Support dark mode (méthode simplifiée et directe)
+            setupDarkMode: function(lightUrl, darkUrl) {
+                // Fonction pour mettre à jour le favicon selon le mode sombre
+                const updateFavicon = function(e) {
+                    const darkModeOn = e ? e.matches : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    const selectedUrl = darkModeOn ? darkUrl : lightUrl;
+                    bbContents.modules.favicon.setFavicon(selectedUrl);
+                };
+                
+                // Initialiser le favicon au chargement de la page
+                updateFavicon();
+                
+                // Écouter les changements du mode sombre
+                const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                if (typeof darkModeMediaQuery.addEventListener === 'function') {
+                    darkModeMediaQuery.addEventListener('change', updateFavicon);
+                } else if (typeof darkModeMediaQuery.addListener === 'function') {
+                    darkModeMediaQuery.addListener(updateFavicon);
                 }
             }
         },
@@ -932,8 +1308,8 @@
                         // Debug: logger la qualité utilisée (en mode debug seulement)
                         if (bbContents.config.debug) {
                             // Thumbnail optimisée
-                        }
-                    } else {
+                                        }
+                                    } else {
                         // Aucune thumbnail disponible
                     }
                 }
