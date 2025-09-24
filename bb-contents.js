@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.80-beta
+ * @version 1.0.84
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -16,30 +16,27 @@
 
     // Protection contre le double chargement
     if (window.bbContents) {
-        console.warn('BeBranded Contents est déjà chargé');
         return;
     }
     
     // Vérifier si la version a déjà été affichée
     if (window._bbContentsVersionDisplayed) {
-        console.log('🔄 [BB Contents] Version déjà affichée, réinitialisation...');
         return;
     }
     window._bbContentsVersionDisplayed = true;
     
     // Protection supplémentaire contre la double initialisation
     if (window._bbContentsInitialized) {
-        console.log('🔄 [BB Contents] Déjà initialisé, réinitialisation...');
         return;
     }
     window._bbContentsInitialized = true;
 
-    // Log de démarrage simple
-    console.log('bb-contents | v1.0.82');
+    // Log de démarrage simple (une seule fois)
+    console.log('bb-contents | v1.0.84');
 
     // Configuration
     const config = {
-        version: '1.0.82',
+        version: '1.0.84',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -112,9 +109,7 @@
 
         // Initialisation
         init: function() {
-            // Console simple et épurée
-            console.log('bb-contents | v' + this.config.version);
-            
+            // Initialisation silencieuse
             this.utils.log('Initialisation v' + this.config.version);
             
             // Debug environnement supprimé pour console propre
@@ -263,7 +258,7 @@
             if (scope.closest && scope.closest('[data-bb-disable]')) return;
                 const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
 
-                console.log('🔍 [MARQUEE] Éléments trouvés:', elements.length);
+                // Éléments marquee détectés
 
                 // Traitement simple et parallèle de tous les marquees
                 elements.forEach((element, index) => {
@@ -356,7 +351,6 @@
                 
                 
                 if (contentSize === 0) {
-                    console.log('⚠️ [MARQUEE] Contenu vide, retry dans 200ms');
                     setTimeout(() => this.initAnimation(element, scrollContainer, mainBlock, options), 200);
                     return;
                 }
@@ -416,12 +410,9 @@
                     waitTimeout += 100;
                     
                     if (imagesLoaded >= totalImages || imagesLoaded === 0 || waitTimeout >= maxWaitTime) {
-                        console.log(`✅ [MARQUEE] Safari - Images chargées: ${imagesLoaded}/${totalImages} (timeout: ${waitTimeout}ms)`);
-                        
                         // Attendre plus longtemps sur mobile pour le rendu visuel
                         const renderDelay = isMobile ? 1000 : 200;
                         setTimeout(() => {
-                            console.log(`🖼️ [MARQUEE] Safari - Attente rendu visuel des images...`);
                             startSafariAnimation();
                         }, renderDelay);
                     } else {
@@ -434,7 +425,6 @@
                 const startSafariAnimation = () => {
                     // Forcer le chargement des images restantes si timeout
                     if (waitTimeout >= maxWaitTime && imagesLoaded < totalImages) {
-                        console.log(`⚠️ [MARQUEE] Safari - Timeout atteint, forcer chargement images restantes`);
                         images.forEach(img => {
                             if (img.dataset.src && !img.src) {
                                 img.src = img.dataset.src;
@@ -450,11 +440,9 @@
                             imagesWithSize++;
                         }
                     });
-                    console.log(`🖼️ [MARQUEE] Safari - Images avec taille visible: ${imagesWithSize}/${totalImages}`);
                     
                     // Recalculer la taille après chargement des images
                     const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
-                    console.log(`🔍 [MARQUEE] Safari - Nouvelle taille après images: ${newContentSize}px`);
                     
                     let finalContentSize = newContentSize > contentSize ? newContentSize : contentSize;
                     
@@ -467,7 +455,6 @@
                         if (finalContentSize < 200) {
                             // Valeurs par défaut plus généreuses sur mobile
                             finalContentSize = isVertical ? (isMobile ? 600 : 400) : (isMobile ? 1000 : 800);
-                            console.log(`🔍 [MARQUEE] Safari - Utilisation valeur par défaut mobile: ${finalContentSize}px`);
                         }
                     }
                     
@@ -496,8 +483,6 @@
                         ? `translate3d(0, ${currentPosition}px, 0)`
                         : `translate3d(${currentPosition}px, 0, 0)`;
                     scrollContainer.style.transform = initialTransform;
-                    
-                    console.log(`🔍 [MARQUEE] Safari - Position initiale: ${currentPosition}px, transform: ${initialTransform}`);
 
                     // Fonction d'animation Safari avec debug des resets
                     let frameCount = 0;
@@ -508,21 +493,16 @@
                             if (direction === (isVertical ? 'bottom' : 'right')) {
                                 currentPosition += step;
                                 if (currentPosition >= 0) {
-                                    console.log(`🔄 [MARQUEE] Safari RESET bottom/right: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
                                     currentPosition = -(finalContentSize + gapSize);
                                 }
             } else {
                                 currentPosition -= step;
                                 if (currentPosition <= -(2 * (finalContentSize + gapSize))) {
-                                    console.log(`🔄 [MARQUEE] Safari RESET top/left: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
                                     currentPosition = -(finalContentSize + gapSize);
                                 }
                             }
                             
-                            // Log toutes les 60 frames (1 seconde)
-                            if (frameCount % 60 === 0) {
-                                console.log(`📍 [MARQUEE] Safari position: ${currentPosition}px (frame ${frameCount})`);
-                            }
+                            // Animation continue
                             
                             // ARRONDI pour éviter les erreurs de précision JavaScript
                             currentPosition = Math.round(currentPosition * 100) / 100;
@@ -539,7 +519,6 @@
                     // Démarrer l'animation avec un petit délai pour Safari
                     setTimeout(() => {
                         animate();
-                        console.log('✅ [MARQUEE] Animation Safari démarrée avec JavaScript optimisé');
                     }, 50);
 
                     // Pause au survol pour Safari
@@ -599,7 +578,6 @@
 
                 // Démarrer l'animation
                 animate();
-                console.log('✅ [MARQUEE] Animation standard démarrée');
 
                 // Pause au survol
                 if (pauseOnHover === 'true') {
@@ -707,7 +685,6 @@
                 const networkFunc = this.networks[network];
                 
                 if (!networkFunc) {
-                    console.error('[BB Contents] Réseau non supporté:', network);
                     return;
                 }
                 
@@ -786,7 +763,6 @@
                         bbContents.utils.log('Partage natif réussi');
                     }).catch(function(error) {
                         if (error.name !== 'AbortError') {
-                            console.error('[BB Contents] Erreur partage natif:', error);
                             // Fallback vers copie si échec
                             bbContents.modules.share.copyToClipboard(data.url, element, false);
                         }
@@ -1203,7 +1179,6 @@
                         window[loadingKey] = false;
                     })
                     .catch(error => {
-                        console.error('Erreur API YouTube:', error);
                         // Erreur dans le module youtube
                         
                         // Libérer le verrou en cas d'erreur
