@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.84
+ * @version 1.0.85
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.84');
+    console.log('bb-contents | v1.0.85');
 
     // Configuration
     const config = {
-        version: '1.0.84',
+        version: '1.0.85',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -973,21 +973,36 @@
 
         // Module YouTube Feed
         youtube: {
-            // Détection des bots pour éviter les appels API inutiles
+            // OPTIMISATION: Détection améliorée des bots pour éviter les appels API inutiles
             isBot: function() {
                 const userAgent = navigator.userAgent.toLowerCase();
                 const botPatterns = [
                     'bot', 'crawler', 'spider', 'scraper', 'googlebot', 'bingbot', 'slurp',
                     'duckduckbot', 'baiduspider', 'yandexbot', 'facebookexternalhit', 'twitterbot',
-                    'linkedinbot', 'whatsapp', 'telegrambot', 'discordbot', 'slackbot'
+                    'linkedinbot', 'whatsapp', 'telegrambot', 'discordbot', 'slackbot', 'headless',
+                    'phantom', 'selenium', 'puppeteer', 'playwright', 'lighthouse', 'gtmetrix',
+                    'pagespeed', 'pingdom', 'uptime', 'monitor', 'check', 'test'
                 ];
                 
-                return botPatterns.some(pattern => userAgent.includes(pattern)) || 
+                // Vérifications supplémentaires pour détecter plus de bots
+                const isBot = botPatterns.some(pattern => userAgent.includes(pattern)) || 
                        navigator.webdriver || 
-                       !navigator.userAgent;
+                       !navigator.userAgent ||
+                       !window.chrome || // Détecte les navigateurs headless
+                       navigator.userAgent.includes('HeadlessChrome') ||
+                       window.navigator.plugins.length === 0; // Bots n'ont souvent pas de plugins
+                
+                if (isBot) {
+                    // Log pour debug (en mode debug seulement)
+                    if (bbContents.config.debug) {
+                        bbContents.utils.log('Bot détecté, pas d\'appel API YouTube');
+                    }
+                }
+                
+                return isBot;
             },
             
-            // Gestion du cache localStorage
+            // OPTIMISATION: Cache amélioré avec protection contre les appels multiples
             cache: {
                 get: function(key) {
                     try {
@@ -997,7 +1012,7 @@
                         const data = JSON.parse(cached);
                         const now = Date.now();
                         
-                        // Cache expiré après 24h
+                        // OPTIMISATION: Cache plus long (24h maintenu)
                         if (now - data.timestamp > 24 * 60 * 60 * 1000) {
                             localStorage.removeItem(key);
                             return null;
@@ -1020,6 +1035,21 @@
                         // Ignorer les erreurs de localStorage
                     }
                 }
+            },
+            
+            // OPTIMISATION: Protection globale contre les appels multiples
+            _activeRequests: new Set(),
+            
+            isRequestActive: function(cacheKey) {
+                return this._activeRequests.has(cacheKey);
+            },
+            
+            markRequestActive: function(cacheKey) {
+                this._activeRequests.add(cacheKey);
+            },
+            
+            markRequestComplete: function(cacheKey) {
+                this._activeRequests.delete(cacheKey);
             },
             
         detect: function(scope) {
@@ -1075,18 +1105,18 @@
                 }
                 
                 if (!endpoint) {
-                    // Attendre que la configuration soit définie (max 5 secondes)
+                    // OPTIMISATION: Réduire drastiquement les retries (de 50 à 10)
                     const retryCount = element.getAttribute('data-youtube-retry-count') || '0';
                     const retries = parseInt(retryCount);
                     
-                    if (retries < 50) { // 50 * 100ms = 5 secondes max
+                    if (retries < 10) { // 10 * 500ms = 5 secondes max (plus espacé)
                         element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Configuration YouTube en cours...</div>';
                         element.setAttribute('data-youtube-retry-count', (retries + 1).toString());
                         
-                        // Réessayer dans 100ms
+                        // OPTIMISATION: Espacer les retries (500ms au lieu de 100ms)
                         setTimeout(() => {
                             this.initElement(element);
-                        }, 100);
+                        }, 500);
                         return;
                     } else {
                         // Timeout après 5 secondes
@@ -1129,29 +1159,28 @@
                     return;
                 }
                 
-                // Vérifier si un appel API est déjà en cours pour cette clé
-                const loadingKey = `loading_${cacheKey}`;
-                if (window[loadingKey]) {
-                    // Attendre que l'autre appel se termine
-                    const checkLoading = () => {
-                        if (!window[loadingKey]) {
+                // OPTIMISATION: Protection globale contre les appels multiples
+                if (this.isRequestActive(cacheKey)) {
+                    // Un appel est déjà en cours pour cette clé, attendre
+                    const checkActive = () => {
+                        if (!this.isRequestActive(cacheKey)) {
                             // L'autre appel est terminé, vérifier le cache
                             const newCachedData = this.cache.get(cacheKey);
                             if (newCachedData && newCachedData.value) {
                                 this.generateYouTubeFeed(container, template, newCachedData.value, allowShorts, language);
-                                    } else {
+                            } else {
                                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Erreur de chargement</div>';
                             }
                         } else {
-                            setTimeout(checkLoading, 100);
+                            setTimeout(checkActive, 200); // Vérifier moins souvent
                         }
                     };
-                    checkLoading();
+                    checkActive();
                     return;
                 }
                 
                 // Marquer qu'un appel API est en cours
-                window[loadingKey] = true;
+                this.markRequestActive(cacheKey);
                 
                 // Afficher un loader
                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
@@ -1169,20 +1198,20 @@
                             throw new Error(data.error.message || 'Erreur API YouTube');
                         }
                         
-                        // Sauvegarder en cache pour 24h
+                        // OPTIMISATION: Sauvegarder en cache pour 24h
                         this.cache.set(cacheKey, data);
                         // Données YouTube mises en cache pour 24h (économie API)
                         
                         this.generateYouTubeFeed(container, template, data, allowShorts, language);
                         
-                        // Libérer le verrou
-                        window[loadingKey] = false;
+                        // OPTIMISATION: Libérer le verrou avec la nouvelle méthode
+                        this.markRequestComplete(cacheKey);
                     })
                     .catch(error => {
                         // Erreur dans le module youtube
                         
-                        // Libérer le verrou en cas d'erreur
-                        window[loadingKey] = false;
+                        // OPTIMISATION: Libérer le verrou en cas d'erreur
+                        this.markRequestComplete(cacheKey);
                         
                         // En cas d'erreur, essayer de récupérer du cache même expiré
                         const expiredCache = localStorage.getItem(cacheKey);
@@ -1372,7 +1401,7 @@
                 return textarea.value;
             },
             
-            // Nettoyer le cache expiré
+            // OPTIMISATION: Nettoyer le cache expiré (48h)
             cleanCache: function() {
                 try {
                     const keys = Object.keys(localStorage);
@@ -1383,6 +1412,7 @@
                         if (key.startsWith('youtube_')) {
                             try {
                                 const cached = JSON.parse(localStorage.getItem(key));
+                                // OPTIMISATION: Cache 24h maintenu
                                 if (now - cached.timestamp > 24 * 60 * 60 * 1000) {
                                     localStorage.removeItem(key);
                                     cleaned++;
