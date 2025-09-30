@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.85
+ * @version 1.0.86
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.85');
+    console.log('bb-contents | v1.0.86');
 
     // Configuration
     const config = {
-        version: '1.0.85',
+        version: '1.0.86',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -385,13 +385,25 @@
                 const totalImages = images.length;
                 
                 
-                // Forcer le chargement de toutes les images
+                // OPTIMISATION: Charger les images sans forcer les dimensions
                 images.forEach(img => {
                     if (img.dataset.src && !img.src) {
                         img.src = img.dataset.src;
                         img.loading = 'eager';
                     }
+                    
+                    // OPTIMISATION: Préserver les styles CSS existants (object-fit, etc.)
+                    const originalObjectFit = img.style.objectFit || getComputedStyle(img).objectFit;
+                    const originalObjectPosition = img.style.objectPosition || getComputedStyle(img).objectPosition;
+                    
                     img.onload = () => {
+                        // OPTIMISATION: Restaurer les styles CSS après chargement
+                        if (originalObjectFit && originalObjectFit !== 'none') {
+                            img.style.objectFit = originalObjectFit;
+                        }
+                        if (originalObjectPosition && originalObjectPosition !== 'initial') {
+                            img.style.objectPosition = originalObjectPosition;
+                        }
                         imagesLoaded++;
                     };
                     img.onerror = () => {
