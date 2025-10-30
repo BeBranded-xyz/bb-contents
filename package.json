@@ -1,6 +1,6 @@
 {
   "name": "@bebranded/bb-contents",
-  "version": "1.0.92-test",
+  "version": "1.0.93-test",
   "description": "Contenus additionnels français pour Webflow",
   "main": "bb-contents.js",
   "scripts": {
