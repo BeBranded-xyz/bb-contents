@@ -497,7 +497,7 @@
                     let currentPosition;
                     if (direction === (isVertical ? 'bottom' : 'right')) {
                         currentPosition = -(finalContentSize + gapSize);
-            } else {
+                    } else {
                         currentPosition = 0;
                     }
 
@@ -518,7 +518,7 @@
                                 if (currentPosition >= 0) {
                                     currentPosition = -(finalContentSize + gapSize);
                                 }
-            } else {
+                            } else {
                                 currentPosition -= step;
                                 if (currentPosition <= -(2 * (finalContentSize + gapSize))) {
                                     currentPosition = -(finalContentSize + gapSize);
