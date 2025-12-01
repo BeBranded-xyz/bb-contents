@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.93-test
+ * @version 1.0.94-test
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.93-test');
+    console.log('bb-contents | v1.0.94-test');
 
     // Configuration
     const config = {
-        version: '1.0.93-test',
+        version: '1.0.94-test',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -289,9 +289,9 @@
                     mainContainer.style.cssText = `
                         position: relative;
                         width: 100%;
-                        height: ${isVertical ? (height === 'auto' ? 'auto' : height + 'px') : '100%'};
-                        overflow: hidden;
-                        min-height: ${isVertical ? '100px' : '50px'};
+                        height: ${isVertical ? (height === 'auto' ? 'auto' : height + 'px') : 'auto'};
+                        overflow: ${isVertical ? 'hidden' : 'visible'};
+                        min-height: auto;
                         ${minHeight ? `min-height: ${minHeight};` : ''}
                     `;
 
