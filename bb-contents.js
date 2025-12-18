@@ -398,14 +398,14 @@
                     const originalWidth = computedStyle.width;
                     const originalHeight = computedStyle.height;
                     
-                    // OPTIMISATION MOBILE : Améliorer le rendu des images sur mobile
+                    // OPTIMISATION MOBILE : Améliorer le rendu des images sur mobile (sans transform sur l'image)
                     if (isMobile) {
-                        // Forcer le rendu haute qualité sur mobile
-                        img.style.imageRendering = 'auto';
+                        // Forcer le rendu haute qualité sur mobile sans transform (évite conflit avec translate3d du parent)
                         img.style.backfaceVisibility = 'hidden';
                         img.style.webkitBackfaceVisibility = 'hidden';
-                        img.style.transform = 'translateZ(0)';
-                        img.style.webkitTransform = 'translateZ(0)';
+                        // Ne PAS mettre transform sur l'image car le parent utilise translate3d
+                        // Cela évite les problèmes de flou causés par les transformations multiples
+                        img.style.willChange = 'auto'; // Éviter will-change qui peut causer du flou
                     }
                     
                     // Charger l'image si nécessaire
@@ -417,9 +417,9 @@
                             img.src = img.dataset.src;
                         }
                         
-                        // OPTIMISATION MOBILE : Utiliser lazy loading natif au lieu de eager sur mobile
+                        // OPTIMISATION MOBILE : Utiliser eager sur mobile pour éviter le flou de lazy loading
                         if (!img.loading) {
-                            img.loading = isMobile ? 'lazy' : 'eager';
+                            img.loading = isMobile ? 'eager' : 'lazy'; // eager sur mobile pour meilleur rendu
                         }
                         
                         img.onload = () => {
@@ -437,7 +437,8 @@
                             
                             // Forcer le recalcul pour mobile (important pour le rendu)
                             if (isMobile) {
-                                img.offsetHeight; // Force reflow pour meilleur rendu
+                                // Force reflow pour meilleur rendu sans ajouter de transform
+                                void img.offsetHeight;
                             }
                             
                             imagesLoaded++;
