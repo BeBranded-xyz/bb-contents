@@ -579,10 +579,11 @@
                         requestAnimationFrame(animate);
                     };
 
-                    // Démarrer l'animation avec un petit délai pour Safari
-                    setTimeout(() => {
+                    // Démarrer l'animation immédiatement (les copies sont déjà créées)
+                    // Utiliser requestAnimationFrame pour garantir le rendu
+                    requestAnimationFrame(() => {
                         animate();
-                    }, 50);
+                    });
 
                     // Pause au survol pour Safari
                     if (element.getAttribute('bb-marquee-pause') === 'true') {
