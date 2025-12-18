@@ -320,13 +320,9 @@
                         ${isVertical ? 'min-height: 100px;' : ''}
                     `;
 
-                    // Créer 3 copies pour le défilement infini
-                    const repeatBlock1 = mainBlock.cloneNode(true);
-                    const repeatBlock2 = mainBlock.cloneNode(true);
-                    
+                    // Ne créer que le mainBlock pour l'instant
+                    // Les copies seront créées après le chargement des images
                     scrollContainer.appendChild(mainBlock);
-                    scrollContainer.appendChild(repeatBlock1);
-                    scrollContainer.appendChild(repeatBlock2);
                     mainContainer.appendChild(scrollContainer);
                     
                     element.innerHTML = '';
@@ -368,6 +364,12 @@
                         speed, direction, gap, isVertical, useAutoHeight, contentSize, gapSize
                     });
                 } else {
+                    // Solution standard : créer les copies maintenant (les navigateurs non-Safari gèrent mieux)
+                    const repeatBlock1 = mainBlock.cloneNode(true);
+                    const repeatBlock2 = mainBlock.cloneNode(true);
+                    scrollContainer.appendChild(repeatBlock1);
+                    scrollContainer.appendChild(repeatBlock2);
+                    
                     // Solution standard pour autres navigateurs
                     this.initStandardAnimation(element, scrollContainer, mainBlock, {
                         speed, direction, pauseOnHover, gap, isVertical, useAutoHeight, contentSize, gapSize, step
@@ -389,14 +391,16 @@
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
                                  (window.innerWidth <= 768 && /Chrome|CriOS/i.test(navigator.userAgent));
                 
-                // SOLUTION MOBILE : Laisser les images tranquilles, le CSS Webflow gère mieux
-                images.forEach(img => {
-                    // Charger l'image si nécessaire, mais ne pas toucher aux styles CSS
-                    // Le CSS de Webflow est optimisé et on ne veut pas interférer
-                    if (img.complete && img.naturalWidth > 0) {
-                        // Image déjà chargée
-                        imagesLoaded++;
-                    } else {
+                // SOLUTION MOBILE : Charger toutes les images AVANT de créer les copies pour éviter le flou
+                const loadImage = (img) => {
+                    return new Promise((resolve) => {
+                        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+                            // Image déjà chargée et rendue
+                            imagesLoaded++;
+                            resolve();
+                            return;
+                        }
+                        
                         if (img.dataset.src && !img.src) {
                             img.src = img.dataset.src;
                         }
@@ -408,12 +412,19 @@
                         
                         img.onload = () => {
                             imagesLoaded++;
+                            // Forcer un reflow pour s'assurer que l'image est rendue
+                            void img.offsetHeight;
+                            resolve();
                         };
                         img.onerror = () => {
                             imagesLoaded++;
+                            resolve(); // Résoudre même en cas d'erreur
                         };
-                    }
-                });
+                    });
+                };
+                
+                // Charger toutes les images en parallèle
+                Promise.all(Array.from(images).map(loadImage));
                 
                 // Timeout plus long sur mobile pour laisser le temps aux images de se charger
                 const maxWaitTime = isMobile ? 5000 : 3000; // 5 secondes sur mobile
@@ -423,11 +434,19 @@
                     waitTimeout += 100;
                     
                     if (imagesLoaded >= totalImages || imagesLoaded === 0 || waitTimeout >= maxWaitTime) {
-                        // Attendre plus longtemps sur mobile pour le rendu visuel
-                        const renderDelay = isMobile ? 1000 : 200;
-                        setTimeout(() => {
-                            startSafariAnimation();
-                        }, renderDelay);
+                        // Attendre un frame pour le rendu complet, surtout sur mobile
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                // Maintenant créer les copies avec les images complètement chargées
+                                const repeatBlock1 = mainBlock.cloneNode(true);
+                                const repeatBlock2 = mainBlock.cloneNode(true);
+                                scrollContainer.appendChild(repeatBlock1);
+                                scrollContainer.appendChild(repeatBlock2);
+                                
+                                // Démarrer l'animation
+                                startSafariAnimation();
+                            });
+                        });
                     } else {
                         setTimeout(waitForImages, 100);
                     }
