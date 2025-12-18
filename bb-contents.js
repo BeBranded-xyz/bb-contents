@@ -496,27 +496,6 @@
                 });
                 
                 const startSafariAnimation = () => {
-                    // Forcer le chargement des images restantes si timeout
-                    if (waitTimeout >= maxWaitTime && imagesLoaded < totalImages) {
-                        images.forEach(img => {
-                            if (img.dataset.src && !img.src) {
-                                img.src = img.dataset.src;
-                                // Ne pas forcer eager sur mobile, laisser le lazy loading
-                                if (!img.loading && !isMobile) {
-                                    img.loading = 'eager';
-                                }
-                            }
-                        });
-                    }
-                    
-                    // Vérifier que les images ont une taille visible
-                    let imagesWithSize = 0;
-                    images.forEach(img => {
-                        if (img.offsetWidth > 0 && img.offsetHeight > 0) {
-                            imagesWithSize++;
-                        }
-                    });
-                    
                     // Recalculer la taille après chargement des images
                     const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
                     
