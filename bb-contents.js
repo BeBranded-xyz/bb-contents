@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.104
+ * @version 1.0.105
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.104');
+    console.log('bb-contents | v1.0.105');
 
     // Configuration
     const config = {
-        version: '1.0.104',
+        version: '1.0.105',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -320,9 +320,13 @@
                         ${isVertical ? 'min-height: 100px;' : ''}
                     `;
 
-                    // Ne créer que le mainBlock pour l'instant
-                    // Les copies seront créées après le chargement des images
+                    // Créer 3 copies pour le défilement infini
+                    const repeatBlock1 = mainBlock.cloneNode(true);
+                    const repeatBlock2 = mainBlock.cloneNode(true);
+                    
                     scrollContainer.appendChild(mainBlock);
+                    scrollContainer.appendChild(repeatBlock1);
+                    scrollContainer.appendChild(repeatBlock2);
                     mainContainer.appendChild(scrollContainer);
                     
                     element.innerHTML = '';
