@@ -391,117 +391,67 @@
                 const totalImages = images.length;
                 
                 
-                // SOLUTION MOBILE : Amélioration du rendu des images sur mobile
-                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
-                                 (window.innerWidth <= 768 && /Chrome|CriOS/i.test(navigator.userAgent));
-                
-                // SOLUTION MOBILE : Charger toutes les images AVANT de créer les copies pour éviter le flou
-                const loadImage = (img) => {
-                    return new Promise((resolve) => {
-                        // Vérifier que l'image est complètement chargée avec dimensions naturelles
-                        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-                            // Image déjà chargée, vérifier le rendu avec un reflow
-                            void img.offsetHeight;
-                            imagesLoaded++;
-                            resolve();
-                            return;
-                        }
-                        
-                        if (img.dataset.src && !img.src) {
-                            img.src = img.dataset.src;
-                        }
-                        
-                        // Utiliser eager sur mobile pour éviter le flou de lazy loading
-                        if (!img.loading && isMobile) {
-                            img.loading = 'eager';
-                        }
-                        
-                        img.onload = () => {
-                            // Vérifier que les dimensions naturelles sont disponibles
-                            if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                                // Forcer un reflow complet pour s'assurer que l'image est rendue
-                                void img.offsetHeight;
-                                void img.offsetWidth;
-                                // Double reflow pour mobile (surtout Retina)
-                                if (isMobile) {
-                                    requestAnimationFrame(() => {
-                                        void img.offsetHeight;
-                                        imagesLoaded++;
-                                        resolve();
-                                    });
-                                } else {
-                                    imagesLoaded++;
-                                    resolve();
-                                }
-                            } else {
-                                imagesLoaded++;
-                                resolve();
-                            }
-                        };
-                        img.onerror = () => {
-                            imagesLoaded++;
-                            resolve(); // Résoudre même en cas d'erreur
-                        };
-                    });
-                };
-                
-                // Attendre réellement que toutes les images soient chargées
-                Promise.all(Array.from(images).map(loadImage)).then(() => {
-                    // Vérifier que toutes les images ont leurs dimensions naturelles
-                    let allImagesReady = true;
-                    images.forEach(img => {
-                        if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
-                            allImagesReady = false;
-                        }
-                    });
-                    
-                    if (allImagesReady || images.length === 0) {
-                        // Attendre plusieurs frames pour garantir le rendu complet, surtout sur mobile
-                        requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                // Délai supplémentaire sur mobile pour garantir le rendu Retina
-                                const renderDelay = isMobile ? 100 : 0;
-                                setTimeout(() => {
-                                    // Forcer un reflow complet du mainBlock avant clonage
-                                    void mainBlock.offsetHeight;
-                                    
-                                    // Maintenant créer les copies avec les images complètement chargées et rendues
-                                    const repeatBlock1 = mainBlock.cloneNode(true);
-                                    const repeatBlock2 = mainBlock.cloneNode(true);
-                                    
-                                    // Forcer un reflow après clonage pour garantir le rendu
-                                    scrollContainer.appendChild(repeatBlock1);
-                                    void repeatBlock1.offsetHeight;
-                                    scrollContainer.appendChild(repeatBlock2);
-                                    void repeatBlock2.offsetHeight;
-                                    
-                                    // Démarrer l'animation
-                                    startSafariAnimation();
-                                }, renderDelay);
-                            });
-                        });
-                    } else {
-                        // Fallback : attendre un peu plus si certaines images ne sont pas prêtes
-                        setTimeout(() => {
-                            const repeatBlock1 = mainBlock.cloneNode(true);
-                            const repeatBlock2 = mainBlock.cloneNode(true);
-                            scrollContainer.appendChild(repeatBlock1);
-                            scrollContainer.appendChild(repeatBlock2);
-                            startSafariAnimation();
-                        }, 500);
+                // OPTIMISATION: Charger les images sans forcer les dimensions
+                images.forEach(img => {
+                    if (img.dataset.src && !img.src) {
+                        img.src = img.dataset.src;
+                        img.loading = 'eager';
                     }
-                }).catch(() => {
-                    // En cas d'erreur, créer les copies quand même
-                    const repeatBlock1 = mainBlock.cloneNode(true);
-                    const repeatBlock2 = mainBlock.cloneNode(true);
-                    scrollContainer.appendChild(repeatBlock1);
-                    scrollContainer.appendChild(repeatBlock2);
-                    startSafariAnimation();
+                    
+                    // OPTIMISATION: Préserver les styles CSS existants (object-fit, etc.)
+                    const originalObjectFit = img.style.objectFit || getComputedStyle(img).objectFit;
+                    const originalObjectPosition = img.style.objectPosition || getComputedStyle(img).objectPosition;
+                    const originalWidth = img.style.width;
+                    const originalHeight = img.style.height;
+                    
+                    img.onload = () => {
+                        // OPTIMISATION: Restaurer les styles CSS après chargement
+                        if (originalObjectFit && originalObjectFit !== 'none') {
+                            img.style.objectFit = originalObjectFit;
+                        }
+                        if (originalObjectPosition && originalObjectPosition !== 'initial') {
+                            img.style.objectPosition = originalObjectPosition;
+                        }
+                        
+                        // OPTIMISATION: Préserver les dimensions naturelles des images
+                        if (!originalWidth || originalWidth === '') {
+                            img.style.width = 'auto';
+                        }
+                        if (!originalHeight || originalHeight === '') {
+                            img.style.height = 'auto';
+                        }
+                        
+                        imagesLoaded++;
+                    };
+                    img.onerror = () => {
+                        imagesLoaded++;
+                    };
                 });
                 
+                // SOLUTION SAFARI MOBILE SIMPLE : Attendre plus longtemps
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                
+                // Timeout plus long sur mobile pour laisser le temps aux images de se charger
+                const maxWaitTime = isMobile ? 5000 : 3000; // 5 secondes sur mobile
+                let waitTimeout = 0;
+                
+                const waitForImages = () => {
+                    waitTimeout += 100;
+                    
+                    if (imagesLoaded >= totalImages || imagesLoaded === 0 || waitTimeout >= maxWaitTime) {
+                        // Attendre plus longtemps sur mobile pour le rendu visuel
+                        const renderDelay = isMobile ? 1000 : 200;
+                        setTimeout(() => {
+                            startSafariAnimation();
+                        }, renderDelay);
+                    } else {
+                        setTimeout(waitForImages, 100);
+                    }
+                };
+                
+                waitForImages();
+                
                 const startSafariAnimation = () => {
-                    // Vérifier que speed est bien défini et valide
-                    const validSpeed = parseFloat(speed) || 100;
                     
                     // Recalculer la taille après chargement des images
                     const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
@@ -522,7 +472,7 @@
                     
                     // Solution Safari simplifiée
                     const totalSize = finalContentSize * 3 + gapSize * 2;
-                    const step = (validSpeed * (isVertical ? 1.5 : 0.8)) / 60;
+                    const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
                     let isPaused = false;
                     
                     // Ajuster la taille du conteneur
@@ -540,11 +490,6 @@
                         currentPosition = 0;
                     }
 
-                    // Désactiver will-change sur mobile après initialisation pour éviter le flou
-                    if (isMobile) {
-                        scrollContainer.style.willChange = 'auto';
-                    }
-                    
                     // Forcer la position initiale pour éviter l'invisibilité
                     const initialTransform = isVertical 
                         ? `translate3d(0, ${currentPosition}px, 0)`
@@ -583,11 +528,10 @@
                         requestAnimationFrame(animate);
                     };
 
-                    // Démarrer l'animation immédiatement (les copies sont déjà créées)
-                    // Utiliser requestAnimationFrame pour garantir le rendu
-                    requestAnimationFrame(() => {
+                    // Démarrer l'animation avec un petit délai pour Safari
+                    setTimeout(() => {
                         animate();
-                    });
+                    }, 50);
 
                     // Pause au survol pour Safari
                     if (element.getAttribute('bb-marquee-pause') === 'true') {
