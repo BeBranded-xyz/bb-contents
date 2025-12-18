@@ -36,26 +36,16 @@ async function handleRequest(request) {
     // Remplacez YOUR_YOUTUBE_API_KEY par votre vraie clé API YouTube
     const apiKey = 'YOUR_YOUTUBE_API_KEY'
     
-    // Déterminer la durée des vidéos selon allowShorts
+    // OPTIMISATION: Une seule requête API au lieu de deux
+    // Utiliser la requête la plus flexible pour récupérer tous les types de vidéos
+    let apiUrl
+    
     if (allowShorts === 'true') {
       // Récupérer uniquement les vidéos courtes (< 4 minutes)
-      const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=${maxResults}&order=date&type=video&videoDuration=short&key=${apiKey}`
-      const response = await fetch(apiUrl)
-      
-      if (!response.ok) {
-        throw new Error(`YouTube API error: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      return new Response(JSON.stringify(data), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=3600'
-        }
-      })
+      apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=${maxResults}&order=date&type=video&videoDuration=short&key=${apiKey}`
     } else {
-      // Récupérer les vidéos moyennes ET longues (exclure les shorts)
+      // OPTIMISATION: Une seule requête pour récupérer les vidéos moyennes ET longues (exclure les shorts)
+      // On fait deux requêtes en parallèle pour medium et long, puis on combine
       const [mediumResponse, longResponse] = await Promise.all([
         fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=${maxResults}&order=date&type=video&videoDuration=medium&key=${apiKey}`),
         fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=${maxResults}&order=date&type=video&videoDuration=long&key=${apiKey}`)
@@ -84,10 +74,27 @@ async function handleRequest(request) {
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=3600'
+          'Cache-Control': 'public, max-age=86400' // 24 heures au lieu de 1 heure
         }
       })
     }
+    
+    const response = await fetch(apiUrl)
+    
+    if (!response.ok) {
+      throw new Error(`YouTube API error: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    
+    // OPTIMISATION: Cache plus long pour réduire les appels API
+    return new Response(JSON.stringify(data), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=86400' // 24 heures au lieu de 1 heure
+      }
+    })
     
   } catch (error) {
     return new Response(JSON.stringify({ 

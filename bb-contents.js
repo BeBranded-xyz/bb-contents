@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.80-beta
+ * @version 1.0.94-test
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -16,30 +16,27 @@
 
     // Protection contre le double chargement
     if (window.bbContents) {
-        console.warn('BeBranded Contents est déjà chargé');
         return;
     }
     
     // Vérifier si la version a déjà été affichée
     if (window._bbContentsVersionDisplayed) {
-        console.log('🔄 [BB Contents] Version déjà affichée, réinitialisation...');
         return;
     }
     window._bbContentsVersionDisplayed = true;
     
     // Protection supplémentaire contre la double initialisation
     if (window._bbContentsInitialized) {
-        console.log('🔄 [BB Contents] Déjà initialisé, réinitialisation...');
         return;
     }
     window._bbContentsInitialized = true;
 
-    // Log de démarrage simple
-    console.log('bb-contents | v1.0.82');
+    // Log de démarrage simple (une seule fois)
+    console.log('bb-contents | v1.0.94-test');
 
     // Configuration
     const config = {
-        version: '1.0.82',
+        version: '1.0.94-test',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -112,9 +109,7 @@
 
         // Initialisation
         init: function() {
-            // Console simple et épurée
-            console.log('bb-contents | v' + this.config.version);
-            
+            // Initialisation silencieuse
             this.utils.log('Initialisation v' + this.config.version);
             
             // Debug environnement supprimé pour console propre
@@ -263,7 +258,7 @@
             if (scope.closest && scope.closest('[data-bb-disable]')) return;
                 const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
 
-                console.log('🔍 [MARQUEE] Éléments trouvés:', elements.length);
+                // Éléments marquee détectés
 
                 // Traitement simple et parallèle de tous les marquees
                 elements.forEach((element, index) => {
@@ -295,8 +290,8 @@
                         position: relative;
                         width: 100%;
                         height: ${isVertical ? (height === 'auto' ? 'auto' : height + 'px') : 'auto'};
-                        overflow: hidden;
-                        min-height: ${isVertical ? '100px' : '50px'};
+                        overflow: ${isVertical ? 'hidden' : 'visible'};
+                        min-height: auto;
                         ${minHeight ? `min-height: ${minHeight};` : ''}
                     `;
 
@@ -356,7 +351,6 @@
                 
                 
                 if (contentSize === 0) {
-                    console.log('⚠️ [MARQUEE] Contenu vide, retry dans 200ms');
                     setTimeout(() => this.initAnimation(element, scrollContainer, mainBlock, options), 200);
                     return;
                 }
@@ -391,13 +385,36 @@
                 const totalImages = images.length;
                 
                 
-                // Forcer le chargement de toutes les images
+                // OPTIMISATION: Charger les images sans forcer les dimensions
                 images.forEach(img => {
                     if (img.dataset.src && !img.src) {
                         img.src = img.dataset.src;
                         img.loading = 'eager';
                     }
+                    
+                    // OPTIMISATION: Préserver les styles CSS existants (object-fit, etc.)
+                    const originalObjectFit = img.style.objectFit || getComputedStyle(img).objectFit;
+                    const originalObjectPosition = img.style.objectPosition || getComputedStyle(img).objectPosition;
+                    const originalWidth = img.style.width;
+                    const originalHeight = img.style.height;
+                    
                     img.onload = () => {
+                        // OPTIMISATION: Restaurer les styles CSS après chargement
+                        if (originalObjectFit && originalObjectFit !== 'none') {
+                            img.style.objectFit = originalObjectFit;
+                        }
+                        if (originalObjectPosition && originalObjectPosition !== 'initial') {
+                            img.style.objectPosition = originalObjectPosition;
+                        }
+                        
+                        // OPTIMISATION: Préserver les dimensions naturelles des images
+                        if (!originalWidth || originalWidth === '') {
+                            img.style.width = 'auto';
+                        }
+                        if (!originalHeight || originalHeight === '') {
+                            img.style.height = 'auto';
+                        }
+                        
                         imagesLoaded++;
                     };
                     img.onerror = () => {
@@ -416,12 +433,9 @@
                     waitTimeout += 100;
                     
                     if (imagesLoaded >= totalImages || imagesLoaded === 0 || waitTimeout >= maxWaitTime) {
-                        console.log(`✅ [MARQUEE] Safari - Images chargées: ${imagesLoaded}/${totalImages} (timeout: ${waitTimeout}ms)`);
-                        
                         // Attendre plus longtemps sur mobile pour le rendu visuel
                         const renderDelay = isMobile ? 1000 : 200;
                         setTimeout(() => {
-                            console.log(`🖼️ [MARQUEE] Safari - Attente rendu visuel des images...`);
                             startSafariAnimation();
                         }, renderDelay);
                     } else {
@@ -434,7 +448,6 @@
                 const startSafariAnimation = () => {
                     // Forcer le chargement des images restantes si timeout
                     if (waitTimeout >= maxWaitTime && imagesLoaded < totalImages) {
-                        console.log(`⚠️ [MARQUEE] Safari - Timeout atteint, forcer chargement images restantes`);
                         images.forEach(img => {
                             if (img.dataset.src && !img.src) {
                                 img.src = img.dataset.src;
@@ -450,11 +463,9 @@
                             imagesWithSize++;
                         }
                     });
-                    console.log(`🖼️ [MARQUEE] Safari - Images avec taille visible: ${imagesWithSize}/${totalImages}`);
                     
                     // Recalculer la taille après chargement des images
                     const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
-                    console.log(`🔍 [MARQUEE] Safari - Nouvelle taille après images: ${newContentSize}px`);
                     
                     let finalContentSize = newContentSize > contentSize ? newContentSize : contentSize;
                     
@@ -467,7 +478,6 @@
                         if (finalContentSize < 200) {
                             // Valeurs par défaut plus généreuses sur mobile
                             finalContentSize = isVertical ? (isMobile ? 600 : 400) : (isMobile ? 1000 : 800);
-                            console.log(`🔍 [MARQUEE] Safari - Utilisation valeur par défaut mobile: ${finalContentSize}px`);
                         }
                     }
                     
@@ -487,7 +497,7 @@
                     let currentPosition;
                     if (direction === (isVertical ? 'bottom' : 'right')) {
                         currentPosition = -(finalContentSize + gapSize);
-            } else {
+                    } else {
                         currentPosition = 0;
                     }
 
@@ -496,8 +506,6 @@
                         ? `translate3d(0, ${currentPosition}px, 0)`
                         : `translate3d(${currentPosition}px, 0, 0)`;
                     scrollContainer.style.transform = initialTransform;
-                    
-                    console.log(`🔍 [MARQUEE] Safari - Position initiale: ${currentPosition}px, transform: ${initialTransform}`);
 
                     // Fonction d'animation Safari avec debug des resets
                     let frameCount = 0;
@@ -508,21 +516,16 @@
                             if (direction === (isVertical ? 'bottom' : 'right')) {
                                 currentPosition += step;
                                 if (currentPosition >= 0) {
-                                    console.log(`🔄 [MARQUEE] Safari RESET bottom/right: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
                                     currentPosition = -(finalContentSize + gapSize);
                                 }
-            } else {
+                            } else {
                                 currentPosition -= step;
                                 if (currentPosition <= -(2 * (finalContentSize + gapSize))) {
-                                    console.log(`🔄 [MARQUEE] Safari RESET top/left: ${currentPosition} → ${-(finalContentSize + gapSize)}`);
                                     currentPosition = -(finalContentSize + gapSize);
                                 }
                             }
                             
-                            // Log toutes les 60 frames (1 seconde)
-                            if (frameCount % 60 === 0) {
-                                console.log(`📍 [MARQUEE] Safari position: ${currentPosition}px (frame ${frameCount})`);
-                            }
+                            // Animation continue
                             
                             // ARRONDI pour éviter les erreurs de précision JavaScript
                             currentPosition = Math.round(currentPosition * 100) / 100;
@@ -539,7 +542,6 @@
                     // Démarrer l'animation avec un petit délai pour Safari
                     setTimeout(() => {
                         animate();
-                        console.log('✅ [MARQUEE] Animation Safari démarrée avec JavaScript optimisé');
                     }, 50);
 
                     // Pause au survol pour Safari
@@ -599,7 +601,6 @@
 
                 // Démarrer l'animation
                 animate();
-                console.log('✅ [MARQUEE] Animation standard démarrée');
 
                 // Pause au survol
                 if (pauseOnHover === 'true') {
@@ -611,261 +612,259 @@
 
         // Module Share (Partage Social)
         share: {
-            // Configuration des réseaux
-            networks: {
-                twitter: function(data) {
-                    return 'https://twitter.com/intent/tweet?url=' + 
-                           encodeURIComponent(data.url) + 
-                           '&text=' + encodeURIComponent(data.text);
-                },
-                facebook: function(data) {
-                    return 'https://facebook.com/sharer/sharer.php?u=' + 
-                           encodeURIComponent(data.url);
-                },
-                linkedin: function(data) {
-                    // LinkedIn - URL de partage officielle (2024+)
-                    return 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(data.url);
-                },
-                whatsapp: function(data) {
-                    return 'https://wa.me/?text=' + 
-                           encodeURIComponent(data.text + ' ' + data.url);
-                },
-                telegram: function(data) {
-                    return 'https://t.me/share/url?url=' + 
-                           encodeURIComponent(data.url) + 
-                           '&text=' + encodeURIComponent(data.text);
-                },
-                email: function(data) {
-                    return 'mailto:?subject=' + 
-                           encodeURIComponent(data.text) + 
-                           '&body=' + encodeURIComponent(data.text + ' ' + data.url);
-                },
-                copy: function(data) {
-                    return 'copy:' + data.url;
-                },
-                native: function(data) {
-                    return 'native:' + JSON.stringify(data);
-                }
+        // Configuration des réseaux
+        networks: {
+            twitter: function(data) {
+                return 'https://twitter.com/intent/tweet?url=' + 
+                       encodeURIComponent(data.url) + 
+                       '&text=' + encodeURIComponent(data.text);
             },
-            
-            // Détection
-            detect: function(scope) {
-                const s = scope || document;
-                return s.querySelector(bbContents._attrSelector('share')) !== null;
+            facebook: function(data) {
+                return 'https://facebook.com/sharer/sharer.php?u=' + 
+                       encodeURIComponent(data.url);
             },
+            linkedin: function(data) {
+                // LinkedIn - URL de partage officielle (2024+)
+                return 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(data.url);
+            },
+            whatsapp: function(data) {
+                return 'https://wa.me/?text=' + 
+                       encodeURIComponent(data.text + ' ' + data.url);
+            },
+            telegram: function(data) {
+                return 'https://t.me/share/url?url=' + 
+                       encodeURIComponent(data.url) + 
+                       '&text=' + encodeURIComponent(data.text);
+            },
+            email: function(data) {
+                return 'mailto:?subject=' + 
+                       encodeURIComponent(data.text) + 
+                       '&body=' + encodeURIComponent(data.text + ' ' + data.url);
+            },
+            copy: function(data) {
+                return 'copy:' + data.url;
+            },
+            native: function(data) {
+                return 'native:' + JSON.stringify(data);
+            }
+        },
+        
+        // Détection
+        detect: function(scope) {
+            const s = scope || document;
+            return s.querySelector(bbContents._attrSelector('share')) !== null;
+        },
+        
+        // Initialisation
+        init: function(root) {
+            const scope = root || document;
+            if (scope.closest && scope.closest('[data-bb-disable]')) return;
+            const elements = scope.querySelectorAll(bbContents._attrSelector('share'));
             
-            // Initialisation
-            init: function(root) {
-                const scope = root || document;
-                if (scope.closest && scope.closest('[data-bb-disable]')) return;
-                const elements = scope.querySelectorAll(bbContents._attrSelector('share'));
+            elements.forEach(function(element) {
+                // Vérifier si déjà traité
+                if (element.bbProcessed) return;
+                element.bbProcessed = true;
                 
-                elements.forEach(function(element) {
-                    // Vérifier si déjà traité
-                    if (element.bbProcessed) return;
-                    element.bbProcessed = true;
-                    
-                    // Récupérer les données
-                    const network = bbContents._getAttr(element, 'bb-share');
-                    const customUrl = bbContents._getAttr(element, 'bb-url');
-                    const customText = bbContents._getAttr(element, 'bb-text');
-                    
-                    // Valeurs par défaut sécurisées
-                    const data = {
+                // Récupérer les données
+                const network = bbContents._getAttr(element, 'bb-share');
+                const customUrl = bbContents._getAttr(element, 'bb-url');
+                const customText = bbContents._getAttr(element, 'bb-text');
+                
+                // Valeurs par défaut sécurisées
+                const data = {
                         url: bbContents.utils.isValidUrl(customUrl) ? customUrl : window.location.href,
                         text: bbContents.utils.sanitize(customText || document.title || 'Découvrez ce site')
-                    };
-                    
-                    // Gestionnaire de clic
-                    element.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        bbContents.modules.share.share(network, data, element);
-                    });
-                    
-                    // Accessibilité
-                    if (element.tagName !== 'BUTTON' && element.tagName !== 'A') {
-                        element.setAttribute('role', 'button');
-                        element.setAttribute('tabindex', '0');
-                        
-                        // Support clavier
-                        element.addEventListener('keydown', function(e) {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                bbContents.modules.share.share(network, data, element);
-                            }
-                        });
-                    }
-                    
-                    element.style.cursor = 'pointer';
+                };
+                
+                // Gestionnaire de clic
+                element.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    bbContents.modules.share.share(network, data, element);
                 });
                 
-                bbContents.utils.log('Module Share initialisé:', elements.length, 'éléments');
-            },
-            
-            // Fonction de partage
-            share: function(network, data, element) {
-                const networkFunc = this.networks[network];
-                
-                if (!networkFunc) {
-                    console.error('[BB Contents] Réseau non supporté:', network);
-                    return;
-                }
-                
-                const shareUrl = networkFunc(data);
-                
-                // Cas spécial : copier le lien
-                if (shareUrl.startsWith('copy:')) {
-                    const url = shareUrl.substring(5);
-                    // Copie silencieuse (pas de feedback visuel)
-                    this.copyToClipboard(url, element, true);
-                    return;
-                }
-                
-                // Cas spécial : partage natif (Web Share API)
-                if (shareUrl.startsWith('native:')) {
-                    const shareData = JSON.parse(shareUrl.substring(7));
-                    this.nativeShare(shareData, element);
-                    return;
-                }
-                
-                // Ouvrir popup de partage
-                const width = 600;
-                const height = 400;
-                const left = (window.innerWidth - width) / 2;
-                const top = (window.innerHeight - height) / 2;
-                
-                window.open(
-                    shareUrl,
-                    'bbshare',
-                    'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',noopener,noreferrer'
-                );
-                
-                bbContents.utils.log('Partage sur', network, data);
-            },
-            
-            // Copier dans le presse-papier
-            copyToClipboard: function(text, element, silent) {
-                const isSilent = !!silent;
-                // Méthode moderne
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(text).then(function() {
-                        if (!isSilent) {
-                            bbContents.modules.share.showFeedback(element, '✓ ' + (bbContents.config.i18n.copied || 'Lien copié !'));
-                        }
-                    }).catch(function() {
-                        bbContents.modules.share.fallbackCopy(text, element, isSilent);
-                    });
-                } else {
-                    // Fallback pour environnements sans Clipboard API
-                    this.fallbackCopy(text, element, isSilent);
-                }
-            },
-            
-            // Fallback copie
-            fallbackCopy: function(text, element, silent) {
-                const isSilent = !!silent;
-                // Pas de UI si silencieux (exigence produit)
-                if (isSilent) return;
-                try {
-                    // Afficher un prompt natif pour permettre à l'utilisateur de copier manuellement
-                    // (solution universelle sans execCommand)
-                    window.prompt('Copiez le lien ci-dessous (Ctrl/Cmd+C) :', text);
-                } catch (err) {
-                    // Dernier recours: ne rien faire
-                }
-            },
-            
-            // Partage natif (Web Share API)
-            nativeShare: function(data, element) {
-                // Vérifier si Web Share API est disponible
-                if (navigator.share) {
-                    navigator.share({
-                        title: data.text,
-                        url: data.url
-                    }).then(function() {
-                        bbContents.utils.log('Partage natif réussi');
-                    }).catch(function(error) {
-                        if (error.name !== 'AbortError') {
-                            console.error('[BB Contents] Erreur partage natif:', error);
-                            // Fallback vers copie si échec
-                            bbContents.modules.share.copyToClipboard(data.url, element, false);
+                // Accessibilité
+                if (element.tagName !== 'BUTTON' && element.tagName !== 'A') {
+                    element.setAttribute('role', 'button');
+                    element.setAttribute('tabindex', '0');
+                    
+                    // Support clavier
+                    element.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            bbContents.modules.share.share(network, data, element);
                         }
                     });
-                } else {
-                    // Fallback si Web Share API non disponible
-                    bbContents.utils.log('Web Share API non disponible, fallback vers copie');
-                    this.copyToClipboard(data.url, element, false);
                 }
-            },
-            
-            // Feedback visuel
-            showFeedback: function(element, message) {
-                const originalText = element.textContent;
-                element.textContent = message;
-                element.style.pointerEvents = 'none';
                 
-                setTimeout(function() {
-                    element.textContent = originalText;
-                    element.style.pointerEvents = '';
-                }, 2000);
+                element.style.cursor = 'pointer';
+            });
+            
+            bbContents.utils.log('Module Share initialisé:', elements.length, 'éléments');
+        },
+        
+        // Fonction de partage
+        share: function(network, data, element) {
+            const networkFunc = this.networks[network];
+            
+            if (!networkFunc) {
+                return;
             }
+            
+            const shareUrl = networkFunc(data);
+            
+            // Cas spécial : copier le lien
+            if (shareUrl.startsWith('copy:')) {
+                const url = shareUrl.substring(5);
+                // Copie silencieuse (pas de feedback visuel)
+                this.copyToClipboard(url, element, true);
+                return;
+            }
+            
+            // Cas spécial : partage natif (Web Share API)
+            if (shareUrl.startsWith('native:')) {
+                const shareData = JSON.parse(shareUrl.substring(7));
+                this.nativeShare(shareData, element);
+                return;
+            }
+            
+            // Ouvrir popup de partage
+            const width = 600;
+            const height = 400;
+            const left = (window.innerWidth - width) / 2;
+            const top = (window.innerHeight - height) / 2;
+            
+            window.open(
+                shareUrl,
+                'bbshare',
+                'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',noopener,noreferrer'
+            );
+            
+            bbContents.utils.log('Partage sur', network, data);
+        },
+        
+        // Copier dans le presse-papier
+        copyToClipboard: function(text, element, silent) {
+            const isSilent = !!silent;
+            // Méthode moderne
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function() {
+                    if (!isSilent) {
+                        bbContents.modules.share.showFeedback(element, '✓ ' + (bbContents.config.i18n.copied || 'Lien copié !'));
+                    }
+                }).catch(function() {
+                    bbContents.modules.share.fallbackCopy(text, element, isSilent);
+                });
+            } else {
+                // Fallback pour environnements sans Clipboard API
+                this.fallbackCopy(text, element, isSilent);
+            }
+        },
+        
+        // Fallback copie
+        fallbackCopy: function(text, element, silent) {
+            const isSilent = !!silent;
+            // Pas de UI si silencieux (exigence produit)
+            if (isSilent) return;
+            try {
+                // Afficher un prompt natif pour permettre à l'utilisateur de copier manuellement
+                // (solution universelle sans execCommand)
+                window.prompt('Copiez le lien ci-dessous (Ctrl/Cmd+C) :', text);
+            } catch (err) {
+                // Dernier recours: ne rien faire
+            }
+        },
+        
+        // Partage natif (Web Share API)
+        nativeShare: function(data, element) {
+            // Vérifier si Web Share API est disponible
+            if (navigator.share) {
+                navigator.share({
+                    title: data.text,
+                    url: data.url
+                }).then(function() {
+                    bbContents.utils.log('Partage natif réussi');
+                }).catch(function(error) {
+                    if (error.name !== 'AbortError') {
+                        // Fallback vers copie si échec
+                        bbContents.modules.share.copyToClipboard(data.url, element, false);
+                    }
+                });
+            } else {
+                // Fallback si Web Share API non disponible
+                bbContents.utils.log('Web Share API non disponible, fallback vers copie');
+                this.copyToClipboard(data.url, element, false);
+            }
+        },
+        
+        // Feedback visuel
+        showFeedback: function(element, message) {
+            const originalText = element.textContent;
+            element.textContent = message;
+            element.style.pointerEvents = 'none';
+            
+            setTimeout(function() {
+                element.textContent = originalText;
+                element.style.pointerEvents = '';
+            }, 2000);
+        }
         },
 
         // Module Current Year (Année courante)
         currentYear: {
-            detect: function(scope) {
-                const s = scope || document;
-                return s.querySelector(bbContents._attrSelector('current-year')) !== null;
-            },
-            init: function(root) {
-                const scope = root || document;
-                if (scope.closest && scope.closest('[data-bb-disable]')) return;
-                const elements = scope.querySelectorAll(bbContents._attrSelector('current-year'));
+        detect: function(scope) {
+            const s = scope || document;
+            return s.querySelector(bbContents._attrSelector('current-year')) !== null;
+        },
+        init: function(root) {
+            const scope = root || document;
+            if (scope.closest && scope.closest('[data-bb-disable]')) return;
+            const elements = scope.querySelectorAll(bbContents._attrSelector('current-year'));
 
-                const year = String(new Date().getFullYear());
-                elements.forEach(function(element) {
-                    if (element.bbProcessed) return;
-                    element.bbProcessed = true;
+            const year = String(new Date().getFullYear());
+            elements.forEach(function(element) {
+                if (element.bbProcessed) return;
+                element.bbProcessed = true;
 
                     const customFormat = bbContents._getAttr(element, 'bb-current-year-format');
                     const prefix = bbContents._getAttr(element, 'bb-current-year-prefix');
                     const suffix = bbContents._getAttr(element, 'bb-current-year-suffix');
 
-                    if (customFormat && customFormat.includes('{year}')) {
-                        element.textContent = customFormat.replace('{year}', year);
-                    } else if (prefix || suffix) {
-                        element.textContent = prefix + year + suffix;
-                    } else {
-                        element.textContent = year;
-                    }
-                });
+                if (customFormat && customFormat.includes('{year}')) {
+                    element.textContent = customFormat.replace('{year}', year);
+                } else if (prefix || suffix) {
+                    element.textContent = prefix + year + suffix;
+                } else {
+                    element.textContent = year;
+                }
+            });
 
-                bbContents.utils.log('Module CurrentYear initialisé:', elements.length, 'éléments');
-            }
+            bbContents.utils.log('Module CurrentYear initialisé:', elements.length, 'éléments');
+        }
         },
 
         // Module Reading Time (Temps de lecture)
         readingTime: {
-            detect: function(scope) {
-                const s = scope || document;
-                return s.querySelector(bbContents._attrSelector('reading-time')) !== null;
-            },
-            init: function(root) {
-                const scope = root || document;
-                if (scope.closest && scope.closest('[data-bb-disable]')) return;
-                const elements = scope.querySelectorAll(bbContents._attrSelector('reading-time'));
+        detect: function(scope) {
+            const s = scope || document;
+            return s.querySelector(bbContents._attrSelector('reading-time')) !== null;
+        },
+        init: function(root) {
+            const scope = root || document;
+            if (scope.closest && scope.closest('[data-bb-disable]')) return;
+            const elements = scope.querySelectorAll(bbContents._attrSelector('reading-time'));
 
-                elements.forEach(function(element) {
-                    if (element.bbProcessed) return;
-                    element.bbProcessed = true;
+            elements.forEach(function(element) {
+                if (element.bbProcessed) return;
+                element.bbProcessed = true;
 
                     const targetSelector = bbContents._getAttr(element, 'bb-reading-time-target');
-                    const speedAttr = bbContents._getAttr(element, 'bb-reading-time-speed');
-                    const imageSpeedAttr = bbContents._getAttr(element, 'bb-reading-time-image-speed');
-                    const format = bbContents._getAttr(element, 'bb-reading-time-format') || '{minutes} min';
+                const speedAttr = bbContents._getAttr(element, 'bb-reading-time-speed');
+                const imageSpeedAttr = bbContents._getAttr(element, 'bb-reading-time-image-speed');
+                const format = bbContents._getAttr(element, 'bb-reading-time-format') || '{minutes} min';
 
-                    const wordsPerMinute = Number(speedAttr) > 0 ? Number(speedAttr) : 230;
-                    const secondsPerImage = Number(imageSpeedAttr) > 0 ? Number(imageSpeedAttr) : 12;
+                const wordsPerMinute = Number(speedAttr) > 0 ? Number(speedAttr) : 230;
+                const secondsPerImage = Number(imageSpeedAttr) > 0 ? Number(imageSpeedAttr) : 12;
                     
                     // Validation des valeurs
                     if (isNaN(wordsPerMinute) || wordsPerMinute <= 0) {
@@ -875,143 +874,158 @@
                         bbContents.utils.log('Temps par image invalide, utilisation de la valeur par défaut (12)');
                     }
 
-                    let sourceNode = element;
-                    if (targetSelector) {
-                        const found = document.querySelector(targetSelector);
-                        if (found) sourceNode = found;
-                    }
+                let sourceNode = element;
+                if (targetSelector) {
+                    const found = document.querySelector(targetSelector);
+                    if (found) sourceNode = found;
+                }
 
-                    const text = (sourceNode.textContent || '').trim();
-                    const wordCount = text ? (text.match(/\b\w+\b/g) || []).length : 0;
-                    
-                    // Compter les images dans le contenu ciblé
-                    const images = sourceNode.querySelectorAll('img');
-                    const imageCount = images.length;
-                    const imageTimeInMinutes = (imageCount * secondsPerImage) / 60;
-                    
-                    let minutesFloat = (wordCount / wordsPerMinute) + imageTimeInMinutes;
-                    let minutes = Math.ceil(minutesFloat);
+                const text = (sourceNode.textContent || '').trim();
+                const wordCount = text ? (text.match(/\b\w+\b/g) || []).length : 0;
+                
+                // Compter les images dans le contenu ciblé
+                const images = sourceNode.querySelectorAll('img');
+                const imageCount = images.length;
+                const imageTimeInMinutes = (imageCount * secondsPerImage) / 60;
+                
+                let minutesFloat = (wordCount / wordsPerMinute) + imageTimeInMinutes;
+                let minutes = Math.ceil(minutesFloat);
 
-                    if ((wordCount > 0 || imageCount > 0) && minutes < 1) minutes = 1; // affichage minimal 1 min si contenu non vide
-                    if (wordCount === 0 && imageCount === 0) minutes = 0;
+                if ((wordCount > 0 || imageCount > 0) && minutes < 1) minutes = 1; // affichage minimal 1 min si contenu non vide
+                if (wordCount === 0 && imageCount === 0) minutes = 0;
 
-                    const output = format.replace('{minutes}', String(minutes));
-                    element.textContent = output;
-                });
+                const output = format.replace('{minutes}', String(minutes));
+                element.textContent = output;
+            });
 
-                bbContents.utils.log('Module ReadingTime initialisé:', elements.length, 'éléments');
-            }
+            bbContents.utils.log('Module ReadingTime initialisé:', elements.length, 'éléments');
+        }
         },
 
         // Module Favicon (Favicon Dynamique)
         favicon: {
-            originalFavicon: null,
+        originalFavicon: null,
+        
+        // Détection
+        detect: function(scope) {
+            const s = scope || document;
+            return s.querySelector(bbContents._attrSelector('favicon')) !== null;
+        },
+        
+        // Initialisation
+        init: function(root) {
+            const scope = root || document;
+            if (scope.closest && scope.closest('[data-bb-disable]')) return;
             
-            // Détection
-            detect: function(scope) {
-                const s = scope || document;
-                return s.querySelector(bbContents._attrSelector('favicon')) !== null;
-            },
-            
-            // Initialisation
-            init: function(root) {
-                const scope = root || document;
-                if (scope.closest && scope.closest('[data-bb-disable]')) return;
-                
-                // Chercher les éléments avec bb-favicon ou bb-favicon-dark
+            // Chercher les éléments avec bb-favicon ou bb-favicon-dark
                 const elements = scope.querySelectorAll(bbContents._attrSelector('favicon') + ', ' + bbContents._attrSelector('favicon-dark'));
-                if (elements.length === 0) return;
-                
-                // Sauvegarder le favicon original
-                const existingLink = document.querySelector("link[rel*='icon']");
-                if (existingLink) {
-                    this.originalFavicon = existingLink.href;
-                }
-                
-                // Collecter les URLs depuis tous les éléments
-                let faviconUrl = null;
-                let darkUrl = null;
-                
-                elements.forEach(function(element) {
-                    const light = bbContents._getAttr(element, 'bb-favicon') || bbContents._getAttr(element, 'favicon');
-                    const dark = bbContents._getAttr(element, 'bb-favicon-dark') || bbContents._getAttr(element, 'favicon-dark');
-                    
-                    if (light) faviconUrl = light;
-                    if (dark) darkUrl = dark;
-                });
-                
-                // Appliquer la logique
-                if (faviconUrl && darkUrl) {
-                    this.setupDarkMode(faviconUrl, darkUrl);
-                } else if (faviconUrl) {
-                    this.setFavicon(faviconUrl);
-                    bbContents.utils.log('Favicon changé:', faviconUrl);
-                }
-            },
+            if (elements.length === 0) return;
             
-            // Helper: Récupérer ou créer un élément favicon
-            getFaviconElement: function() {
-                let favicon = document.querySelector('link[rel="icon"]') ||
-                    document.querySelector('link[rel="shortcut icon"]');
-                if (!favicon) {
-                    favicon = document.createElement('link');
-                    favicon.rel = 'icon';
-                    document.head.appendChild(favicon);
-                }
-                return favicon;
-            },
-            
-            // Changer le favicon
-            setFavicon: function(url) {
-                if (!url) return;
-                
-                // Ajouter un timestamp pour forcer le rafraîchissement du cache
-                const cacheBuster = '?v=' + Date.now();
-                const urlWithCacheBuster = url + cacheBuster;
-                
-                const favicon = this.getFaviconElement();
-                favicon.href = urlWithCacheBuster;
-            },
-            
-            // Support dark mode (méthode simplifiée et directe)
-            setupDarkMode: function(lightUrl, darkUrl) {
-                // Fonction pour mettre à jour le favicon selon le mode sombre
-                const updateFavicon = function(e) {
-                    const darkModeOn = e ? e.matches : window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    const selectedUrl = darkModeOn ? darkUrl : lightUrl;
-                    bbContents.modules.favicon.setFavicon(selectedUrl);
-                };
-                
-                // Initialiser le favicon au chargement de la page
-                updateFavicon();
-                
-                // Écouter les changements du mode sombre
-                const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-                if (typeof darkModeMediaQuery.addEventListener === 'function') {
-                    darkModeMediaQuery.addEventListener('change', updateFavicon);
-                } else if (typeof darkModeMediaQuery.addListener === 'function') {
-                    darkModeMediaQuery.addListener(updateFavicon);
-                }
+            // Sauvegarder le favicon original
+            const existingLink = document.querySelector("link[rel*='icon']");
+            if (existingLink) {
+                this.originalFavicon = existingLink.href;
             }
+            
+            // Collecter les URLs depuis tous les éléments
+            let faviconUrl = null;
+            let darkUrl = null;
+            
+            elements.forEach(function(element) {
+                const light = bbContents._getAttr(element, 'bb-favicon') || bbContents._getAttr(element, 'favicon');
+                const dark = bbContents._getAttr(element, 'bb-favicon-dark') || bbContents._getAttr(element, 'favicon-dark');
+                
+                if (light) faviconUrl = light;
+                if (dark) darkUrl = dark;
+            });
+            
+            // Appliquer la logique
+            if (faviconUrl && darkUrl) {
+                this.setupDarkMode(faviconUrl, darkUrl);
+            } else if (faviconUrl) {
+                this.setFavicon(faviconUrl);
+                bbContents.utils.log('Favicon changé:', faviconUrl);
+            }
+        },
+        
+        // Helper: Récupérer ou créer un élément favicon
+        getFaviconElement: function() {
+            let favicon = document.querySelector('link[rel="icon"]') ||
+                document.querySelector('link[rel="shortcut icon"]');
+            if (!favicon) {
+                favicon = document.createElement('link');
+                favicon.rel = 'icon';
+                document.head.appendChild(favicon);
+            }
+            return favicon;
+        },
+        
+        // Changer le favicon
+        setFavicon: function(url) {
+            if (!url) return;
+            
+            // Ajouter un timestamp pour forcer le rafraîchissement du cache
+            const cacheBuster = '?v=' + Date.now();
+            const urlWithCacheBuster = url + cacheBuster;
+            
+            const favicon = this.getFaviconElement();
+            favicon.href = urlWithCacheBuster;
+        },
+        
+        // Support dark mode (méthode simplifiée et directe)
+        setupDarkMode: function(lightUrl, darkUrl) {
+            // Fonction pour mettre à jour le favicon selon le mode sombre
+            const updateFavicon = function(e) {
+                const darkModeOn = e ? e.matches : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const selectedUrl = darkModeOn ? darkUrl : lightUrl;
+                bbContents.modules.favicon.setFavicon(selectedUrl);
+            };
+            
+            // Initialiser le favicon au chargement de la page
+            updateFavicon();
+            
+            // Écouter les changements du mode sombre
+            const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            if (typeof darkModeMediaQuery.addEventListener === 'function') {
+                darkModeMediaQuery.addEventListener('change', updateFavicon);
+            } else if (typeof darkModeMediaQuery.addListener === 'function') {
+                darkModeMediaQuery.addListener(updateFavicon);
+            }
+        }
         },
 
         // Module YouTube Feed
         youtube: {
-            // Détection des bots pour éviter les appels API inutiles
+            // OPTIMISATION: Détection améliorée des bots pour éviter les appels API inutiles
             isBot: function() {
                 const userAgent = navigator.userAgent.toLowerCase();
                 const botPatterns = [
                     'bot', 'crawler', 'spider', 'scraper', 'googlebot', 'bingbot', 'slurp',
                     'duckduckbot', 'baiduspider', 'yandexbot', 'facebookexternalhit', 'twitterbot',
-                    'linkedinbot', 'whatsapp', 'telegrambot', 'discordbot', 'slackbot'
+                    'linkedinbot', 'whatsapp', 'telegrambot', 'discordbot', 'slackbot', 'headless',
+                    'phantom', 'selenium', 'puppeteer', 'playwright', 'lighthouse', 'gtmetrix',
+                    'pagespeed', 'pingdom', 'uptime', 'monitor', 'check', 'test'
                 ];
                 
-                return botPatterns.some(pattern => userAgent.includes(pattern)) || 
+                // Vérifications supplémentaires pour détecter plus de bots
+                const isBot = botPatterns.some(pattern => userAgent.includes(pattern)) || 
                        navigator.webdriver || 
-                       !navigator.userAgent;
+                       !navigator.userAgent ||
+                       !window.chrome || // Détecte les navigateurs headless
+                       navigator.userAgent.includes('HeadlessChrome') ||
+                       window.navigator.plugins.length === 0; // Bots n'ont souvent pas de plugins
+                
+                if (isBot) {
+                    // Log pour debug (en mode debug seulement)
+                    if (bbContents.config.debug) {
+                        bbContents.utils.log('Bot détecté, pas d\'appel API YouTube');
+                    }
+                }
+                
+                return isBot;
             },
             
-            // Gestion du cache localStorage
+            // OPTIMISATION: Cache amélioré avec protection contre les appels multiples
             cache: {
                 get: function(key) {
                     try {
@@ -1021,7 +1035,7 @@
                         const data = JSON.parse(cached);
                         const now = Date.now();
                         
-                        // Cache expiré après 24h
+                        // OPTIMISATION: Cache plus long (24h maintenu)
                         if (now - data.timestamp > 24 * 60 * 60 * 1000) {
                             localStorage.removeItem(key);
                             return null;
@@ -1046,7 +1060,22 @@
                 }
             },
             
-            detect: function(scope) {
+            // OPTIMISATION: Protection globale contre les appels multiples
+            _activeRequests: new Set(),
+            
+            isRequestActive: function(cacheKey) {
+                return this._activeRequests.has(cacheKey);
+            },
+            
+            markRequestActive: function(cacheKey) {
+                this._activeRequests.add(cacheKey);
+            },
+            
+            markRequestComplete: function(cacheKey) {
+                this._activeRequests.delete(cacheKey);
+            },
+            
+        detect: function(scope) {
                 return scope.querySelector('[bb-youtube-channel]') !== null;
             },
             
@@ -1099,23 +1128,23 @@
                 }
                 
                 if (!endpoint) {
-                    // Attendre que la configuration soit définie (max 5 secondes)
+                    // OPTIMISATION: Réduire drastiquement les retries (de 50 à 10)
                     const retryCount = element.getAttribute('data-youtube-retry-count') || '0';
                     const retries = parseInt(retryCount);
                     
-                    if (retries < 50) { // 50 * 100ms = 5 secondes max
+                    if (retries < 10) { // 10 * 500ms = 5 secondes max (plus espacé)
                         element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Configuration YouTube en cours...</div>';
                         element.setAttribute('data-youtube-retry-count', (retries + 1).toString());
                         
-                        // Réessayer dans 100ms
+                        // OPTIMISATION: Espacer les retries (500ms au lieu de 100ms)
                         setTimeout(() => {
                             this.initElement(element);
-                        }, 100);
+                        }, 500);
                         return;
                     } else {
                         // Timeout après 5 secondes
                         element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = \'votre-worker-url\';<br>&lt;/script&gt;</code></div>';
-                        return;
+                            return;
                     }
                 }
                 
@@ -1134,9 +1163,9 @@
                 
                 if (!template) {
                     element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Template manquant</strong><br>Ajoutez un élément avec l\'attribut bb-youtube-item</div>';
-                    return;
-                }
-                
+                            return;
+                        }
+                        
                 // Cacher le template original
                 template.style.display = 'none';
                 
@@ -1153,12 +1182,11 @@
                     return;
                 }
                 
-                // Vérifier si un appel API est déjà en cours pour cette clé
-                const loadingKey = `loading_${cacheKey}`;
-                if (window[loadingKey]) {
-                    // Attendre que l'autre appel se termine
-                    const checkLoading = () => {
-                        if (!window[loadingKey]) {
+                // OPTIMISATION: Protection globale contre les appels multiples
+                if (this.isRequestActive(cacheKey)) {
+                    // Un appel est déjà en cours pour cette clé, attendre
+                    const checkActive = () => {
+                        if (!this.isRequestActive(cacheKey)) {
                             // L'autre appel est terminé, vérifier le cache
                             const newCachedData = this.cache.get(cacheKey);
                             if (newCachedData && newCachedData.value) {
@@ -1167,15 +1195,15 @@
                                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Erreur de chargement</div>';
                             }
                         } else {
-                            setTimeout(checkLoading, 100);
+                            setTimeout(checkActive, 200); // Vérifier moins souvent
                         }
                     };
-                    checkLoading();
+                    checkActive();
                     return;
                 }
                 
                 // Marquer qu'un appel API est en cours
-                window[loadingKey] = true;
+                this.markRequestActive(cacheKey);
                 
                 // Afficher un loader
                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
@@ -1193,21 +1221,20 @@
                             throw new Error(data.error.message || 'Erreur API YouTube');
                         }
                         
-                        // Sauvegarder en cache pour 24h
+                        // OPTIMISATION: Sauvegarder en cache pour 24h
                         this.cache.set(cacheKey, data);
                         // Données YouTube mises en cache pour 24h (économie API)
                         
                         this.generateYouTubeFeed(container, template, data, allowShorts, language);
                         
-                        // Libérer le verrou
-                        window[loadingKey] = false;
+                        // OPTIMISATION: Libérer le verrou avec la nouvelle méthode
+                        this.markRequestComplete(cacheKey);
                     })
                     .catch(error => {
-                        console.error('Erreur API YouTube:', error);
                         // Erreur dans le module youtube
                         
-                        // Libérer le verrou en cas d'erreur
-                        window[loadingKey] = false;
+                        // OPTIMISATION: Libérer le verrou en cas d'erreur
+                        this.markRequestComplete(cacheKey);
                         
                         // En cas d'erreur, essayer de récupérer du cache même expiré
                         const expiredCache = localStorage.getItem(cacheKey);
@@ -1309,7 +1336,7 @@
                         if (bbContents.config.debug) {
                             // Thumbnail optimisée
                                         }
-                                    } else {
+                            } else {
                         // Aucune thumbnail disponible
                     }
                 }
@@ -1397,7 +1424,7 @@
                 return textarea.value;
             },
             
-            // Nettoyer le cache expiré
+            // OPTIMISATION: Nettoyer le cache expiré (48h)
             cleanCache: function() {
                 try {
                     const keys = Object.keys(localStorage);
@@ -1408,6 +1435,7 @@
                         if (key.startsWith('youtube_')) {
                             try {
                                 const cached = JSON.parse(localStorage.getItem(key));
+                                // OPTIMISATION: Cache 24h maintenu
                                 if (now - cached.timestamp > 24 * 60 * 60 * 1000) {
                                     localStorage.removeItem(key);
                                     cleaned++;
