@@ -389,58 +389,24 @@
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
                                  (window.innerWidth <= 768 && /Chrome|CriOS/i.test(navigator.userAgent));
                 
-                // OPTIMISATION: Charger les images en respectant le CSS Webflow
+                // SOLUTION MOBILE : Laisser les images tranquilles, le CSS Webflow gère mieux
                 images.forEach(img => {
-                    // Préserver les styles CSS existants AVANT toute modification
-                    const computedStyle = getComputedStyle(img);
-                    const originalObjectFit = img.style.objectFit || computedStyle.objectFit;
-                    const originalObjectPosition = img.style.objectPosition || computedStyle.objectPosition;
-                    const originalWidth = computedStyle.width;
-                    const originalHeight = computedStyle.height;
-                    
-                    // OPTIMISATION MOBILE : Améliorer le rendu des images sur mobile (sans transform sur l'image)
-                    if (isMobile) {
-                        // Forcer le rendu haute qualité sur mobile sans transform (évite conflit avec translate3d du parent)
-                        img.style.backfaceVisibility = 'hidden';
-                        img.style.webkitBackfaceVisibility = 'hidden';
-                        // Ne PAS mettre transform sur l'image car le parent utilise translate3d
-                        // Cela évite les problèmes de flou causés par les transformations multiples
-                        img.style.willChange = 'auto'; // Éviter will-change qui peut causer du flou
-                    }
-                    
-                    // Charger l'image si nécessaire
+                    // Charger l'image si nécessaire, mais ne pas toucher aux styles CSS
+                    // Le CSS de Webflow est optimisé et on ne veut pas interférer
                     if (img.complete && img.naturalWidth > 0) {
-                        // Image déjà chargée, ne rien toucher
+                        // Image déjà chargée
                         imagesLoaded++;
                     } else {
                         if (img.dataset.src && !img.src) {
                             img.src = img.dataset.src;
                         }
                         
-                        // OPTIMISATION MOBILE : Utiliser eager sur mobile pour éviter le flou de lazy loading
-                        if (!img.loading) {
-                            img.loading = isMobile ? 'eager' : 'lazy'; // eager sur mobile pour meilleur rendu
+                        // Utiliser eager sur mobile pour éviter le flou de lazy loading
+                        if (!img.loading && isMobile) {
+                            img.loading = 'eager';
                         }
                         
                         img.onload = () => {
-                            // OPTIMISATION: Restaurer les styles CSS après chargement
-                            if (originalObjectFit && originalObjectFit !== 'none') {
-                                img.style.objectFit = originalObjectFit;
-                            }
-                            if (originalObjectPosition && originalObjectPosition !== 'initial') {
-                                img.style.objectPosition = originalObjectPosition;
-                            }
-                            
-                            // OPTIMISATION MOBILE : Respecter les dimensions CSS de Webflow
-                            // Ne PAS forcer auto si les dimensions CSS sont définies dans Webflow
-                            // Le CSS de Webflow prend toujours le dessus
-                            
-                            // Forcer le recalcul pour mobile (important pour le rendu)
-                            if (isMobile) {
-                                // Force reflow pour meilleur rendu sans ajouter de transform
-                                void img.offsetHeight;
-                            }
-                            
                             imagesLoaded++;
                         };
                         img.onerror = () => {
