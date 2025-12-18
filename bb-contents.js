@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.102
+ * @version 1.0.103
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.102');
+    console.log('bb-contents | v1.0.103');
 
     // Configuration
     const config = {
-        version: '1.0.102',
+        version: '1.0.103',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -496,6 +496,9 @@
                 });
                 
                 const startSafariAnimation = () => {
+                    // Vérifier que speed est bien défini et valide
+                    const validSpeed = parseFloat(speed) || 100;
+                    
                     // Recalculer la taille après chargement des images
                     const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
                     
@@ -515,7 +518,7 @@
                     
                     // Solution Safari simplifiée
                     const totalSize = finalContentSize * 3 + gapSize * 2;
-                    const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
+                    const step = (validSpeed * (isVertical ? 1.5 : 0.8)) / 60;
                     let isPaused = false;
                     
                     // Ajuster la taille du conteneur
