@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.107
+ * @version 1.0.108
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.107');
+    console.log('bb-contents | v1.0.108');
 
     // Configuration
     const config = {
-        version: '1.0.107',
+        version: '1.0.108',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -438,13 +438,22 @@
                 const waitForImages = () => {
                     waitTimeout += 100;
                     
-                    if (imagesLoaded >= totalImages || imagesLoaded === 0 || waitTimeout >= maxWaitTime) {
+                    // Attendre que TOUTES les images soient chargées (ou s'il n'y a pas d'images, attendre un minimum)
+                    if (totalImages === 0) {
+                        // Pas d'images, démarrer après un court délai
+                        const renderDelay = isMobile ? 500 : 100;
+                        setTimeout(() => {
+                            startSafariAnimation();
+                        }, renderDelay);
+                    } else if (imagesLoaded >= totalImages || waitTimeout >= maxWaitTime) {
+                        // Toutes les images sont chargées OU timeout atteint
                         // Attendre plus longtemps sur mobile pour le rendu visuel
                         const renderDelay = isMobile ? 1000 : 200;
                         setTimeout(() => {
                             startSafariAnimation();
                         }, renderDelay);
                     } else {
+                        // Continuer à attendre
                         setTimeout(waitForImages, 100);
                     }
                 };
@@ -461,6 +470,27 @@
                             }
                         });
                     }
+                    
+                    // CORRECTION: Appliquer les styles CSS aux images dans les copies également
+                    // pour éviter les images floues ou mal cadrées
+                    const allImages = scrollContainer.querySelectorAll('img');
+                    allImages.forEach(img => {
+                        // Vérifier si l'image a déjà des styles inline
+                        if (!img.style.objectFit) {
+                            const computedStyle = getComputedStyle(img);
+                            const objectFit = computedStyle.objectFit;
+                            const objectPosition = computedStyle.objectPosition;
+                            
+                            // Appliquer object-fit si défini dans le CSS
+                            if (objectFit && objectFit !== 'none' && objectFit !== 'fill') {
+                                img.style.objectFit = objectFit;
+                            }
+                            // Appliquer object-position si défini dans le CSS
+                            if (objectPosition && objectPosition !== 'initial' && objectPosition !== '50% 50%') {
+                                img.style.objectPosition = objectPosition;
+                            }
+                        }
+                    });
                     
                     // Vérifier que les images ont une taille visible
                     let imagesWithSize = 0;
