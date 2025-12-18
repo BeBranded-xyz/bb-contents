@@ -385,45 +385,68 @@
                 const totalImages = images.length;
                 
                 
-                // OPTIMISATION: Charger les images sans forcer les dimensions
+                // SOLUTION MOBILE : Amélioration du rendu des images sur mobile
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+                                 (window.innerWidth <= 768 && /Chrome|CriOS/i.test(navigator.userAgent));
+                
+                // OPTIMISATION: Charger les images en respectant le CSS Webflow
                 images.forEach(img => {
-                    if (img.dataset.src && !img.src) {
-                        img.src = img.dataset.src;
-                        img.loading = 'eager';
+                    // Préserver les styles CSS existants AVANT toute modification
+                    const computedStyle = getComputedStyle(img);
+                    const originalObjectFit = img.style.objectFit || computedStyle.objectFit;
+                    const originalObjectPosition = img.style.objectPosition || computedStyle.objectPosition;
+                    const originalWidth = computedStyle.width;
+                    const originalHeight = computedStyle.height;
+                    
+                    // OPTIMISATION MOBILE : Améliorer le rendu des images sur mobile
+                    if (isMobile) {
+                        // Forcer le rendu haute qualité sur mobile
+                        img.style.imageRendering = 'auto';
+                        img.style.backfaceVisibility = 'hidden';
+                        img.style.webkitBackfaceVisibility = 'hidden';
+                        img.style.transform = 'translateZ(0)';
+                        img.style.webkitTransform = 'translateZ(0)';
                     }
                     
-                    // OPTIMISATION: Préserver les styles CSS existants (object-fit, etc.)
-                    const originalObjectFit = img.style.objectFit || getComputedStyle(img).objectFit;
-                    const originalObjectPosition = img.style.objectPosition || getComputedStyle(img).objectPosition;
-                    const originalWidth = img.style.width;
-                    const originalHeight = img.style.height;
-                    
-                    img.onload = () => {
-                        // OPTIMISATION: Restaurer les styles CSS après chargement
-                        if (originalObjectFit && originalObjectFit !== 'none') {
-                            img.style.objectFit = originalObjectFit;
-                        }
-                        if (originalObjectPosition && originalObjectPosition !== 'initial') {
-                            img.style.objectPosition = originalObjectPosition;
+                    // Charger l'image si nécessaire
+                    if (img.complete && img.naturalWidth > 0) {
+                        // Image déjà chargée, ne rien toucher
+                        imagesLoaded++;
+                    } else {
+                        if (img.dataset.src && !img.src) {
+                            img.src = img.dataset.src;
                         }
                         
-                        // OPTIMISATION: Préserver les dimensions naturelles des images
-                        if (!originalWidth || originalWidth === '') {
-                            img.style.width = 'auto';
-                        }
-                        if (!originalHeight || originalHeight === '') {
-                            img.style.height = 'auto';
+                        // OPTIMISATION MOBILE : Utiliser lazy loading natif au lieu de eager sur mobile
+                        if (!img.loading) {
+                            img.loading = isMobile ? 'lazy' : 'eager';
                         }
                         
-                        imagesLoaded++;
-                    };
-                    img.onerror = () => {
-                        imagesLoaded++;
-                    };
+                        img.onload = () => {
+                            // OPTIMISATION: Restaurer les styles CSS après chargement
+                            if (originalObjectFit && originalObjectFit !== 'none') {
+                                img.style.objectFit = originalObjectFit;
+                            }
+                            if (originalObjectPosition && originalObjectPosition !== 'initial') {
+                                img.style.objectPosition = originalObjectPosition;
+                            }
+                            
+                            // OPTIMISATION MOBILE : Respecter les dimensions CSS de Webflow
+                            // Ne PAS forcer auto si les dimensions CSS sont définies dans Webflow
+                            // Le CSS de Webflow prend toujours le dessus
+                            
+                            // Forcer le recalcul pour mobile (important pour le rendu)
+                            if (isMobile) {
+                                img.offsetHeight; // Force reflow pour meilleur rendu
+                            }
+                            
+                            imagesLoaded++;
+                        };
+                        img.onerror = () => {
+                            imagesLoaded++;
+                        };
+                    }
                 });
-                
-                // SOLUTION SAFARI MOBILE SIMPLE : Attendre plus longtemps
-                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                 
                 // Timeout plus long sur mobile pour laisser le temps aux images de se charger
                 const maxWaitTime = isMobile ? 5000 : 3000; // 5 secondes sur mobile
@@ -451,7 +474,10 @@
                         images.forEach(img => {
                             if (img.dataset.src && !img.src) {
                                 img.src = img.dataset.src;
-                                img.loading = 'eager';
+                                // Ne pas forcer eager sur mobile, laisser le lazy loading
+                                if (!img.loading && !isMobile) {
+                                    img.loading = 'eager';
+                                }
                             }
                         });
                     }
