@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.99
+ * @version 1.0.100
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.99');
+    console.log('bb-contents | v1.0.100');
 
     // Configuration
     const config = {
-        version: '1.0.99',
+        version: '1.0.100',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -394,8 +394,10 @@
                 // SOLUTION MOBILE : Charger toutes les images AVANT de créer les copies pour éviter le flou
                 const loadImage = (img) => {
                     return new Promise((resolve) => {
+                        // Vérifier que l'image est complètement chargée avec dimensions naturelles
                         if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-                            // Image déjà chargée et rendue
+                            // Image déjà chargée, vérifier le rendu avec un reflow
+                            void img.offsetHeight;
                             imagesLoaded++;
                             resolve();
                             return;
@@ -411,10 +413,26 @@
                         }
                         
                         img.onload = () => {
-                            imagesLoaded++;
-                            // Forcer un reflow pour s'assurer que l'image est rendue
-                            void img.offsetHeight;
-                            resolve();
+                            // Vérifier que les dimensions naturelles sont disponibles
+                            if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                                // Forcer un reflow complet pour s'assurer que l'image est rendue
+                                void img.offsetHeight;
+                                void img.offsetWidth;
+                                // Double reflow pour mobile (surtout Retina)
+                                if (isMobile) {
+                                    requestAnimationFrame(() => {
+                                        void img.offsetHeight;
+                                        imagesLoaded++;
+                                        resolve();
+                                    });
+                                } else {
+                                    imagesLoaded++;
+                                    resolve();
+                                }
+                            } else {
+                                imagesLoaded++;
+                                resolve();
+                            }
                         };
                         img.onerror = () => {
                             imagesLoaded++;
@@ -423,36 +441,59 @@
                     });
                 };
                 
-                // Charger toutes les images en parallèle
-                Promise.all(Array.from(images).map(loadImage));
-                
-                // Timeout plus long sur mobile pour laisser le temps aux images de se charger
-                const maxWaitTime = isMobile ? 5000 : 3000; // 5 secondes sur mobile
-                let waitTimeout = 0;
-                
-                const waitForImages = () => {
-                    waitTimeout += 100;
+                // Attendre réellement que toutes les images soient chargées
+                Promise.all(Array.from(images).map(loadImage)).then(() => {
+                    // Vérifier que toutes les images ont leurs dimensions naturelles
+                    let allImagesReady = true;
+                    images.forEach(img => {
+                        if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+                            allImagesReady = false;
+                        }
+                    });
                     
-                    if (imagesLoaded >= totalImages || imagesLoaded === 0 || waitTimeout >= maxWaitTime) {
-                        // Attendre un frame pour le rendu complet, surtout sur mobile
+                    if (allImagesReady || images.length === 0) {
+                        // Attendre plusieurs frames pour garantir le rendu complet, surtout sur mobile
                         requestAnimationFrame(() => {
                             requestAnimationFrame(() => {
-                                // Maintenant créer les copies avec les images complètement chargées
-                                const repeatBlock1 = mainBlock.cloneNode(true);
-                                const repeatBlock2 = mainBlock.cloneNode(true);
-                                scrollContainer.appendChild(repeatBlock1);
-                                scrollContainer.appendChild(repeatBlock2);
-                                
-                                // Démarrer l'animation
-                                startSafariAnimation();
+                                // Délai supplémentaire sur mobile pour garantir le rendu Retina
+                                const renderDelay = isMobile ? 100 : 0;
+                                setTimeout(() => {
+                                    // Forcer un reflow complet du mainBlock avant clonage
+                                    void mainBlock.offsetHeight;
+                                    
+                                    // Maintenant créer les copies avec les images complètement chargées et rendues
+                                    const repeatBlock1 = mainBlock.cloneNode(true);
+                                    const repeatBlock2 = mainBlock.cloneNode(true);
+                                    
+                                    // Forcer un reflow après clonage pour garantir le rendu
+                                    scrollContainer.appendChild(repeatBlock1);
+                                    void repeatBlock1.offsetHeight;
+                                    scrollContainer.appendChild(repeatBlock2);
+                                    void repeatBlock2.offsetHeight;
+                                    
+                                    // Démarrer l'animation
+                                    startSafariAnimation();
+                                }, renderDelay);
                             });
                         });
                     } else {
-                        setTimeout(waitForImages, 100);
+                        // Fallback : attendre un peu plus si certaines images ne sont pas prêtes
+                        setTimeout(() => {
+                            const repeatBlock1 = mainBlock.cloneNode(true);
+                            const repeatBlock2 = mainBlock.cloneNode(true);
+                            scrollContainer.appendChild(repeatBlock1);
+                            scrollContainer.appendChild(repeatBlock2);
+                            startSafariAnimation();
+                        }, 500);
                     }
-                };
-                
-                waitForImages();
+                }).catch(() => {
+                    // En cas d'erreur, créer les copies quand même
+                    const repeatBlock1 = mainBlock.cloneNode(true);
+                    const repeatBlock2 = mainBlock.cloneNode(true);
+                    scrollContainer.appendChild(repeatBlock1);
+                    scrollContainer.appendChild(repeatBlock2);
+                    startSafariAnimation();
+                });
                 
                 const startSafariAnimation = () => {
                     // Forcer le chargement des images restantes si timeout
@@ -513,6 +554,11 @@
                         currentPosition = 0;
                     }
 
+                    // Désactiver will-change sur mobile après initialisation pour éviter le flou
+                    if (isMobile) {
+                        scrollContainer.style.willChange = 'auto';
+                    }
+                    
                     // Forcer la position initiale pour éviter l'invisibilité
                     const initialTransform = isVertical 
                         ? `translate3d(0, ${currentPosition}px, 0)`
