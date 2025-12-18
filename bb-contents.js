@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.106
+ * @version 1.0.107
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.106');
+    console.log('bb-contents | v1.0.107');
 
     // Configuration
     const config = {
-        version: '1.0.106',
+        version: '1.0.107',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -452,6 +452,23 @@
                 waitForImages();
                 
                 const startSafariAnimation = () => {
+                    // Forcer le chargement des images restantes si timeout
+                    if (waitTimeout >= maxWaitTime && imagesLoaded < totalImages) {
+                        images.forEach(img => {
+                            if (img.dataset.src && !img.src) {
+                                img.src = img.dataset.src;
+                                img.loading = 'eager';
+                            }
+                        });
+                    }
+                    
+                    // Vérifier que les images ont une taille visible
+                    let imagesWithSize = 0;
+                    images.forEach(img => {
+                        if (img.offsetWidth > 0 && img.offsetHeight > 0) {
+                            imagesWithSize++;
+                        }
+                    });
                     
                     // Recalculer la taille après chargement des images
                     const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
