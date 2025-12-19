@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.110
+ * @version 1.0.111
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.110');
+    console.log('bb-contents | v1.0.111');
 
     // Configuration
     const config = {
-        version: '1.0.110',
+        version: '1.0.111',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -480,10 +480,15 @@
                         
                         // SOLUTION MOBILE SAFARI : Pour les SVG sur mobile, éviter object-fit qui cause du flou
                         if (isSVG && isMobile) {
-                            // Sur mobile, NE PAS appliquer object-fit aux SVG (c'est ce qui cause le flou)
-                            // Le SVG utilisera ses dimensions naturelles ou celles du conteneur
-                            img.style.objectFit = 'none';
+                            // Sur mobile, utiliser contain pour éviter le débordement, mais avec optimisations anti-flou
+                            img.style.objectFit = 'contain';
                             img.style.objectPosition = 'center';
+                            
+                            // Ajouter des contraintes pour empêcher le débordement
+                            img.style.maxWidth = '100%';
+                            img.style.maxHeight = '100%';
+                            img.style.width = '100%';
+                            img.style.height = '100%';
                             
                             // Forcer le GPU rendering
                             img.style.webkitTransform = 'translate3d(0, 0, 0)';
@@ -493,11 +498,13 @@
                             img.style.imageRendering = 'crisp-edges';
                             
                             // S'assurer que le conteneur parent permet au SVG de s'afficher correctement
+                            // et empêche le débordement avec overflow hidden
                             const parent = img.parentElement;
                             if (parent) {
                                 parent.style.display = 'flex';
                                 parent.style.alignItems = 'center';
                                 parent.style.justifyContent = 'center';
+                                parent.style.overflow = 'hidden'; // Empêcher le débordement
                             }
                         } else {
                             // Pour les images non-SVG ou sur desktop, appliquer les styles normaux
