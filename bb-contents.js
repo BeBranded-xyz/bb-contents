@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.111
+ * @version 1.0.112
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.111');
+    console.log('bb-contents | v1.0.112');
 
     // Configuration
     const config = {
-        version: '1.0.111',
+        version: '1.0.112',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -391,12 +391,16 @@
                 const totalImages = images.length;
                 
                 
-                // OPTIMISATION: Charger les images sans forcer les dimensions
+                // OPTIMISATION: Charger les images et appliquer les styles SVG AVANT le clonage
+                // pour éviter les reflows qui causent la saccade de l'animation
                 images.forEach(img => {
                     if (img.dataset.src && !img.src) {
                         img.src = img.dataset.src;
                         img.loading = 'eager';
                     }
+                    
+                    // Détecter si c'est un SVG (par l'extension du src ou le type)
+                    const isSVG = img.src && (img.src.toLowerCase().endsWith('.svg') || img.src.includes('data:image/svg+xml'));
                     
                     // OPTIMISATION: Préserver les styles CSS existants (object-fit, etc.)
                     const originalObjectFit = img.style.objectFit || getComputedStyle(img).objectFit;
@@ -405,20 +409,52 @@
                     const originalHeight = img.style.height;
                     
                     img.onload = () => {
-                        // OPTIMISATION: Restaurer les styles CSS après chargement
-                        if (originalObjectFit && originalObjectFit !== 'none') {
-                            img.style.objectFit = originalObjectFit;
-                        }
-                        if (originalObjectPosition && originalObjectPosition !== 'initial') {
-                            img.style.objectPosition = originalObjectPosition;
-                        }
-                        
-                        // OPTIMISATION: Préserver les dimensions naturelles des images
-                        if (!originalWidth || originalWidth === '') {
-                            img.style.width = 'auto';
-                        }
-                        if (!originalHeight || originalHeight === '') {
-                            img.style.height = 'auto';
+                        // SOLUTION MOBILE SAFARI : Pour les SVG sur mobile, appliquer les styles AVANT le clonage
+                        if (isSVG && isMobile) {
+                            // Utiliser contain pour éviter le débordement
+                            img.style.objectFit = 'contain';
+                            img.style.objectPosition = 'center';
+                            
+                            // Ajouter des contraintes pour empêcher le débordement et forcer la taille
+                            img.style.maxWidth = '100%';
+                            img.style.maxHeight = '100%';
+                            img.style.width = '100%';
+                            img.style.height = '100%';
+                            img.style.boxSizing = 'border-box';
+                            
+                            // Forcer le GPU rendering
+                            img.style.webkitTransform = 'translate3d(0, 0, 0)';
+                            img.style.transform = 'translate3d(0, 0, 0)';
+                            
+                            // Améliorer le rendu des SVG
+                            img.style.imageRendering = 'crisp-edges';
+                            
+                            // S'assurer que le conteneur parent permet au SVG de s'afficher correctement
+                            // et empêche le débordement avec overflow hidden
+                            const parent = img.parentElement;
+                            if (parent) {
+                                parent.style.display = 'flex';
+                                parent.style.alignItems = 'center';
+                                parent.style.justifyContent = 'center';
+                                parent.style.overflow = 'hidden';
+                                parent.style.boxSizing = 'border-box';
+                            }
+                        } else {
+                            // OPTIMISATION: Restaurer les styles CSS après chargement pour les non-SVG
+                            if (originalObjectFit && originalObjectFit !== 'none') {
+                                img.style.objectFit = originalObjectFit;
+                            }
+                            if (originalObjectPosition && originalObjectPosition !== 'initial') {
+                                img.style.objectPosition = originalObjectPosition;
+                            }
+                            
+                            // OPTIMISATION: Préserver les dimensions naturelles des images
+                            if (!originalWidth || originalWidth === '') {
+                                img.style.width = 'auto';
+                            }
+                            if (!originalHeight || originalHeight === '') {
+                                img.style.height = 'auto';
+                            }
                         }
                         
                         imagesLoaded++;
@@ -471,63 +507,9 @@
                         });
                     }
                     
-                    // CORRECTION: Appliquer les styles CSS aux images dans les copies également
-                    // pour éviter les images floues ou mal cadrées
-                    const allImages = scrollContainer.querySelectorAll('img');
-                    allImages.forEach(img => {
-                        // Détecter si c'est un SVG (par l'extension du src ou le type)
-                        const isSVG = img.src && (img.src.toLowerCase().endsWith('.svg') || img.src.includes('data:image/svg+xml'));
-                        
-                        // SOLUTION MOBILE SAFARI : Pour les SVG sur mobile, éviter object-fit qui cause du flou
-                        if (isSVG && isMobile) {
-                            // Sur mobile, utiliser contain pour éviter le débordement, mais avec optimisations anti-flou
-                            img.style.objectFit = 'contain';
-                            img.style.objectPosition = 'center';
-                            
-                            // Ajouter des contraintes pour empêcher le débordement
-                            img.style.maxWidth = '100%';
-                            img.style.maxHeight = '100%';
-                            img.style.width = '100%';
-                            img.style.height = '100%';
-                            
-                            // Forcer le GPU rendering
-                            img.style.webkitTransform = 'translate3d(0, 0, 0)';
-                            img.style.transform = 'translate3d(0, 0, 0)';
-                            
-                            // Améliorer le rendu des SVG
-                            img.style.imageRendering = 'crisp-edges';
-                            
-                            // S'assurer que le conteneur parent permet au SVG de s'afficher correctement
-                            // et empêche le débordement avec overflow hidden
-                            const parent = img.parentElement;
-                            if (parent) {
-                                parent.style.display = 'flex';
-                                parent.style.alignItems = 'center';
-                                parent.style.justifyContent = 'center';
-                                parent.style.overflow = 'hidden'; // Empêcher le débordement
-                            }
-                        } else {
-                            // Pour les images non-SVG ou sur desktop, appliquer les styles normaux
-                            // Vérifier si l'image a déjà des styles inline
-                            if (!img.style.objectFit) {
-                                const computedStyle = getComputedStyle(img);
-                                const objectFit = computedStyle.objectFit;
-                                const objectPosition = computedStyle.objectPosition;
-                                
-                                // Appliquer object-fit si défini dans le CSS
-                                if (objectFit && objectFit !== 'none' && objectFit !== 'fill') {
-                                    img.style.objectFit = objectFit;
-                                }
-                                // Appliquer object-position si défini dans le CSS
-                                if (objectPosition && objectPosition !== 'initial' && objectPosition !== '50% 50%') {
-                                    img.style.objectPosition = objectPosition;
-                                }
-                            }
-                        }
-                        
-                        // Forcer un reflow pour stabiliser le rendu
-                        void img.offsetHeight;
-                    });
+                    // Les styles sont maintenant appliqués AVANT le clonage (dans img.onload)
+                    // Cela évite les reflows qui causaient la saccade de l'animation
+                    // Les copies héritent automatiquement des styles des images originales
                     
                     // Vérifier que les images ont une taille visible
                     let imagesWithSize = 0;
