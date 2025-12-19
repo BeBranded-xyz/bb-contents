@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.109
+ * @version 1.0.110
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.109');
+    console.log('bb-contents | v1.0.110');
 
     // Configuration
     const config = {
-        version: '1.0.109',
+        version: '1.0.110',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -478,46 +478,48 @@
                         // Détecter si c'est un SVG (par l'extension du src ou le type)
                         const isSVG = img.src && (img.src.toLowerCase().endsWith('.svg') || img.src.includes('data:image/svg+xml'));
                         
-                        // Pour les SVG, optimiser le rendu sur Safari mobile
-                        if (isSVG) {
-                            // Forcer le GPU rendering pour améliorer la netteté
+                        // SOLUTION MOBILE SAFARI : Pour les SVG sur mobile, éviter object-fit qui cause du flou
+                        if (isSVG && isMobile) {
+                            // Sur mobile, NE PAS appliquer object-fit aux SVG (c'est ce qui cause le flou)
+                            // Le SVG utilisera ses dimensions naturelles ou celles du conteneur
+                            img.style.objectFit = 'none';
+                            img.style.objectPosition = 'center';
+                            
+                            // Forcer le GPU rendering
                             img.style.webkitTransform = 'translate3d(0, 0, 0)';
                             img.style.transform = 'translate3d(0, 0, 0)';
                             
-                            // Améliorer le rendu des SVG sur Safari
-                            img.style.imageRendering = '-webkit-optimize-contrast';
+                            // Améliorer le rendu des SVG
                             img.style.imageRendering = 'crisp-edges';
-                            img.style.imageRendering = 'auto'; // Fallback si crisp-edges n'est pas supporté
                             
-                            // Forcer un reflow pour stabiliser le rendu
-                            void img.offsetHeight;
-                        }
-                        
-                        // Vérifier si l'image a déjà des styles inline
-                        if (!img.style.objectFit) {
-                            const computedStyle = getComputedStyle(img);
-                            const objectFit = computedStyle.objectFit;
-                            const objectPosition = computedStyle.objectPosition;
-                            
-                            // Appliquer object-fit si défini dans le CSS
-                            // Pour les SVG, être plus prudent avec object-fit
-                            if (objectFit && objectFit !== 'none' && objectFit !== 'fill') {
-                                if (!isSVG || objectFit === 'contain' || objectFit === 'scale-down') {
+                            // S'assurer que le conteneur parent permet au SVG de s'afficher correctement
+                            const parent = img.parentElement;
+                            if (parent) {
+                                parent.style.display = 'flex';
+                                parent.style.alignItems = 'center';
+                                parent.style.justifyContent = 'center';
+                            }
+                        } else {
+                            // Pour les images non-SVG ou sur desktop, appliquer les styles normaux
+                            // Vérifier si l'image a déjà des styles inline
+                            if (!img.style.objectFit) {
+                                const computedStyle = getComputedStyle(img);
+                                const objectFit = computedStyle.objectFit;
+                                const objectPosition = computedStyle.objectPosition;
+                                
+                                // Appliquer object-fit si défini dans le CSS
+                                if (objectFit && objectFit !== 'none' && objectFit !== 'fill') {
                                     img.style.objectFit = objectFit;
                                 }
-                            }
-                            // Appliquer object-position si défini dans le CSS
-                            if (objectPosition && objectPosition !== 'initial' && objectPosition !== '50% 50%') {
-                                img.style.objectPosition = objectPosition;
+                                // Appliquer object-position si défini dans le CSS
+                                if (objectPosition && objectPosition !== 'initial' && objectPosition !== '50% 50%') {
+                                    img.style.objectPosition = objectPosition;
+                                }
                             }
                         }
                         
-                        // Pour les SVG, forcer un re-render après application des styles
-                        if (isSVG) {
-                            requestAnimationFrame(() => {
-                                void img.offsetHeight;
-                            });
-                        }
+                        // Forcer un reflow pour stabiliser le rendu
+                        void img.offsetHeight;
                     });
                     
                     // Vérifier que les images ont une taille visible
