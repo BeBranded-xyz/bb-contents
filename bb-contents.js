@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.114
+ * @version 1.0.115
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.114');
+    console.log('bb-contents | v1.0.115');
 
     // Configuration
     const config = {
-        version: '1.0.114',
+        version: '1.0.115',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -390,6 +390,10 @@
                 let imagesLoaded = 0;
                 const totalImages = images.length;
                 
+                // DÉCLARER isMobile et isSafari AVANT leur utilisation dans img.onload
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                // Détecter spécifiquement Safari (pas Chrome mobile)
+                const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iPhone|iPad|iPod/.test(navigator.userAgent);
                 
                 // OPTIMISATION: Charger les images et appliquer les styles SVG AVANT le clonage
                 // pour éviter les reflows qui causent la saccade de l'animation
@@ -488,11 +492,6 @@
                     };
                 });
                 
-                // SOLUTION SAFARI MOBILE SIMPLE : Attendre plus longtemps
-                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                // Détecter spécifiquement Safari (pas Chrome mobile)
-                const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iPhone|iPad|iPod/.test(navigator.userAgent);
-                
                 // Timeout plus long sur mobile pour laisser le temps aux images de se charger
                 const maxWaitTime = isMobile ? 5000 : 3000; // 5 secondes sur mobile
                 let waitTimeout = 0;
@@ -531,7 +530,9 @@
                         }
                     } else if (waitTimeout >= maxWaitTime) {
                         // Timeout atteint : forcer le démarrage mais c'est un fallback
-                        console.warn('[MARQUEE] Timeout atteint, certaines images peuvent ne pas être chargées');
+                        if (bbContents.config.debug) {
+                            console.warn('[MARQUEE] Timeout atteint, certaines images peuvent ne pas être chargées');
+                        }
                         const renderDelay = isSafari && isMobile ? 1500 : (isMobile ? 1000 : 200);
                         setTimeout(() => {
                             startSafariAnimation();
@@ -558,14 +559,6 @@
                     // Les styles sont maintenant appliqués AVANT le clonage (dans img.onload)
                     // Cela évite les reflows qui causaient la saccade de l'animation
                     // Les copies héritent automatiquement des styles des images originales
-                    
-                    // Vérifier que les images ont une taille visible
-                    let imagesWithSize = 0;
-                    images.forEach(img => {
-                        if (img.offsetWidth > 0 && img.offsetHeight > 0) {
-                            imagesWithSize++;
-                        }
-                    });
                     
                     // Recalculer la taille après chargement des images
                     const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
@@ -623,12 +616,9 @@
                     }
 
                     // Fonction d'animation Safari optimisée
-                    let frameCount = 0;
                     let lastTime = performance.now();
                     const animate = (currentTime) => {
                         if (!isPaused) {
-                            frameCount++;
-                            
                             // OPTIMISATION SAFARI MOBILE : Utiliser le temps réel pour une animation plus fluide
                             const deltaTime = isSafari && isMobile ? (currentTime - lastTime) / 16.67 : 1;
                             lastTime = currentTime;
