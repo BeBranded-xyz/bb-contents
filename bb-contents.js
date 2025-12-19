@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.113
+ * @version 1.0.114
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.113');
+    console.log('bb-contents | v1.0.114');
 
     // Configuration
     const config = {
-        version: '1.0.113',
+        version: '1.0.114',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -409,43 +409,42 @@
                     const originalHeight = img.style.height;
                     
                     img.onload = () => {
-                        // SOLUTION MOBILE SAFARI : Pour les SVG sur mobile Safari, approche différente
+                        // SOLUTION MOBILE SAFARI : Pour les SVG sur mobile Safari, utiliser contain avec optimisations
                         if (isSVG && isMobile && isSafari) {
-                            // SUR SAFARI MOBILE : Ne PAS utiliser object-fit qui cause du flou
-                            // Utiliser des dimensions fixes et laisser le SVG se dimensionner naturellement
-                            img.style.objectFit = 'none';
+                            // SUR SAFARI MOBILE : Utiliser contain MAIS avec des optimisations pour éviter le flou
+                            img.style.objectFit = 'contain';
                             img.style.objectPosition = 'center';
                             
-                            // Forcer les dimensions du conteneur parent pour contraindre le SVG
+                            // Dimensions avec contraintes pour forcer contain
+                            img.style.width = '100%';
+                            img.style.height = '100%';
+                            img.style.maxWidth = '100%';
+                            img.style.maxHeight = '100%';
+                            img.style.boxSizing = 'border-box';
+                            
+                            // Optimisations pour améliorer le rendu des SVG avec contain
+                            // Utiliser auto au lieu de crisp-edges pour contain
+                            img.style.imageRendering = 'auto';
+                            img.style.webkitBackfaceVisibility = 'hidden';
+                            img.style.backfaceVisibility = 'hidden';
+                            
+                            // Forcer le GPU rendering AVANT d'appliquer contain
+                            img.style.webkitTransform = 'translateZ(0)';
+                            img.style.transform = 'translateZ(0)';
+                            
+                            // Conteneur parent pour contraindre et centrer
                             const parent = img.parentElement;
                             if (parent) {
-                                // S'assurer que le parent a des dimensions fixes
-                                const parentComputed = getComputedStyle(parent);
-                                if (!parentComputed.width || parentComputed.width === 'auto') {
-                                    parent.style.width = '100%';
-                                }
-                                if (!parentComputed.height || parentComputed.height === 'auto') {
-                                    parent.style.height = '100%';
-                                }
-                                
                                 parent.style.display = 'flex';
                                 parent.style.alignItems = 'center';
                                 parent.style.justifyContent = 'center';
                                 parent.style.overflow = 'hidden';
                                 parent.style.boxSizing = 'border-box';
                                 
-                                // Forcer le SVG à prendre la taille du parent sans object-fit
-                                img.style.width = '100%';
-                                img.style.height = '100%';
-                                img.style.maxWidth = '100%';
-                                img.style.maxHeight = '100%';
-                                img.style.boxSizing = 'border-box';
+                                // S'assurer que le parent a des dimensions
+                                if (!parent.style.width) parent.style.width = '100%';
+                                if (!parent.style.height) parent.style.height = '100%';
                             }
-                            
-                            // Améliorer le rendu des SVG sans object-fit
-                            img.style.imageRendering = 'crisp-edges';
-                            img.style.webkitBackfaceVisibility = 'hidden';
-                            img.style.backfaceVisibility = 'hidden';
                         } else if (isSVG && isMobile) {
                             // Pour Chrome mobile, utiliser contain normalement
                             img.style.objectFit = 'contain';
@@ -501,17 +500,39 @@
                 const waitForImages = () => {
                     waitTimeout += 100;
                     
-                    // Attendre que TOUTES les images soient chargées (ou s'il n'y a pas d'images, attendre un minimum)
+                    // SAFARI MOBILE : Attendre ABSOLUMENT que TOUTES les images soient chargées
                     if (totalImages === 0) {
                         // Pas d'images, démarrer après un court délai
                         const renderDelay = isMobile ? 500 : 100;
                         setTimeout(() => {
                             startSafariAnimation();
                         }, renderDelay);
-                    } else if (imagesLoaded >= totalImages || waitTimeout >= maxWaitTime) {
-                        // Toutes les images sont chargées OU timeout atteint
-                        // Attendre plus longtemps sur mobile pour le rendu visuel
-                        const renderDelay = isMobile ? 1000 : 200;
+                    } else if (imagesLoaded >= totalImages) {
+                        // SAFARI MOBILE : Vérifier que les images ont vraiment leurs dimensions
+                        let imagesReady = true;
+                        if (isSafari && isMobile) {
+                            images.forEach(img => {
+                                if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+                                    imagesReady = false;
+                                }
+                            });
+                        }
+                        
+                        if (imagesReady) {
+                            // Toutes les images sont chargées ET ont leurs dimensions
+                            // Attendre plus longtemps sur mobile Safari pour le rendu visuel
+                            const renderDelay = isSafari && isMobile ? 1500 : (isMobile ? 1000 : 200);
+                            setTimeout(() => {
+                                startSafariAnimation();
+                            }, renderDelay);
+                        } else {
+                            // Continuer à attendre que les dimensions soient disponibles
+                            setTimeout(waitForImages, 100);
+                        }
+                    } else if (waitTimeout >= maxWaitTime) {
+                        // Timeout atteint : forcer le démarrage mais c'est un fallback
+                        console.warn('[MARQUEE] Timeout atteint, certaines images peuvent ne pas être chargées');
+                        const renderDelay = isSafari && isMobile ? 1500 : (isMobile ? 1000 : 200);
                         setTimeout(() => {
                             startSafariAnimation();
                         }, renderDelay);
