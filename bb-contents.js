@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.112
+ * @version 1.0.113
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.112');
+    console.log('bb-contents | v1.0.113');
 
     // Configuration
     const config = {
-        version: '1.0.112',
+        version: '1.0.113',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -409,28 +409,53 @@
                     const originalHeight = img.style.height;
                     
                     img.onload = () => {
-                        // SOLUTION MOBILE SAFARI : Pour les SVG sur mobile, appliquer les styles AVANT le clonage
-                        if (isSVG && isMobile) {
-                            // Utiliser contain pour éviter le débordement
-                            img.style.objectFit = 'contain';
+                        // SOLUTION MOBILE SAFARI : Pour les SVG sur mobile Safari, approche différente
+                        if (isSVG && isMobile && isSafari) {
+                            // SUR SAFARI MOBILE : Ne PAS utiliser object-fit qui cause du flou
+                            // Utiliser des dimensions fixes et laisser le SVG se dimensionner naturellement
+                            img.style.objectFit = 'none';
                             img.style.objectPosition = 'center';
                             
-                            // Ajouter des contraintes pour empêcher le débordement et forcer la taille
+                            // Forcer les dimensions du conteneur parent pour contraindre le SVG
+                            const parent = img.parentElement;
+                            if (parent) {
+                                // S'assurer que le parent a des dimensions fixes
+                                const parentComputed = getComputedStyle(parent);
+                                if (!parentComputed.width || parentComputed.width === 'auto') {
+                                    parent.style.width = '100%';
+                                }
+                                if (!parentComputed.height || parentComputed.height === 'auto') {
+                                    parent.style.height = '100%';
+                                }
+                                
+                                parent.style.display = 'flex';
+                                parent.style.alignItems = 'center';
+                                parent.style.justifyContent = 'center';
+                                parent.style.overflow = 'hidden';
+                                parent.style.boxSizing = 'border-box';
+                                
+                                // Forcer le SVG à prendre la taille du parent sans object-fit
+                                img.style.width = '100%';
+                                img.style.height = '100%';
+                                img.style.maxWidth = '100%';
+                                img.style.maxHeight = '100%';
+                                img.style.boxSizing = 'border-box';
+                            }
+                            
+                            // Améliorer le rendu des SVG sans object-fit
+                            img.style.imageRendering = 'crisp-edges';
+                            img.style.webkitBackfaceVisibility = 'hidden';
+                            img.style.backfaceVisibility = 'hidden';
+                        } else if (isSVG && isMobile) {
+                            // Pour Chrome mobile, utiliser contain normalement
+                            img.style.objectFit = 'contain';
+                            img.style.objectPosition = 'center';
                             img.style.maxWidth = '100%';
                             img.style.maxHeight = '100%';
                             img.style.width = '100%';
                             img.style.height = '100%';
                             img.style.boxSizing = 'border-box';
                             
-                            // Forcer le GPU rendering
-                            img.style.webkitTransform = 'translate3d(0, 0, 0)';
-                            img.style.transform = 'translate3d(0, 0, 0)';
-                            
-                            // Améliorer le rendu des SVG
-                            img.style.imageRendering = 'crisp-edges';
-                            
-                            // S'assurer que le conteneur parent permet au SVG de s'afficher correctement
-                            // et empêche le débordement avec overflow hidden
                             const parent = img.parentElement;
                             if (parent) {
                                 parent.style.display = 'flex';
@@ -466,6 +491,8 @@
                 
                 // SOLUTION SAFARI MOBILE SIMPLE : Attendre plus longtemps
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                // Détecter spécifiquement Safari (pas Chrome mobile)
+                const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iPhone|iPad|iPod/.test(navigator.userAgent);
                 
                 // Timeout plus long sur mobile pour laisser le temps aux images de se charger
                 const maxWaitTime = isMobile ? 5000 : 3000; // 5 secondes sur mobile
@@ -541,6 +568,13 @@
                     const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
                     let isPaused = false;
                     
+                    // OPTIMISATION SAFARI MOBILE : Ajouter will-change pour améliorer la fluidité
+                    if (isSafari && isMobile) {
+                        scrollContainer.style.willChange = 'transform';
+                        scrollContainer.style.webkitBackfaceVisibility = 'hidden';
+                        scrollContainer.style.backfaceVisibility = 'hidden';
+                    }
+                    
                     // Ajuster la taille du conteneur
                     if (isVertical && !useAutoHeight) {
                         scrollContainer.style.height = totalSize + 'px';
@@ -561,26 +595,34 @@
                         ? `translate3d(0, ${currentPosition}px, 0)`
                         : `translate3d(${currentPosition}px, 0, 0)`;
                     scrollContainer.style.transform = initialTransform;
+                    
+                    // OPTIMISATION SAFARI MOBILE : Forcer un reflow avant de démarrer l'animation
+                    if (isSafari && isMobile) {
+                        void scrollContainer.offsetHeight;
+                    }
 
-                    // Fonction d'animation Safari avec debug des resets
+                    // Fonction d'animation Safari optimisée
                     let frameCount = 0;
-                    const animate = () => {
+                    let lastTime = performance.now();
+                    const animate = (currentTime) => {
                         if (!isPaused) {
                             frameCount++;
                             
+                            // OPTIMISATION SAFARI MOBILE : Utiliser le temps réel pour une animation plus fluide
+                            const deltaTime = isSafari && isMobile ? (currentTime - lastTime) / 16.67 : 1;
+                            lastTime = currentTime;
+                            
                             if (direction === (isVertical ? 'bottom' : 'right')) {
-                                currentPosition += step;
+                                currentPosition += step * deltaTime;
                                 if (currentPosition >= 0) {
                                     currentPosition = -(finalContentSize + gapSize);
                                 }
                             } else {
-                                currentPosition -= step;
+                                currentPosition -= step * deltaTime;
                                 if (currentPosition <= -(2 * (finalContentSize + gapSize))) {
                                     currentPosition = -(finalContentSize + gapSize);
                                 }
                             }
-                            
-                            // Animation continue
                             
                             // ARRONDI pour éviter les erreurs de précision JavaScript
                             currentPosition = Math.round(currentPosition * 100) / 100;
@@ -594,10 +636,21 @@
                         requestAnimationFrame(animate);
                     };
 
-                    // Démarrer l'animation avec un petit délai pour Safari
-                    setTimeout(() => {
-                        animate();
-                    }, 50);
+                    // Démarrer l'animation avec un délai adapté pour Safari
+                    if (isSafari && isMobile) {
+                        // Safari mobile : attendre un peu plus pour que tout soit prêt
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                lastTime = performance.now();
+                                animate(lastTime);
+                            });
+                        });
+                    } else {
+                        setTimeout(() => {
+                            lastTime = performance.now();
+                            animate(lastTime);
+                        }, 50);
+                    }
 
                     // Pause au survol pour Safari
                     if (element.getAttribute('bb-marquee-pause') === 'true') {
