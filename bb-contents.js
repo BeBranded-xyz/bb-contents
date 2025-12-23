@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.115
+ * @version 1.0.116
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.115');
+    console.log('bb-contents | v1.0.116');
 
     // Configuration
     const config = {
-        version: '1.0.115',
+        version: '1.0.116',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -965,31 +965,138 @@
             const s = scope || document;
             return s.querySelector(bbContents._attrSelector('reading-time')) !== null;
         },
+        
+        // Fonction pour extraire le texte et les images depuis une URL
+        fetchContentFromUrl: function(url) {
+            return fetch(url)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status);
+                    }
+                    return response.text();
+                })
+                .then(function(html) {
+                    // Parser le HTML pour extraire le contenu principal
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    // Sélecteurs communs pour le contenu principal d'un article
+                    const contentSelectors = [
+                        'article',
+                        '[role="article"]',
+                        '.blog-post-content',
+                        '.post-content',
+                        '.article-content',
+                        '.content',
+                        'main article',
+                        'main .w-dyn-bind-empty', // Webflow CMS content
+                        'main .w-richtext' // Webflow rich text
+                    ];
+                    
+                    let contentNode = null;
+                    for (let i = 0; i < contentSelectors.length; i++) {
+                        contentNode = doc.querySelector(contentSelectors[i]);
+                        if (contentNode) break;
+                    }
+                    
+                    // Si aucun sélecteur ne fonctionne, utiliser le body (fallback)
+                    if (!contentNode) {
+                        contentNode = doc.body;
+                    }
+                    
+                    if (!contentNode) {
+                        return { text: '', images: [] };
+                    }
+                    
+                    // Extraire le texte et les images
+                    const text = contentNode.textContent.trim();
+                    const images = contentNode.querySelectorAll('img');
+                    
+                    return { text: text, images: images };
+                });
+        },
+        
+        // Fonction pour calculer le temps de lecture
+        calculateReadingTime: function(text, images, wordsPerMinute, secondsPerImage) {
+            const wordCount = text ? (text.match(/\b\w+\b/g) || []).length : 0;
+            const imageCount = images ? images.length : 0;
+            const imageTimeInMinutes = (imageCount * secondsPerImage) / 60;
+            
+            let minutesFloat = (wordCount / wordsPerMinute) + imageTimeInMinutes;
+            let minutes = Math.ceil(minutesFloat);
+            
+            if ((wordCount > 0 || imageCount > 0) && minutes < 1) minutes = 1;
+            if (wordCount === 0 && imageCount === 0) minutes = 0;
+            
+            return minutes;
+        },
+        
         init: function(root) {
             const scope = root || document;
             if (scope.closest && scope.closest('[data-bb-disable]')) return;
             const elements = scope.querySelectorAll(bbContents._attrSelector('reading-time'));
+            const self = this;
 
             elements.forEach(function(element) {
                 if (element.bbProcessed) return;
                 element.bbProcessed = true;
 
-                    const targetSelector = bbContents._getAttr(element, 'bb-reading-time-target');
+                const targetSelector = bbContents._getAttr(element, 'bb-reading-time-target');
                 const speedAttr = bbContents._getAttr(element, 'bb-reading-time-speed');
                 const imageSpeedAttr = bbContents._getAttr(element, 'bb-reading-time-image-speed');
                 const format = bbContents._getAttr(element, 'bb-reading-time-format') || '{minutes} min';
+                const urlAttr = bbContents._getAttr(element, 'bb-reading-time-url');
 
                 const wordsPerMinute = Number(speedAttr) > 0 ? Number(speedAttr) : 230;
                 const secondsPerImage = Number(imageSpeedAttr) > 0 ? Number(imageSpeedAttr) : 12;
                     
-                    // Validation des valeurs
-                    if (isNaN(wordsPerMinute) || wordsPerMinute <= 0) {
-                        bbContents.utils.log('Vitesse de lecture invalide, utilisation de la valeur par défaut (230)');
-                    }
-                    if (isNaN(secondsPerImage) || secondsPerImage < 0) {
-                        bbContents.utils.log('Temps par image invalide, utilisation de la valeur par défaut (12)');
-                    }
+                // Validation des valeurs
+                if (isNaN(wordsPerMinute) || wordsPerMinute <= 0) {
+                    bbContents.utils.log('Vitesse de lecture invalide, utilisation de la valeur par défaut (230)');
+                }
+                if (isNaN(secondsPerImage) || secondsPerImage < 0) {
+                    bbContents.utils.log('Temps par image invalide, utilisation de la valeur par défaut (12)');
+                }
 
+                // Détecter l'URL : priorité 1 = lien parent, priorité 2 = attribut
+                let articleUrl = null;
+                
+                // Priorité 1 : Chercher un lien parent
+                let linkElement = element.closest('a');
+                if (linkElement && linkElement.href) {
+                    articleUrl = linkElement.href;
+                }
+                
+                // Priorité 2 : Utiliser l'attribut si pas de lien trouvé
+                if (!articleUrl && urlAttr) {
+                    articleUrl = urlAttr;
+                    // Si l'URL est relative, la transformer en absolue
+                    if (articleUrl && !bbContents.utils.isValidUrl(articleUrl)) {
+                        articleUrl = new URL(articleUrl, window.location.origin).href;
+                    }
+                }
+                
+                // Si une URL est trouvée, faire un fetch
+                if (articleUrl && bbContents.utils.isValidUrl(articleUrl)) {
+                    // Afficher un état de chargement (optionnel, on peut laisser vide ou mettre "...")
+                    const originalText = element.textContent;
+                    
+                    self.fetchContentFromUrl(articleUrl)
+                        .then(function(data) {
+                            const minutes = self.calculateReadingTime(data.text, data.images, wordsPerMinute, secondsPerImage);
+                            const output = format.replace('{minutes}', String(minutes));
+                            element.textContent = output;
+                        })
+                        .catch(function(error) {
+                            bbContents.utils.log('Erreur lors de la récupération du contenu pour reading-time:', error);
+                            // En cas d'erreur, on affiche un message ou on laisse le contenu original
+                            element.textContent = originalText || '';
+                        });
+                    
+                    return; // Sortir de la fonction pour cet élément (traitement async)
+                }
+                
+                // Comportement par défaut : analyser le contenu de la page actuelle
                 let sourceNode = element;
                 if (targetSelector) {
                     const found = document.querySelector(targetSelector);
@@ -997,18 +1104,8 @@
                 }
 
                 const text = (sourceNode.textContent || '').trim();
-                const wordCount = text ? (text.match(/\b\w+\b/g) || []).length : 0;
-                
-                // Compter les images dans le contenu ciblé
                 const images = sourceNode.querySelectorAll('img');
-                const imageCount = images.length;
-                const imageTimeInMinutes = (imageCount * secondsPerImage) / 60;
-                
-                let minutesFloat = (wordCount / wordsPerMinute) + imageTimeInMinutes;
-                let minutes = Math.ceil(minutesFloat);
-
-                if ((wordCount > 0 || imageCount > 0) && minutes < 1) minutes = 1; // affichage minimal 1 min si contenu non vide
-                if (wordCount === 0 && imageCount === 0) minutes = 0;
+                const minutes = self.calculateReadingTime(text, images, wordsPerMinute, secondsPerImage);
 
                 const output = format.replace('{minutes}', String(minutes));
                 element.textContent = output;
