@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.116
+ * @version 1.0.117
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.116');
+    console.log('bb-contents | v1.0.117');
 
     // Configuration
     const config = {
-        version: '1.0.116',
+        version: '1.0.117',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -413,9 +413,9 @@
                     const originalHeight = img.style.height;
                     
                     img.onload = () => {
-                        // SOLUTION MOBILE SAFARI : Pour les SVG sur mobile Safari, utiliser contain avec optimisations
-                        if (isSVG && isMobile && isSafari) {
-                            // SUR SAFARI MOBILE : Utiliser contain MAIS avec des optimisations pour éviter le flou
+                        // SOLUTION SAFARI : Pour les SVG sur Safari (desktop et mobile), utiliser contain avec optimisations
+                        if (isSVG && isSafari) {
+                            // SUR SAFARI : Utiliser contain MAIS avec des optimisations pour éviter le flou
                             img.style.objectFit = 'contain';
                             img.style.objectPosition = 'center';
                             
@@ -467,8 +467,38 @@
                                 parent.style.overflow = 'hidden';
                                 parent.style.boxSizing = 'border-box';
                             }
+                        } else if (isSafari) {
+                            // SUR SAFARI : Optimisations GPU et dimensions pour toutes les images
+                            // Restaurer les styles CSS après chargement pour les non-SVG
+                            if (originalObjectFit && originalObjectFit !== 'none') {
+                                img.style.objectFit = originalObjectFit;
+                            }
+                            if (originalObjectPosition && originalObjectPosition !== 'initial') {
+                                img.style.objectPosition = originalObjectPosition;
+                            }
+                            
+                            // Préserver les dimensions naturelles des images
+                            if (!originalWidth || originalWidth === '') {
+                                img.style.width = 'auto';
+                            }
+                            if (!originalHeight || originalHeight === '') {
+                                img.style.height = 'auto';
+                            }
+                            
+                            // Optimisations GPU pour Safari (desktop et mobile)
+                            img.style.webkitBackfaceVisibility = 'hidden';
+                            img.style.backfaceVisibility = 'hidden';
+                            img.style.webkitTransform = 'translateZ(0)';
+                            img.style.transform = 'translateZ(0)';
+                            
+                            // Conteneur parent pour contraindre
+                            const parent = img.parentElement;
+                            if (parent) {
+                                parent.style.overflow = 'hidden';
+                                parent.style.boxSizing = 'border-box';
+                            }
                         } else {
-                            // OPTIMISATION: Restaurer les styles CSS après chargement pour les non-SVG
+                            // OPTIMISATION: Restaurer les styles CSS après chargement pour les non-SVG (autres navigateurs)
                             if (originalObjectFit && originalObjectFit !== 'none') {
                                 img.style.objectFit = originalObjectFit;
                             }
