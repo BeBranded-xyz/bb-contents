@@ -967,7 +967,7 @@
         },
         
         // Fonction pour extraire le texte et les images depuis une URL
-        fetchContentFromUrl: function(url) {
+        fetchContentFromUrl: function(url, targetSelector) {
             return fetch(url)
                 .then(function(response) {
                     if (!response.ok) {
@@ -980,26 +980,34 @@
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
                     
-                    // Sélecteurs communs pour le contenu principal d'un article
-                    const contentSelectors = [
-                        'article',
-                        '[role="article"]',
-                        '.blog-post-content',
-                        '.post-content',
-                        '.article-content',
-                        '.content',
-                        'main article',
-                        'main .w-dyn-bind-empty', // Webflow CMS content
-                        'main .w-richtext' // Webflow rich text
-                    ];
-                    
                     let contentNode = null;
-                    for (let i = 0; i < contentSelectors.length; i++) {
-                        contentNode = doc.querySelector(contentSelectors[i]);
-                        if (contentNode) break;
+                    
+                    // Priorité 1 : Utiliser le targetSelector si fourni
+                    if (targetSelector) {
+                        contentNode = doc.querySelector(targetSelector);
                     }
                     
-                    // Si aucun sélecteur ne fonctionne, utiliser le body (fallback)
+                    // Priorité 2 : Si aucun targetSelector ou rien trouvé, utiliser les sélecteurs génériques
+                    if (!contentNode) {
+                        const contentSelectors = [
+                            'article',
+                            '[role="article"]',
+                            '.blog-post-content',
+                            '.post-content',
+                            '.article-content',
+                            '.content',
+                            'main article',
+                            'main .w-dyn-bind-empty', // Webflow CMS content
+                            'main .w-richtext' // Webflow rich text
+                        ];
+                        
+                        for (let i = 0; i < contentSelectors.length; i++) {
+                            contentNode = doc.querySelector(contentSelectors[i]);
+                            if (contentNode) break;
+                        }
+                    }
+                    
+                    // Fallback final : utiliser le body
                     if (!contentNode) {
                         contentNode = doc.body;
                     }
@@ -1081,7 +1089,7 @@
                     // Afficher un état de chargement (optionnel, on peut laisser vide ou mettre "...")
                     const originalText = element.textContent;
                     
-                    self.fetchContentFromUrl(articleUrl)
+                    self.fetchContentFromUrl(articleUrl, targetSelector)
                         .then(function(data) {
                             const minutes = self.calculateReadingTime(data.text, data.images, wordsPerMinute, secondsPerImage);
                             const output = format.replace('{minutes}', String(minutes));
