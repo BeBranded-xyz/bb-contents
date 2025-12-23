@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.117
+ * @version 1.0.118
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.117');
+    console.log('bb-contents | v1.0.118');
 
     // Configuration
     const config = {
-        version: '1.0.117',
+        version: '1.0.118',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -419,9 +419,7 @@
                             img.style.objectFit = 'contain';
                             img.style.objectPosition = 'center';
                             
-                            // Dimensions avec contraintes pour forcer contain
-                            img.style.width = '100%';
-                            img.style.height = '100%';
+                            // Contraindre les dimensions sans forcer (max-width/max-height au lieu de width/height 100%)
                             img.style.maxWidth = '100%';
                             img.style.maxHeight = '100%';
                             img.style.boxSizing = 'border-box';
@@ -436,18 +434,23 @@
                             img.style.webkitTransform = 'translateZ(0)';
                             img.style.transform = 'translateZ(0)';
                             
-                            // Conteneur parent pour contraindre et centrer
+                            // Conteneur parent pour contraindre et centrer (sans forcer les dimensions)
                             const parent = img.parentElement;
                             if (parent) {
+                                // Vérifier si le parent a déjà des dimensions définies
+                                const parentStyles = getComputedStyle(parent);
+                                const hasParentWidth = parentStyles.width && parentStyles.width !== 'auto' && parentStyles.width !== '0px';
+                                const hasParentHeight = parentStyles.height && parentStyles.height !== 'auto' && parentStyles.height !== '0px';
+                                
                                 parent.style.display = 'flex';
                                 parent.style.alignItems = 'center';
                                 parent.style.justifyContent = 'center';
                                 parent.style.overflow = 'hidden';
                                 parent.style.boxSizing = 'border-box';
                                 
-                                // S'assurer que le parent a des dimensions
-                                if (!parent.style.width) parent.style.width = '100%';
-                                if (!parent.style.height) parent.style.height = '100%';
+                                // Ne forcer les dimensions que si le parent n'en a pas déjà
+                                if (!hasParentWidth && !parent.style.width) parent.style.width = '100%';
+                                if (!hasParentHeight && !parent.style.height) parent.style.height = '100%';
                             }
                         } else if (isSVG && isMobile) {
                             // Pour Chrome mobile, utiliser contain normalement
