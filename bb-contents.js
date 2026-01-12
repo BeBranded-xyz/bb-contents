@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.120
+ * @version 1.0.121
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.120');
+    console.log('bb-contents | v1.0.121');
 
     // Configuration
     const config = {
-        version: '1.0.120',
+        version: '1.0.121',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1139,36 +1139,35 @@
                 }
                 
                 // Comportement par défaut : analyser le contenu de la page actuelle
-                let sourceNode = null;
+                let sourceNodes = [];
 
                 if (targetSelector) {
-                    sourceNode = document.querySelector(targetSelector);
-                    if (!sourceNode) {
-                        console.warn('bb-reading-time: sélecteur non trouvé:', targetSelector);
-                        sourceNode = element;
+                    // Utiliser querySelectorAll pour récupérer TOUS les éléments correspondants
+                    const foundNodes = document.querySelectorAll(targetSelector);
+                    if (foundNodes.length === 0) {
+                        sourceNodes = [element];
+                    } else {
+                        sourceNodes = Array.from(foundNodes);
                     }
                 } else {
-                    sourceNode = element;
+                    sourceNodes = [element];
                 }
 
-                const text = (sourceNode.textContent || '').trim();
-                const images = sourceNode.querySelectorAll('img');
+                // Additionner le texte et les images de tous les éléments trouvés
+                let totalText = '';
+                let totalImages = [];
 
-                // Debug pour comprendre le problème
-                const wordCount = text ? text.trim().split(/\s+/).filter(function(word) { return word.length > 0; }).length : 0;
-                console.log('bb-reading-time DEBUG:', {
-                    selector: targetSelector,
-                    sourceNodeFound: !!sourceNode,
-                    sourceNodeTag: sourceNode ? sourceNode.tagName : 'null',
-                    sourceNodeClass: sourceNode ? (sourceNode.className || sourceNode.id || 'no class/id') : 'null',
-                    textLength: text.length,
-                    textPreview: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-                    wordCount: wordCount,
-                    imageCount: images.length,
-                    wordsPerMinute: wordsPerMinute,
-                    secondsPerImage: secondsPerImage,
-                    calculatedMinutes: Math.ceil((wordCount / wordsPerMinute) + (images.length * secondsPerImage / 60))
+                sourceNodes.forEach(function(node) {
+                    const nodeText = (node.textContent || '').trim();
+                    if (nodeText) {
+                        totalText += (totalText ? ' ' : '') + nodeText;
+                    }
+                    const nodeImages = node.querySelectorAll('img');
+                    totalImages = totalImages.concat(Array.from(nodeImages));
                 });
+
+                const text = totalText.trim();
+                const images = totalImages;
 
                 const minutes = self.calculateReadingTime(text, images, wordsPerMinute, secondsPerImage);
 
