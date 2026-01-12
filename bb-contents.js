@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.118
+ * @version 1.0.119
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.118');
+    console.log('bb-contents | v1.0.119');
 
     // Configuration
     const config = {
-        version: '1.0.118',
+        version: '1.0.119',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1059,7 +1059,8 @@
         
         // Fonction pour calculer le temps de lecture
         calculateReadingTime: function(text, images, wordsPerMinute, secondsPerImage) {
-            const wordCount = text ? (text.match(/\b\w+\b/g) || []).length : 0;
+            // Utiliser split(/\s+/) pour un comptage plus fiable (comme le code de référence)
+            const wordCount = text ? text.trim().split(/\s+/).filter(function(word) { return word.length > 0; }).length : 0;
             const imageCount = images ? images.length : 0;
             const imageTimeInMinutes = (imageCount * secondsPerImage) / 60;
             
@@ -1088,15 +1089,15 @@
                 const format = bbContents._getAttr(element, 'bb-reading-time-format') || '{minutes} min';
                 const urlAttr = bbContents._getAttr(element, 'bb-reading-time-url');
 
-                const wordsPerMinute = Number(speedAttr) > 0 ? Number(speedAttr) : 230;
-                const secondsPerImage = Number(imageSpeedAttr) > 0 ? Number(imageSpeedAttr) : 12;
-                    
-                // Validation des valeurs
+                // Validation et correction des valeurs
+                let wordsPerMinute = Number(speedAttr);
                 if (isNaN(wordsPerMinute) || wordsPerMinute <= 0) {
-                    bbContents.utils.log('Vitesse de lecture invalide, utilisation de la valeur par défaut (230)');
+                    wordsPerMinute = 230;
                 }
+                
+                let secondsPerImage = Number(imageSpeedAttr);
                 if (isNaN(secondsPerImage) || secondsPerImage < 0) {
-                    bbContents.utils.log('Temps par image invalide, utilisation de la valeur par défaut (12)');
+                    secondsPerImage = 12;
                 }
 
                 // Détecter l'URL : priorité 1 = lien parent, priorité 2 = attribut
