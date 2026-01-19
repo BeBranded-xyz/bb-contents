@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.121
+ * @version 1.0.122
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.121');
+    console.log('bb-contents | v1.0.122');
 
     // Configuration
     const config = {
-        version: '1.0.121',
+        version: '1.0.122',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -310,6 +310,42 @@
 
                     const mainBlock = document.createElement('div');
                     mainBlock.innerHTML = originalHTML;
+                    
+                    // Permettre le retour à la ligne pour le texte dans les items du marquee
+                    // Le white-space: nowrap sur le conteneur flex empêche les items de se retourner,
+                    // mais ne doit pas empêcher le texte à l'intérieur des items de faire plusieurs lignes
+                    if (!isVertical) {
+                        setTimeout(() => {
+                            const marqueeItems = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"]');
+                            marqueeItems.forEach(item => {
+                                // Préserver la largeur de l'item définie dans Webflow
+                                const computedStyle = getComputedStyle(item);
+                                const itemWidth = computedStyle.width;
+                                if (itemWidth && itemWidth !== 'auto' && itemWidth !== '0px') {
+                                    item.style.minWidth = itemWidth;
+                                    item.style.width = itemWidth;
+                                }
+                                
+                                // Permettre le retour à la ligne pour les conteneurs de texte
+                                const textContainers = item.querySelectorAll('.use-case_client, .testimonial_client-info, [class*="text"], p, span');
+                                textContainers.forEach(container => {
+                                    const containerComputed = getComputedStyle(container);
+                                    // Si l'élément a une largeur définie, la préserver
+                                    if (containerComputed.width && containerComputed.width !== 'auto' && containerComputed.width !== '0px') {
+                                        container.style.width = containerComputed.width;
+                                    } else {
+                                        // Sinon, prendre 100% de la largeur du parent
+                                        container.style.width = '100%';
+                                    }
+                                    // Forcer le retour à la ligne
+                                    container.style.whiteSpace = 'normal';
+                                    container.style.wordWrap = 'break-word';
+                                    container.style.overflowWrap = 'break-word';
+                                });
+                            });
+                        }, 0);
+                    }
+                    
                     mainBlock.style.cssText = `
                         display: flex;
                         ${isVertical ? 'flex-direction: column;' : ''}
