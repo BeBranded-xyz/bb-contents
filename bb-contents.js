@@ -134,7 +134,6 @@
                     try {
                         module.init(scope);
                     } catch (error) {
-                        console.error('[BB Contents] Erreur dans le module', moduleName, error);
                         // Continuer avec les autres modules même si un échoue
                     }
                 }
@@ -603,7 +602,6 @@
                     } else if (waitTimeout >= maxWaitTime) {
                         // Timeout atteint : forcer le démarrage mais c'est un fallback
                         if (bbContents.config.debug) {
-                            console.warn('[MARQUEE] Timeout atteint, certaines images peuvent ne pas être chargées');
                         }
                         const renderDelay = isSafari && isMobile ? 1500 : (isMobile ? 1000 : 200);
                         setTimeout(() => {
