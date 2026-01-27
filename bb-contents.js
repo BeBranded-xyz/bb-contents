@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.123
+ * @version 1.0.124
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.123');
+    console.log('bb-contents | v1.0.124');
 
     // Configuration
     const config = {
-        version: '1.0.123',
+        version: '1.0.124',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1261,7 +1261,6 @@
                 elements.forEach(function(element) {
                     if (element.bbProcessed || element.hasAttribute('data-bb-country-select-processed')) return;
                     if (element.tagName !== 'SELECT') {
-                        bbContents.utils.log('bb-country-select doit être utilisé sur un élément <select>');
                         return;
                     }
                     element.bbProcessed = true;
@@ -1291,11 +1290,21 @@
                         defaultCountry = self.findCountry(element.value);
                     }
                     
-                    // Trier les pays : préférés en haut
+                    // Trier les pays : préférés en haut dans l'ordre exact spécifié
                     let sortedCountries = self.countries.slice();
                     if (preferredCountries.length > 0) {
-                        sortedCountries = sortedCountries.filter(function(c) {
-                            return preferredCountries.indexOf(c.alpha2) !== -1;
+                        // Créer un map pour l'ordre des préférés
+                        const preferredOrder = {};
+                        preferredCountries.forEach(function(code, index) {
+                            preferredOrder[code] = index;
+                        });
+                        // Trier : préférés dans l'ordre exact, puis les autres
+                        sortedCountries = preferredCountries.map(function(code) {
+                            return self.countries.find(function(c) {
+                                return c.alpha2 === code;
+                            });
+                        }).filter(function(c) {
+                            return c !== undefined;
                         }).concat(sortedCountries.filter(function(c) {
                             return preferredCountries.indexOf(c.alpha2) === -1;
                         }));
@@ -1326,6 +1335,9 @@
                     
                     trigger.innerHTML = '<div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;"><span class="bb-country-flag" style="flex-shrink: 0;">' + selectedFlag + '</span><span class="bb-country-name" style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + bbContents.utils.sanitize(selectedName) + '</span></div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink: 0; transition: transform 0.2s;"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                     trigger.style.cssText = 'display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; font-size: inherit; font-family: inherit; color: inherit; transition: border-color 0.2s; box-sizing: border-box;';
+                    
+                    // Variable pour stocker le pays sélectionné (pour chaque instance)
+                    let currentSelectedCountry = defaultCountry;
                     
                     // Créer le popover
                     const popover = document.createElement('div');
@@ -1364,7 +1376,7 @@
                         }
                         
                         list.innerHTML = countries.map(function(country) {
-                            const isSelected = selectedCountry && selectedCountry.alpha2 === country.alpha2;
+                            const isSelected = currentSelectedCountry && currentSelectedCountry.alpha2 === country.alpha2;
                             return '<div class="bb-country-item" data-country="' + country.alpha2 + '" role="option" aria-selected="' + (isSelected ? 'true' : 'false') + '" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; font-size: inherit; font-family: inherit; transition: background-color 0.15s;' + (isSelected ? ' background-color: #f3f4f6;' : '') + '"><img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;"><span>' + bbContents.utils.sanitize(country.name[language]) + '</span></div>';
                         }).join('');
                         
@@ -1453,12 +1465,28 @@
                         });
                         if (!country) return;
                         
+                        // Mettre à jour le pays sélectionné
+                        currentSelectedCountry = country;
+                        
                         // Mettre à jour l'affichage
                         flagSpan.innerHTML = '<img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">';
                         nameSpan.textContent = country.name[language];
                         
-                        // Mettre à jour le select natif
-                        element.value = country.alpha2;
+                        // Mettre à jour le select natif avec le nom du pays (pas le code ISO)
+                        const countryName = country.name[language];
+                        element.value = countryName;
+                        // Mettre aussi le texte de l'option
+                        const existingOption = Array.from(element.options).find(function(opt) {
+                            return opt.value === countryName;
+                        });
+                        if (!existingOption) {
+                            // Créer l'option si elle n'existe pas
+                            const newOption = document.createElement('option');
+                            newOption.value = countryName;
+                            newOption.textContent = countryName;
+                            element.innerHTML = '';
+                            element.appendChild(newOption);
+                        }
                         const changeEvent = new Event('change', { bubbles: true });
                         element.dispatchEvent(changeEvent);
                         
@@ -1478,7 +1506,6 @@
                     wrapper.setAttribute('data-bb-country-select-processed', 'true');
                 });
                 
-                bbContents.utils.log('Module CountrySelect initialisé:', elements.length, 'éléments');
             }
         },
 
