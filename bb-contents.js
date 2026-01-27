@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.125
+ * @version 1.0.126
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.125');
+    console.log('bb-contents | v1.0.126');
 
     // Configuration
     const config = {
-        version: '1.0.125',
+        version: '1.0.126',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1288,24 +1288,39 @@
                         defaultCountry = self.findCountry(element.value);
                     }
                     
-                    // Trier les pays : préférés en haut dans l'ordre exact spécifié
+                    // Trier les pays : préférés en haut dans l'ordre exact spécifié, puis les autres par ordre alphabétique
                     let sortedCountries = self.countries.slice();
                     if (preferredCountries.length > 0) {
-                        // Créer un map pour l'ordre des préférés
-                        const preferredOrder = {};
-                        preferredCountries.forEach(function(code, index) {
-                            preferredOrder[code] = index;
-                        });
-                        // Trier : préférés dans l'ordre exact, puis les autres
-                        sortedCountries = preferredCountries.map(function(code) {
+                        // Pays préférés dans l'ordre exact spécifié
+                        const preferred = preferredCountries.map(function(code) {
                             return self.countries.find(function(c) {
                                 return c.alpha2 === code;
                             });
                         }).filter(function(c) {
                             return c !== undefined;
-                        }).concat(sortedCountries.filter(function(c) {
+                        });
+                        
+                        // Pays non-préférés triés par ordre alphabétique
+                        const others = sortedCountries.filter(function(c) {
                             return preferredCountries.indexOf(c.alpha2) === -1;
-                        }));
+                        }).sort(function(a, b) {
+                            const nameA = a.name[language].toLowerCase();
+                            const nameB = b.name[language].toLowerCase();
+                            if (nameA < nameB) return -1;
+                            if (nameA > nameB) return 1;
+                            return 0;
+                        });
+                        
+                        sortedCountries = preferred.concat(others);
+                    } else {
+                        // Tous les pays par ordre alphabétique si pas de préférés
+                        sortedCountries = sortedCountries.sort(function(a, b) {
+                            const nameA = a.name[language].toLowerCase();
+                            const nameB = b.name[language].toLowerCase();
+                            if (nameA < nameB) return -1;
+                            if (nameA > nameB) return 1;
+                            return 0;
+                        });
                     }
                     
                     // Créer le wrapper
