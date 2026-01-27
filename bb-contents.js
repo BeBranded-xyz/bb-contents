@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.129
+ * @version 1.0.130
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.129');
+    console.log('bb-contents | v1.0.130');
 
     // Configuration
     const config = {
-        version: '1.0.129',
+        version: '1.0.130',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1427,7 +1427,7 @@
                     // Liste des pays
                     const list = document.createElement('div');
                     list.className = 'bb-country-list';
-                    list.style.cssText = 'overflow-y: auto; max-height: 250px;';
+                    list.style.cssText = 'overflow-y: auto; max-height: 250px; padding-bottom: 4px;';
                     popover.appendChild(list);
                     
                     // Fonction pour rendre la liste
@@ -1441,7 +1441,7 @@
                         
                         list.innerHTML = countries.map(function(country) {
                             const isSelected = currentSelectedCountry && currentSelectedCountry.alpha2 === country.alpha2;
-                            return '<div class="bb-country-item" data-country="' + country.alpha2 + '" role="option" aria-selected="' + (isSelected ? 'true' : 'false') + '" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; font-size: inherit; font-family: inherit; transition: background-color 0.15s;' + (isSelected ? ' background-color: #f3f4f6;' : '') + '"><img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;"><span>' + bbContents.utils.sanitize(country.name[language]) + '</span></div>';
+                            return '<div class="bb-country-item" data-country="' + country.alpha2 + '" role="option" aria-selected="' + (isSelected ? 'true' : 'false') + '" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; font-size: inherit; font-family: inherit; transition: background-color 0.15s; min-height: 36px; box-sizing: border-box;' + (isSelected ? ' background-color: #f3f4f6;' : '') + '"><img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;"><span style="line-height: 1.2;">' + bbContents.utils.sanitize(country.name[language]) + '</span></div>';
                         }).join('');
                         
                         // Ajouter hover effect
