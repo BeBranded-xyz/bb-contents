@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.130
+ * @version 1.0.131
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.130');
+    console.log('bb-contents | v1.0.131');
 
     // Configuration
     const config = {
-        version: '1.0.130',
+        version: '1.0.131',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1427,7 +1427,7 @@
                     // Liste des pays
                     const list = document.createElement('div');
                     list.className = 'bb-country-list';
-                    list.style.cssText = 'overflow-y: auto; max-height: 250px; padding-bottom: 4px;';
+                    list.style.cssText = 'overflow-y: auto; max-height: 250px; padding-bottom: 8px;';
                     popover.appendChild(list);
                     
                     // Fonction pour rendre la liste
@@ -1478,6 +1478,22 @@
                     trigger.addEventListener('click', function(e) {
                         e.stopPropagation();
                         const isOpen = popover.style.display === 'block';
+                        
+                        // Fermer tous les autres dropdowns avant d'ouvrir celui-ci
+                        if (!isOpen) {
+                            document.querySelectorAll('.bb-country-select-popover').forEach(function(otherPopover) {
+                                if (otherPopover !== popover && otherPopover.style.display === 'block') {
+                                    otherPopover.style.display = 'none';
+                                    const otherTrigger = otherPopover.parentElement.querySelector('.bb-country-select-trigger');
+                                    if (otherTrigger) {
+                                        otherTrigger.setAttribute('aria-expanded', 'false');
+                                        const otherChevron = otherTrigger.querySelector('svg');
+                                        if (otherChevron) otherChevron.style.transform = 'rotate(0deg)';
+                                    }
+                                }
+                            });
+                        }
+                        
                         popover.style.display = isOpen ? 'none' : 'block';
                         trigger.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
                         if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
