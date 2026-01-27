@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.127
+ * @version 1.0.128
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.127');
+    console.log('bb-contents | v1.0.128');
 
     // Configuration
     const config = {
-        version: '1.0.127',
+        version: '1.0.128',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1286,6 +1286,23 @@
                         defaultCountry = self.findCountry(defaultAttr.trim());
                     } else if (element.value) {
                         defaultCountry = self.findCountry(element.value);
+                    }
+                    
+                    // Si un pays par défaut est défini, mettre à jour le select natif immédiatement
+                    if (defaultCountry) {
+                        const countryName = defaultCountry.name[language];
+                        // Créer l'option si elle n'existe pas
+                        const existingOption = Array.from(element.options).find(function(opt) {
+                            return opt.value === countryName;
+                        });
+                        if (!existingOption) {
+                            const newOption = document.createElement('option');
+                            newOption.value = countryName;
+                            newOption.textContent = countryName;
+                            element.appendChild(newOption);
+                        }
+                        // Définir la valeur du select
+                        element.value = countryName;
                     }
                     
                     // Trier les pays : préférés en haut dans l'ordre exact spécifié, puis les autres par ordre alphabétique
