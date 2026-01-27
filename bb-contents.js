@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.128
+ * @version 1.0.129
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.128');
+    console.log('bb-contents | v1.0.129');
 
     // Configuration
     const config = {
-        version: '1.0.128',
+        version: '1.0.129',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1317,26 +1317,26 @@
                             return c !== undefined;
                         });
                         
-                        // Pays non-préférés triés par ordre alphabétique
+                        // Pays non-préférés triés par ordre alphabétique (avec gestion des accents)
                         const others = sortedCountries.filter(function(c) {
                             return preferredCountries.indexOf(c.alpha2) === -1;
                         }).sort(function(a, b) {
-                            const nameA = a.name[language].toLowerCase();
-                            const nameB = b.name[language].toLowerCase();
-                            if (nameA < nameB) return -1;
-                            if (nameA > nameB) return 1;
-                            return 0;
+                            return a.name[language].localeCompare(b.name[language], language === 'fr' ? 'fr' : 'en', { 
+                                sensitivity: 'base',
+                                ignorePunctuation: true,
+                                numeric: true
+                            });
                         });
                         
                         sortedCountries = preferred.concat(others);
                     } else {
-                        // Tous les pays par ordre alphabétique si pas de préférés
+                        // Tous les pays par ordre alphabétique si pas de préférés (avec gestion des accents)
                         sortedCountries = sortedCountries.sort(function(a, b) {
-                            const nameA = a.name[language].toLowerCase();
-                            const nameB = b.name[language].toLowerCase();
-                            if (nameA < nameB) return -1;
-                            if (nameA > nameB) return 1;
-                            return 0;
+                            return a.name[language].localeCompare(b.name[language], language === 'fr' ? 'fr' : 'en', { 
+                                sensitivity: 'base',
+                                ignorePunctuation: true,
+                                numeric: true
+                            });
                         });
                     }
                     
