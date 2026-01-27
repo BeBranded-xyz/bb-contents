@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.126
+ * @version 1.0.127
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.126');
+    console.log('bb-contents | v1.0.127');
 
     // Configuration
     const config = {
-        version: '1.0.126',
+        version: '1.0.127',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1323,10 +1323,30 @@
                         });
                     }
                     
-                    // Créer le wrapper
+                    // Récupérer les dimensions du select natif avant de le masquer
+                    const selectComputedStyle = window.getComputedStyle(element);
+                    const selectWidth = element.offsetWidth || parseFloat(selectComputedStyle.width) || 'auto';
+                    const selectHeight = element.offsetHeight || parseFloat(selectComputedStyle.height) || 'auto';
+                    const selectMinWidth = selectComputedStyle.minWidth !== 'none' ? selectComputedStyle.minWidth : null;
+                    const selectMaxWidth = selectComputedStyle.maxWidth !== 'none' ? selectComputedStyle.maxWidth : null;
+                    const selectMinHeight = selectComputedStyle.minHeight !== 'none' ? selectComputedStyle.minHeight : null;
+                    const selectMaxHeight = selectComputedStyle.maxHeight !== 'none' ? selectComputedStyle.maxHeight : null;
+                    
+                    // Créer le wrapper avec les dimensions du select
                     const wrapper = document.createElement('div');
                     wrapper.className = 'bb-country-select-wrapper';
-                    wrapper.style.cssText = 'position: relative; width: 100%;';
+                    let wrapperStyle = 'position: relative;';
+                    if (selectWidth !== 'auto' && selectWidth > 0) {
+                        wrapperStyle += ' width: ' + selectWidth + 'px;';
+                    }
+                    if (selectHeight !== 'auto' && selectHeight > 0) {
+                        wrapperStyle += ' min-height: ' + selectHeight + 'px;';
+                    }
+                    if (selectMinWidth) wrapperStyle += ' min-width: ' + selectMinWidth + ';';
+                    if (selectMaxWidth) wrapperStyle += ' max-width: ' + selectMaxWidth + ';';
+                    if (selectMinHeight) wrapperStyle += ' min-height: ' + selectMinHeight + ';';
+                    if (selectMaxHeight) wrapperStyle += ' max-height: ' + selectMaxHeight + ';';
+                    wrapper.style.cssText = wrapperStyle;
                     
                     // Masquer le select natif mais le garder fonctionnel
                     const selectStyle = element.style.cssText || '';
@@ -1347,7 +1367,21 @@
                         '';
                     
                     trigger.innerHTML = '<div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;"><span class="bb-country-flag" style="flex-shrink: 0;">' + selectedFlag + '</span><span class="bb-country-name" style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + bbContents.utils.sanitize(selectedName) + '</span></div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink: 0; transition: transform 0.2s;"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-                    trigger.style.cssText = 'display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; font-size: inherit; font-family: inherit; color: inherit; transition: border-color 0.2s; box-sizing: border-box;';
+                    let triggerStyle = 'display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; font-size: inherit; font-family: inherit; color: inherit; transition: border-color 0.2s; box-sizing: border-box;';
+                    // Utiliser les dimensions du select natif
+                    if (selectWidth !== 'auto' && selectWidth > 0) {
+                        triggerStyle += ' width: ' + selectWidth + 'px;';
+                    } else {
+                        triggerStyle += ' width: 100%;';
+                    }
+                    if (selectHeight !== 'auto' && selectHeight > 0) {
+                        triggerStyle += ' height: ' + selectHeight + 'px;';
+                    }
+                    if (selectMinWidth) triggerStyle += ' min-width: ' + selectMinWidth + ';';
+                    if (selectMaxWidth) triggerStyle += ' max-width: ' + selectMaxWidth + ';';
+                    if (selectMinHeight) triggerStyle += ' min-height: ' + selectMinHeight + ';';
+                    if (selectMaxHeight) triggerStyle += ' max-height: ' + selectMaxHeight + ';';
+                    trigger.style.cssText = triggerStyle;
                     
                     // Variable pour stocker le pays sélectionné (pour chaque instance)
                     let currentSelectedCountry = defaultCountry;
