@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.136
+ * @version 1.0.137
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.136');
+    console.log('bb-contents | v1.0.137');
 
     // Configuration
     const config = {
-        version: '1.0.136',
+        version: '1.0.137',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -394,10 +394,50 @@
                     const repeatBlock1 = mainBlock.cloneNode(true);
                     const repeatBlock2 = mainBlock.cloneNode(true);
                     
-                    scrollContainer.appendChild(mainBlock);
-                    scrollContainer.appendChild(repeatBlock1);
-                    scrollContainer.appendChild(repeatBlock2);
-                    mainContainer.appendChild(scrollContainer);
+                    // Pour les marquees horizontaux, calculer la hauteur avant de mettre en absolute
+                    if (!isVertical) {
+                        // Temporairement mettre scrollContainer en relative pour calculer la hauteur
+                        scrollContainer.style.position = 'relative';
+                        scrollContainer.appendChild(mainBlock);
+                        scrollContainer.appendChild(repeatBlock1);
+                        scrollContainer.appendChild(repeatBlock2);
+                        mainContainer.appendChild(scrollContainer);
+                        
+                        // Forcer un reflow pour calculer les dimensions
+                        void scrollContainer.offsetHeight;
+                        
+                        // Calculer la hauteur maximale des items
+                        const items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"], > *');
+                        let maxHeight = 0;
+                        items.forEach(function(item) {
+                            const itemHeight = item.offsetHeight;
+                            if (itemHeight > maxHeight) {
+                                maxHeight = itemHeight;
+                            }
+                        });
+                        
+                        // Si aucun item trouvé, essayer de prendre la hauteur du scrollContainer
+                        if (maxHeight === 0) {
+                            maxHeight = scrollContainer.offsetHeight;
+                        }
+                        
+                        // Appliquer la hauteur calculée au mainContainer si elle est valide
+                        if (maxHeight > 0) {
+                            mainContainer.style.height = maxHeight + 'px';
+                        }
+                        
+                        // Maintenant mettre scrollContainer en absolute
+                        scrollContainer.style.position = 'absolute';
+                        scrollContainer.style.height = '100%';
+                        scrollContainer.style.top = '0px';
+                        scrollContainer.style.left = '0px';
+                    } else {
+                        // Pour vertical, garder le comportement actuel
+                        scrollContainer.appendChild(mainBlock);
+                        scrollContainer.appendChild(repeatBlock1);
+                        scrollContainer.appendChild(repeatBlock2);
+                        mainContainer.appendChild(scrollContainer);
+                    }
                     
                     element.innerHTML = '';
                     element.appendChild(mainContainer);
