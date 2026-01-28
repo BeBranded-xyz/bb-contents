@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.142
+ * @version 1.0.143
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.142');
+    console.log('bb-contents | v1.0.143');
 
     // Configuration
     const config = {
-        version: '1.0.142',
+        version: '1.0.143',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -780,11 +780,13 @@
                     }
 
                     // Position initiale optimisée pour Safari
+                    // Pour direction left, commencer à -(finalContentSize + gapSize) pour que repeatBlock1 soit déjà visible
                     let currentPosition;
                     if (direction === (isVertical ? 'bottom' : 'right')) {
                         currentPosition = -(finalContentSize + gapSize);
-            } else {
-                        currentPosition = 0;
+                    } else {
+                        // Commencer avec repeatBlock1 déjà visible pour éviter la saccade
+                        currentPosition = -(finalContentSize + gapSize);
                     }
 
                     // Forcer la position initiale pour éviter l'invisibilité
@@ -861,11 +863,14 @@
                 let isPaused = false;
                 
                 // Position initiale
+                // Pour direction left, commencer à -(contentSize + gapSize) pour que repeatBlock1 soit déjà visible
+                // Cela évite la saccade au premier cycle
                 let currentPosition;
                 if (direction === (isVertical ? 'bottom' : 'right')) {
                     currentPosition = -(contentSize + gapSize);
                 } else {
-                    currentPosition = 0;
+                    // Commencer avec repeatBlock1 déjà visible pour éviter la saccade
+                    currentPosition = -(contentSize + gapSize);
                 }
 
                 // Ajuster la taille du conteneur
@@ -888,11 +893,15 @@
                         
                         if (direction === (isVertical ? 'bottom' : 'right')) {
                             currentPosition += step * clampedDelta;
+                            // Reset AVANT que le bloc ne sorte complètement pour éviter la saccade
                             if (currentPosition >= 0) {
                                 currentPosition = -(contentSize + gapSize);
                             }
                         } else {
                             currentPosition -= step * clampedDelta;
+                            // Reset AVANT que le bloc ne sorte complètement
+                            // Reset quand on arrive à -(2 * (contentSize + gapSize)) pour que repeatBlock2 soit déjà visible
+                            // Mais on reset à -(contentSize + gapSize) pour que repeatBlock1 soit déjà visible
                             if (currentPosition <= -(2 * (contentSize + gapSize))) {
                                 currentPosition = -(contentSize + gapSize);
                             }
