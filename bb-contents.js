@@ -32,7 +32,7 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.151');
+    console.log('bb-contents | v1.0.152');
 
     // Configuration
     const config = {
@@ -320,11 +320,16 @@
                     const isVertical = orientation === 'vertical';
                     const useAutoHeight = isVertical && height === 'auto';
                     
+                    // Vérifier le overflow du parent pour respecter overflow: visible
+                    const parentComputedStyle = getComputedStyle(element);
+                    const parentOverflow = parentComputedStyle.overflow;
+                    const shouldHideOverflow = parentOverflow !== 'visible' && parentOverflow !== '';
+                    
                     mainContainer.style.cssText = `
                         position: relative;
                         width: 100%;
                         height: ${isVertical ? (height === 'auto' ? 'auto' : height + 'px') : 'auto'};
-                        overflow: hidden;
+                        ${shouldHideOverflow ? 'overflow: hidden;' : 'overflow: visible;'}
                         min-height: auto;
                         ${minHeight ? `min-height: ${minHeight};` : ''}
                     `;
@@ -451,20 +456,47 @@
                                 }
                                 
                                 // Permettre le retour à la ligne pour les conteneurs de texte
+                                // Ne pas toucher aux éléments qui doivent garder leur taille auto (comme .tag-m)
                                 const textContainers = item.querySelectorAll('.use-case_client, .testimonial_client-info, [class*="text"], p, span');
                                 textContainers.forEach(container => {
-                                    const containerComputed = getComputedStyle(container);
-                                    // Si l'élément a une largeur définie, la préserver
-                                    if (containerComputed.width && containerComputed.width !== 'auto' && containerComputed.width !== '0px') {
-                                        container.style.width = containerComputed.width;
-                                    } else {
-                                        // Sinon, prendre 100% de la largeur du parent
-                                        container.style.width = '100%';
+                                    // Exclure les éléments qui doivent garder leur taille auto (tags, badges, etc.)
+                                    const shouldPreserveAuto = container.classList.contains('tag-m') || 
+                                                              container.classList.contains('tag') ||
+                                                              container.classList.contains('badge') ||
+                                                              container.getAttribute('style') && container.getAttribute('style').includes('width');
+                                    
+                                    if (shouldPreserveAuto) {
+                                        // Ne pas toucher à ces éléments, ils gardent leur taille auto
+                                        return;
                                     }
-                                    // Forcer le retour à la ligne
-                                    container.style.whiteSpace = 'normal';
-                                    container.style.wordWrap = 'break-word';
-                                    container.style.overflowWrap = 'break-word';
+                                    
+                                    const containerComputed = getComputedStyle(container);
+                                    // Vérifier si l'élément a un style inline width défini
+                                    const hasInlineWidth = container.style.width && container.style.width !== '';
+                                    
+                                    // Si l'élément a une largeur inline définie, la préserver
+                                    if (hasInlineWidth) {
+                                        // Garder la largeur inline
+                                        return;
+                                    }
+                                    
+                                    // Si l'élément a une largeur calculée qui n'est pas auto, vérifier si c'est une valeur fixe
+                                    // Sinon, appliquer width: 100% seulement aux conteneurs de texte qui doivent wrapper
+                                    const isTextContainer = container.classList.contains('use-case_client') || 
+                                                           container.classList.contains('testimonial_client-info') ||
+                                                           container.tagName === 'P' && !container.classList.contains('tag');
+                                    
+                                    if (isTextContainer) {
+                                        // Pour les conteneurs de texte principaux, permettre le wrapping
+                                        // Ne pas forcer width si déjà défini
+                                        if (!containerComputed.width || containerComputed.width === 'auto' || containerComputed.width === '0px') {
+                                            container.style.width = '100%';
+                                        }
+                                        // Forcer le retour à la ligne
+                                        container.style.whiteSpace = 'normal';
+                                        container.style.wordWrap = 'break-word';
+                                        container.style.overflowWrap = 'break-word';
+                                    }
                                 });
                             });
                         }, 0);
