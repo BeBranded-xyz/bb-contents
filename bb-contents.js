@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.133
+ * @version 1.0.134
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.133');
+    console.log('bb-contents | v1.0.134');
 
     // Configuration
     const config = {
-        version: '1.0.133',
+        version: '1.0.134',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1443,19 +1443,10 @@
                     popover.className = 'bb-country-select-popover';
                     popover.setAttribute('role', 'listbox');
                     let popoverStyle = 'position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; max-height: 300px; overflow: hidden; display: none; z-index: 50;';
-                    // Appliquer les styles du select natif au popover
-                    if (selectBgColor && selectBgColor !== 'rgba(0, 0, 0, 0)' && selectBgColor !== 'transparent') {
-                        popoverStyle += ' background-color: ' + selectBgColor + ';';
-                    } else {
-                        popoverStyle += ' background-color: white;';
-                    }
-                    if (selectBorder && selectBorder !== 'none' && selectBorder !== '0px none rgb(0, 0, 0)') {
-                        popoverStyle += ' border: ' + selectBorder + ';';
-                    } else if (selectBorderColor && selectBorderColor !== 'rgba(0, 0, 0, 0)') {
-                        popoverStyle += ' border: 1px solid ' + selectBorderColor + ';';
-                    } else {
-                        popoverStyle += ' border: 1px solid #e5e7eb;';
-                    }
+                    // Garder les couleurs par défaut pour le dropdown
+                    popoverStyle += ' background-color: white;';
+                    popoverStyle += ' border: 1px solid #e5e7eb;';
+                    // Appliquer uniquement le border-radius du select natif
                     if (selectBorderRadius && selectBorderRadius !== '0px') {
                         popoverStyle += ' border-radius: ' + selectBorderRadius + ';';
                     } else {
@@ -1467,18 +1458,7 @@
                     // Barre de recherche
                     const searchWrapper = document.createElement('div');
                     searchWrapper.className = 'bb-country-search';
-                    let searchWrapperStyle = 'position: sticky; top: 0; padding: 8px; z-index: 1;';
-                    if (selectBgColor && selectBgColor !== 'rgba(0, 0, 0, 0)' && selectBgColor !== 'transparent') {
-                        searchWrapperStyle += ' background-color: ' + selectBgColor + ';';
-                    } else {
-                        searchWrapperStyle += ' background-color: white;';
-                    }
-                    if (selectBorderColor && selectBorderColor !== 'rgba(0, 0, 0, 0)') {
-                        searchWrapperStyle += ' border-bottom: 1px solid ' + selectBorderColor + ';';
-                    } else {
-                        searchWrapperStyle += ' border-bottom: 1px solid #e5e7eb;';
-                    }
-                    searchWrapper.style.cssText = searchWrapperStyle;
+                    searchWrapper.style.cssText = 'position: sticky; top: 0; padding: 8px; background-color: white; border-bottom: 1px solid #e5e7eb; z-index: 1;';
                     
                     const searchInput = document.createElement('input');
                     searchInput.type = 'text';
@@ -1492,14 +1472,7 @@
                     if (selectFontFamily) {
                         searchInputStyle += ' font-family: ' + selectFontFamily + ';';
                     }
-                    if (selectColor) {
-                        searchInputStyle += ' color: ' + selectColor + ';';
-                    }
-                    if (selectBorderColor && selectBorderColor !== 'rgba(0, 0, 0, 0)') {
-                        searchInputStyle += ' border: 1px solid ' + selectBorderColor + ';';
-                    } else {
-                        searchInputStyle += ' border: 1px solid #e5e7eb;';
-                    }
+                    searchInputStyle += ' border: 1px solid #e5e7eb;';
                     if (selectBorderRadius && selectBorderRadius !== '0px') {
                         const borderRadiusValue = parseFloat(selectBorderRadius);
                         if (!isNaN(borderRadiusValue)) {
