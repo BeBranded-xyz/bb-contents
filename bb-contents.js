@@ -321,15 +321,26 @@
                     const useAutoHeight = isVertical && height === 'auto';
                     
                     // Vérifier le overflow du parent pour respecter overflow: visible
+                    // Si le parent a overflow: visible, on laisse passer
+                    // Sinon (hidden, clip, auto, scroll), on contient les logos avec overflow: hidden
                     const parentComputedStyle = getComputedStyle(element);
                     const parentOverflow = parentComputedStyle.overflow;
-                    const shouldHideOverflow = parentOverflow !== 'visible' && parentOverflow !== '';
+                    const parentOverflowX = parentComputedStyle.overflowX;
+                    const parentOverflowY = parentComputedStyle.overflowY;
+                    
+                    // Vérifier si le parent a explicitement overflow: visible (ou les deux axes)
+                    const isParentOverflowVisible = (parentOverflow === 'visible' || parentOverflow === '') &&
+                                                   (parentOverflowX === 'visible' || parentOverflowX === '') &&
+                                                   (parentOverflowY === 'visible' || parentOverflowY === '');
+                    
+                    // Si le parent a overflow: visible, on laisse passer, sinon on contient avec hidden
+                    const mainContainerOverflow = isParentOverflowVisible ? 'visible' : 'hidden';
                     
                     mainContainer.style.cssText = `
                         position: relative;
                         width: 100%;
                         height: ${isVertical ? (height === 'auto' ? 'auto' : height + 'px') : 'auto'};
-                        ${shouldHideOverflow ? 'overflow: hidden;' : 'overflow: visible;'}
+                        overflow: ${mainContainerOverflow};
                         min-height: auto;
                         ${minHeight ? `min-height: ${minHeight};` : ''}
                     `;
