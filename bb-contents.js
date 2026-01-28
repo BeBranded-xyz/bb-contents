@@ -32,7 +32,7 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.153');
+    console.log('bb-contents | v1.0.154');
 
     // Configuration
     const config = {
