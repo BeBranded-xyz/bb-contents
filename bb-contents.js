@@ -32,7 +32,7 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.152');
+    console.log('bb-contents | v1.0.153');
 
     // Configuration
     const config = {
@@ -460,10 +460,11 @@
                                 const textContainers = item.querySelectorAll('.use-case_client, .testimonial_client-info, [class*="text"], p, span');
                                 textContainers.forEach(container => {
                                     // Exclure les éléments qui doivent garder leur taille auto (tags, badges, etc.)
+                                    const containerStyle = container.getAttribute('style');
                                     const shouldPreserveAuto = container.classList.contains('tag-m') || 
                                                               container.classList.contains('tag') ||
                                                               container.classList.contains('badge') ||
-                                                              container.getAttribute('style') && container.getAttribute('style').includes('width');
+                                                              (containerStyle && containerStyle.includes('width'));
                                     
                                     if (shouldPreserveAuto) {
                                         // Ne pas toucher à ces éléments, ils gardent leur taille auto
@@ -665,8 +666,10 @@
                             waitForImagesRender(repeatBlock2),
                             forceFullRender() // NOUVEAU: Forcer le rendu complet
                         ]).then(function() {
-                            // Retirer les copies du conteneur temporaire
-                            document.body.removeChild(tempContainer);
+                            // Retirer les copies du conteneur temporaire (si toujours présent)
+                            if (tempContainer && tempContainer.parentNode === document.body) {
+                                document.body.removeChild(tempContainer);
+                            }
                             
                             // Maintenant ajouter les copies au scrollContainer
                             // Les images sont maintenant complètement rendues
@@ -726,7 +729,12 @@
                             });
                         }.bind(this));
                     }.bind(this)).catch(function() {
-                        // En cas d'erreur, créer les copies quand même et démarrer
+                        // En cas d'erreur, nettoyer le tempContainer s'il existe
+                        if (tempContainer && tempContainer.parentNode === document.body) {
+                            document.body.removeChild(tempContainer);
+                        }
+                        
+                        // Créer les copies quand même et démarrer
                         const repeatBlock1 = mainBlock.cloneNode(true);
                         const repeatBlock2 = mainBlock.cloneNode(true);
                         
