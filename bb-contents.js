@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.140
+ * @version 1.0.141
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.140');
+    console.log('bb-contents | v1.0.141');
 
     // Configuration
     const config = {
-        version: '1.0.140',
+        version: '1.0.141',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -324,16 +324,18 @@
                         position: relative;
                         width: 100%;
                         height: ${isVertical ? (height === 'auto' ? 'auto' : height + 'px') : 'auto'};
-                        overflow: ${isVertical ? 'hidden' : 'visible'};
+                        overflow: hidden;
                         min-height: auto;
                         ${minHeight ? `min-height: ${minHeight};` : ''}
                     `;
 
                     const scrollContainer = document.createElement('div');
+                    // Pour horizontal, utiliser position relative au lieu de absolute pour éviter les problèmes de calcul
+                    const useRelativeForHorizontal = !isVertical;
                     scrollContainer.style.cssText = `
-                        ${useAutoHeight ? 'position: relative;' : 'position: absolute;'}
+                        ${useAutoHeight || useRelativeForHorizontal ? 'position: relative;' : 'position: absolute;'}
                         will-change: transform;
-                        ${useAutoHeight ? '' : 'height: 100%; top: 0px; left: 0px;'}
+                        ${useAutoHeight || useRelativeForHorizontal ? '' : 'height: 100%; top: 0px; left: 0px;'}
                         display: flex;
                         ${isVertical ? 'flex-direction: column;' : ''}
                         align-items: center;
@@ -394,90 +396,34 @@
                     const repeatBlock1 = mainBlock.cloneNode(true);
                     const repeatBlock2 = mainBlock.cloneNode(true);
                     
-                    // Pour les marquees horizontaux, calculer la hauteur ET la largeur avant de mettre en absolute
+                    // Pour les marquees horizontaux, utiliser position relative (plus simple et plus fiable)
                     if (!isVertical) {
-                        // Temporairement mettre scrollContainer en relative pour calculer les dimensions
-                        scrollContainer.style.position = 'relative';
                         scrollContainer.appendChild(mainBlock);
                         scrollContainer.appendChild(repeatBlock1);
                         scrollContainer.appendChild(repeatBlock2);
                         mainContainer.appendChild(scrollContainer);
                         
-                        // Forcer un reflow pour calculer les dimensions
-                        void scrollContainer.offsetHeight;
-                        
-                        // Calculer la hauteur maximale des items
-                        const items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"], > *');
-                        let maxHeight = 0;
-                        items.forEach(function(item) {
-                            const itemHeight = item.offsetHeight;
-                            if (itemHeight > maxHeight) {
-                                maxHeight = itemHeight;
-                            }
-                        });
-                        
-                        // Si aucun item trouvé, essayer de prendre la hauteur du scrollContainer
-                        if (maxHeight === 0) {
-                            maxHeight = scrollContainer.offsetHeight;
-                        }
-                        
-                        // Appliquer la hauteur calculée au mainContainer si elle est valide
-                        if (maxHeight > 0) {
-                            mainContainer.style.height = maxHeight + 'px';
-                        }
-                        
-                        // IMPORTANT: Calculer contentSize AVANT de mettre en absolute
-                        // Car une fois en absolute, offsetWidth peut être 0
-                        // Stocker dans une propriété de l'élément pour y accéder plus tard
-                        const calculateWidth = () => {
-                            const width = mainBlock.offsetWidth;
-                            if (width > 0) {
-                                // Stocker dans l'élément pour y accéder dans initAnimation
-                                element._bbMarqueeContentSize = width;
-                                
-                                // Maintenant mettre scrollContainer en absolute
-                                scrollContainer.style.position = 'absolute';
-                                scrollContainer.style.height = '100%';
-                                scrollContainer.style.top = '0px';
-                                scrollContainer.style.left = '0px';
-                                scrollContainer.style.right = '0px'; // Ajouter right pour largeur complète
-                                
-                                // Initialiser l'animation maintenant que contentSize est calculé
-                                const initDelay = 100; // Court délai pour s'assurer que le layout est appliqué
-                                setTimeout(() => {
-                                    this.initAnimation(element, scrollContainer, mainBlock, {
-                                        speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
-                                    });
-                                }, initDelay);
-                            } else {
-                                // Si toujours 0, réessayer après un court délai (max 2 secondes)
-                                if (!element._bbMarqueeRetryCount) {
-                                    element._bbMarqueeRetryCount = 0;
-                                }
-                                element._bbMarqueeRetryCount++;
-                                if (element._bbMarqueeRetryCount < 40) { // 40 * 50ms = 2 secondes max
-                                    setTimeout(calculateWidth, 50);
-                                } else {
-                                    // Timeout : utiliser une valeur par défaut ou forcer le calcul
-                                    element._bbMarqueeContentSize = mainContainer.offsetWidth || 1000;
-                                    scrollContainer.style.position = 'absolute';
-                                    scrollContainer.style.height = '100%';
-                                    scrollContainer.style.top = '0px';
-                                    scrollContainer.style.left = '0px';
-                                    scrollContainer.style.right = '0px';
-                                    setTimeout(() => {
-                                        this.initAnimation(element, scrollContainer, mainBlock, {
-                                            speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
-                                        });
-                                    }, 100);
-                                }
-                            }
-                        };
-                        
-                        // Utiliser requestAnimationFrame pour s'assurer que le layout est calculé
+                        // Calculer la hauteur maximale des items après ajout au DOM
                         requestAnimationFrame(() => {
                             requestAnimationFrame(() => {
-                                calculateWidth();
+                                const items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"], > *');
+                                let maxHeight = 0;
+                                items.forEach(function(item) {
+                                    const itemHeight = item.offsetHeight;
+                                    if (itemHeight > maxHeight) {
+                                        maxHeight = itemHeight;
+                                    }
+                                });
+                                
+                                // Si aucun item trouvé, essayer de prendre la hauteur du scrollContainer
+                                if (maxHeight === 0) {
+                                    maxHeight = scrollContainer.offsetHeight;
+                                }
+                                
+                                // Appliquer la hauteur calculée au mainContainer si elle est valide
+                                if (maxHeight > 0) {
+                                    mainContainer.style.height = maxHeight + 'px';
+                                }
                             });
                         });
                     } else {
@@ -486,26 +432,19 @@
                         scrollContainer.appendChild(repeatBlock1);
                         scrollContainer.appendChild(repeatBlock2);
                         mainContainer.appendChild(scrollContainer);
-                        
-                        element.innerHTML = '';
-                        element.appendChild(mainContainer);
-                        element.setAttribute('data-bb-marquee-processed', 'true');
-
-                        // Initialisation simple avec délai fixe
-                        const initDelay = 500;
-                        setTimeout(() => {
-                            this.initAnimation(element, scrollContainer, mainBlock, {
-                                speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
-                            });
-                        }, initDelay);
                     }
                     
-                    // Pour horizontal, l'initialisation se fait dans calculateWidth
-                    if (!isVertical) {
-                        element.innerHTML = '';
-                        element.appendChild(mainContainer);
-                        element.setAttribute('data-bb-marquee-processed', 'true');
-                    }
+                    element.innerHTML = '';
+                    element.appendChild(mainContainer);
+                    element.setAttribute('data-bb-marquee-processed', 'true');
+
+                    // Initialisation simple avec délai fixe
+                    const initDelay = isVertical ? 500 : 300;
+                    setTimeout(() => {
+                        this.initAnimation(element, scrollContainer, mainBlock, {
+                            speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
+                        });
+                    }, initDelay);
                 });
             },
 
@@ -513,13 +452,8 @@
                 const { speed, direction, pauseOnHover, gap, isVertical, useAutoHeight } = options;
                 
                 // Calculer les dimensions
-                // Pour horizontal, utiliser la valeur stockée dans l'élément si disponible (calculée avant position absolute)
-                let contentSize;
-                if (!isVertical && element._bbMarqueeContentSize && element._bbMarqueeContentSize > 0) {
-                    contentSize = element._bbMarqueeContentSize;
-                } else {
-                    contentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
-                }
+                // Maintenant que scrollContainer est en position relative pour horizontal, offsetWidth devrait fonctionner
+                const contentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
                 
                 if (contentSize === 0) {
                     // Si toujours 0, réessayer après un délai
