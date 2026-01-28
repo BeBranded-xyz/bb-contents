@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.141
+ * @version 1.0.142
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.141');
+    console.log('bb-contents | v1.0.142');
 
     // Configuration
     const config = {
-        version: '1.0.141',
+        version: '1.0.142',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -396,6 +396,25 @@
                     const repeatBlock1 = mainBlock.cloneNode(true);
                     const repeatBlock2 = mainBlock.cloneNode(true);
                     
+                    // Forcer le chargement des images dans les copies pour éviter les saccades
+                    const preloadImagesInBlock = function(block) {
+                        const images = block.querySelectorAll('img');
+                        images.forEach(function(img) {
+                            if (img.dataset.src && !img.src) {
+                                img.src = img.dataset.src;
+                            }
+                            // Forcer le chargement même si l'image est déjà chargée dans le mainBlock
+                            if (img.src && !img.complete) {
+                                const newImg = new Image();
+                                newImg.src = img.src;
+                            }
+                        });
+                    };
+                    
+                    // Précharger les images dans les copies
+                    preloadImagesInBlock(repeatBlock1);
+                    preloadImagesInBlock(repeatBlock2);
+                    
                     // Pour les marquees horizontaux, utiliser position relative (plus simple et plus fiable)
                     if (!isVertical) {
                         scrollContainer.appendChild(mainBlock);
@@ -483,6 +502,25 @@
                         // Créer les copies maintenant (les navigateurs non-Safari gèrent mieux)
                         const repeatBlock1 = mainBlock.cloneNode(true);
                         const repeatBlock2 = mainBlock.cloneNode(true);
+                        
+                        // Forcer le chargement des images dans les copies pour éviter les saccades
+                        const preloadImagesInBlock = function(block) {
+                            const images = block.querySelectorAll('img');
+                            images.forEach(function(img) {
+                                if (img.dataset.src && !img.src) {
+                                    img.src = img.dataset.src;
+                                }
+                                // Forcer le chargement même si l'image est déjà chargée dans le mainBlock
+                                if (img.src && !img.complete) {
+                                    const newImg = new Image();
+                                    newImg.src = img.src;
+                                }
+                            });
+                        };
+                        
+                        preloadImagesInBlock(repeatBlock1);
+                        preloadImagesInBlock(repeatBlock2);
+                        
                         scrollContainer.appendChild(repeatBlock1);
                         scrollContainer.appendChild(repeatBlock2);
                     }
@@ -837,20 +875,31 @@
                     scrollContainer.style.width = totalSize + 'px';
                 }
 
-                // Fonction d'animation standard
-                const animate = () => {
+                // Fonction d'animation standard avec gestion du temps pour fluidité constante
+                let lastTime = performance.now();
+                const animate = (currentTime) => {
                     if (!isPaused) {
+                        // Calculer le delta de temps pour une vitesse constante même si le navigateur ralentit
+                        const deltaTime = (currentTime - lastTime) / 16.67; // Normaliser à 60fps
+                        lastTime = currentTime;
+                        
+                        // Limiter le deltaTime pour éviter les sauts trop importants
+                        const clampedDelta = Math.min(deltaTime, 2.0);
+                        
                         if (direction === (isVertical ? 'bottom' : 'right')) {
-                            currentPosition += step;
+                            currentPosition += step * clampedDelta;
                             if (currentPosition >= 0) {
                                 currentPosition = -(contentSize + gapSize);
                             }
                         } else {
-                            currentPosition -= step;
+                            currentPosition -= step * clampedDelta;
                             if (currentPosition <= -(2 * (contentSize + gapSize))) {
                                 currentPosition = -(contentSize + gapSize);
                             }
                         }
+                        
+                        // Arrondir pour éviter les erreurs de précision
+                        currentPosition = Math.round(currentPosition * 100) / 100;
                         
                         const transform = isVertical 
                             ? `translate3d(0, ${currentPosition}px, 0)`
@@ -860,8 +909,9 @@
                     requestAnimationFrame(animate);
                 };
 
-                // Démarrer l'animation
-                animate();
+                // Démarrer l'animation avec le temps initial
+                lastTime = performance.now();
+                requestAnimationFrame(animate);
 
                 // Pause au survol
                 if (pauseOnHover === 'true') {
