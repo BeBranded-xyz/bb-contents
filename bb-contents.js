@@ -84,6 +84,38 @@
                 return div.innerHTML;
             },
             
+            // Valider un code pays ISO 3166-1 alpha-2 (2 lettres)
+            isValidCountryCode: function(code) {
+                if (!code || typeof code !== 'string') return false;
+                return /^[a-z]{2}$/i.test(code.trim());
+            },
+            
+            // Échapper les valeurs CSS pour éviter l'injection CSS
+            escapeCss: function(value) {
+                if (!value || typeof value !== 'string') return '';
+                // Échapper les guillemets et caractères spéciaux
+                return value.replace(/[<>"']/g, function(match) {
+                    const escapeMap = {
+                        '<': '\\3C ',
+                        '>': '\\3E ',
+                        '"': '\\22 ',
+                        "'": '\\27 '
+                    };
+                    return escapeMap[match] || match;
+                });
+            },
+            
+            // Nettoyer le HTML en supprimant les scripts et événements
+            cleanHtml: function(html) {
+                if (!html || typeof html !== 'string') return '';
+                // Supprimer les scripts
+                let cleaned = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+                // Supprimer les attributs d'événements (onclick, onerror, etc.)
+                cleaned = cleaned.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
+                cleaned = cleaned.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, '');
+                return cleaned;
+            },
+            
             // Validation des URLs
             isValidUrl: function(string) {
                 try {
@@ -1046,9 +1078,11 @@
                     return response.text();
                 })
                 .then(function(html) {
+                    // Nettoyer le HTML avant parsing (supprimer scripts et événements)
+                    const cleanedHtml = bbContents.utils.cleanHtml(html);
                     // Parser le HTML pour extraire le contenu principal
                     const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
+                    const doc = parser.parseFromString(cleanedHtml, 'text/html');
                     
                     let contentNode = null;
                     
@@ -1151,7 +1185,30 @@
                     articleUrl = urlAttr;
                     // Si l'URL est relative, la transformer en absolue
                     if (articleUrl && !bbContents.utils.isValidUrl(articleUrl)) {
-                        articleUrl = new URL(articleUrl, window.location.origin).href;
+                        try {
+                            const url = new URL(articleUrl, window.location.origin);
+                            // Vérifier que c'est bien le même domaine (sécurité)
+                            if (url.origin !== window.location.origin) {
+                                // URL externe non autorisée, ignorer
+                                articleUrl = null;
+                            } else {
+                                articleUrl = url.href;
+                            }
+                        } catch (e) {
+                            // URL invalide, ignorer
+                            articleUrl = null;
+                        }
+                    } else if (articleUrl && bbContents.utils.isValidUrl(articleUrl)) {
+                        // Vérifier que l'URL absolue est du même domaine
+                        try {
+                            const url = new URL(articleUrl);
+                            if (url.origin !== window.location.origin) {
+                                // URL externe non autorisée, ignorer
+                                articleUrl = null;
+                            }
+                        } catch (e) {
+                            articleUrl = null;
+                        }
                     }
                 }
                 
@@ -1225,11 +1282,20 @@
             
             // Détecter la langue
             getLanguage: function(element) {
-                const lang = element.getAttribute('lang') || 
-                            (element.closest && element.closest('[lang]') ? element.closest('[lang]').getAttribute('lang') : null) ||
-                            document.documentElement.getAttribute('lang') ||
-                            'fr';
-                return lang.startsWith('en') ? 'en' : 'fr';
+                let lang = element.getAttribute('lang');
+                if (!lang && element.closest) {
+                    const langElement = element.closest('[lang]');
+                    if (langElement) {
+                        lang = langElement.getAttribute('lang');
+                    }
+                }
+                if (!lang) {
+                    lang = document.documentElement.getAttribute('lang');
+                }
+                if (!lang) {
+                    lang = 'fr';
+                }
+                return lang && lang.startsWith('en') ? 'en' : 'fr';
             },
             
             // Trouver un pays par code ou nom
@@ -1351,13 +1417,29 @@
                     
                     // Récupérer les styles visuels du select pour les appliquer au dropdown custom
                     const selectBgColor = selectComputedStyle.backgroundColor;
-                    const selectBorder = selectComputedStyle.border || selectComputedStyle.borderWidth + ' ' + selectComputedStyle.borderStyle + ' ' + selectComputedStyle.borderColor;
+                    // Construire selectBorder de manière sécurisée
+                    let selectBorder = selectComputedStyle.border;
+                    if (!selectBorder || selectBorder === 'none' || selectBorder === '0px none rgb(0, 0, 0)') {
+                        if (selectComputedStyle.borderWidth && selectComputedStyle.borderStyle && selectComputedStyle.borderColor) {
+                            selectBorder = selectComputedStyle.borderWidth + ' ' + selectComputedStyle.borderStyle + ' ' + selectComputedStyle.borderColor;
+                        } else {
+                            selectBorder = null;
+                        }
+                    }
                     const selectBorderColor = selectComputedStyle.borderColor;
                     const selectBorderRadius = selectComputedStyle.borderRadius;
                     const selectColor = selectComputedStyle.color;
                     const selectFontSize = selectComputedStyle.fontSize;
                     const selectFontFamily = selectComputedStyle.fontFamily;
-                    const selectPadding = selectComputedStyle.padding || (selectComputedStyle.paddingTop + ' ' + selectComputedStyle.paddingRight + ' ' + selectComputedStyle.paddingBottom + ' ' + selectComputedStyle.paddingLeft);
+                    // Construire selectPadding de manière sécurisée
+                    let selectPadding = selectComputedStyle.padding;
+                    if (!selectPadding || selectPadding === '0px') {
+                        if (selectComputedStyle.paddingTop && selectComputedStyle.paddingRight && selectComputedStyle.paddingBottom && selectComputedStyle.paddingLeft) {
+                            selectPadding = selectComputedStyle.paddingTop + ' ' + selectComputedStyle.paddingRight + ' ' + selectComputedStyle.paddingBottom + ' ' + selectComputedStyle.paddingLeft;
+                        } else {
+                            selectPadding = null;
+                        }
+                    }
                     
                     // Créer le wrapper avec les dimensions du select
                     const wrapper = document.createElement('div');
@@ -1389,7 +1471,8 @@
                     
                     const selectedCountry = defaultCountry;
                     const selectedName = selectedCountry ? selectedCountry.name[language] : placeholder;
-                    const selectedFlag = selectedCountry ? 
+                    // Valider le code pays avant utilisation
+                    const selectedFlag = selectedCountry && bbContents.utils.isValidCountryCode(selectedCountry.alpha2) ? 
                         '<img src="https://hatscripts.github.io/circle-flags/flags/' + selectedCountry.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(selectedCountry.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">' : 
                         '';
                     
@@ -1502,19 +1585,24 @@
                         }
                         
                         list.innerHTML = countries.map(function(country) {
+                            // Valider le code pays avant utilisation
+                            if (!bbContents.utils.isValidCountryCode(country.alpha2)) {
+                                return ''; // Ignorer les pays avec codes invalides
+                            }
                             const isSelected = currentSelectedCountry && currentSelectedCountry.alpha2 === country.alpha2;
                             let itemStyle = 'display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; transition: background-color 0.15s; min-height: 36px; box-sizing: border-box;';
                             // Appliquer uniquement font-size et font-family du select natif (pas la couleur)
+                            // Échapper les valeurs CSS pour éviter l'injection
                             if (selectFontSize) {
-                                itemStyle += ' font-size: ' + selectFontSize + ';';
+                                itemStyle += ' font-size: ' + bbContents.utils.escapeCss(selectFontSize) + ';';
                             }
                             if (selectFontFamily) {
-                                itemStyle += ' font-family: ' + selectFontFamily + ';';
+                                itemStyle += ' font-family: ' + bbContents.utils.escapeCss(selectFontFamily) + ';';
                             }
                             if (isSelected) {
                                 itemStyle += ' background-color: #f3f4f6;';
                             }
-                            return '<div class="bb-country-item" data-country="' + country.alpha2 + '" role="option" aria-selected="' + (isSelected ? 'true' : 'false') + '" style="' + itemStyle + '"><img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;"><span style="line-height: 1.2;">' + bbContents.utils.sanitize(country.name[language]) + '</span></div>';
+                            return '<div class="bb-country-item" data-country="' + country.alpha2.toLowerCase() + '" role="option" aria-selected="' + (isSelected ? 'true' : 'false') + '" style="' + itemStyle + '"><img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;"><span style="line-height: 1.2;">' + bbContents.utils.sanitize(country.name[language]) + '</span></div>';
                         }).join('');
                         
                         // Ajouter hover effect
@@ -1557,11 +1645,13 @@
                             document.querySelectorAll('.bb-country-select-popover').forEach(function(otherPopover) {
                                 if (otherPopover !== popover && otherPopover.style.display === 'block') {
                                     otherPopover.style.display = 'none';
-                                    const otherTrigger = otherPopover.parentElement.querySelector('.bb-country-select-trigger');
-                                    if (otherTrigger) {
-                                        otherTrigger.setAttribute('aria-expanded', 'false');
-                                        const otherChevron = otherTrigger.querySelector('svg');
-                                        if (otherChevron) otherChevron.style.transform = 'rotate(0deg)';
+                                    if (otherPopover.parentElement) {
+                                        const otherTrigger = otherPopover.parentElement.querySelector('.bb-country-select-trigger');
+                                        if (otherTrigger) {
+                                            otherTrigger.setAttribute('aria-expanded', 'false');
+                                            const otherChevron = otherTrigger.querySelector('svg');
+                                            if (otherChevron) otherChevron.style.transform = 'rotate(0deg)';
+                                        }
                                     }
                                 }
                             });
@@ -1613,17 +1703,23 @@
                         if (!item) return;
                         
                         const countryCode = item.dataset.country;
+                        // Valider le code pays avant utilisation
+                        if (!bbContents.utils.isValidCountryCode(countryCode)) {
+                            return; // Code invalide, ignorer
+                        }
                         const country = self.countries.find(function(c) {
-                            return c.alpha2 === countryCode;
+                            return c.alpha2.toLowerCase() === countryCode.toLowerCase();
                         });
                         if (!country) return;
                         
                         // Mettre à jour le pays sélectionné
                         currentSelectedCountry = country;
                         
-                        // Mettre à jour l'affichage
-                        flagSpan.innerHTML = '<img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">';
-                        nameSpan.textContent = country.name[language];
+                        // Mettre à jour l'affichage (country.alpha2 déjà validé par la recherche)
+                        if (bbContents.utils.isValidCountryCode(country.alpha2)) {
+                            flagSpan.innerHTML = '<img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">';
+                            nameSpan.textContent = country.name[language];
+                        }
                         
                         // Mettre à jour le select natif avec le nom du pays (pas le code ISO)
                         const countryName = country.name[language];
@@ -1637,7 +1733,15 @@
                             const newOption = document.createElement('option');
                             newOption.value = countryName;
                             newOption.textContent = countryName;
-                            element.innerHTML = '';
+                            // Vérifier s'il y a d'autres options avant de tout supprimer
+                            if (element.options.length > 0) {
+                                // Supprimer seulement les options vides ou placeholder
+                                Array.from(element.options).forEach(function(opt) {
+                                    if (!opt.value || opt.value === '') {
+                                        opt.remove();
+                                    }
+                                });
+                            }
                             element.appendChild(newOption);
                         }
                         const changeEvent = new Event('change', { bubbles: true });
@@ -1969,7 +2073,23 @@
                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
                 
                 // Appeler l'API via le Worker
-                fetch(`${endpoint}?channelId=${channelId}&maxResults=${videoCount}&allowShorts=${allowShorts}`)
+                // Valider l'endpoint et le channelId avant fetch
+                if (!endpoint || typeof endpoint !== 'string') {
+                    throw new Error('Endpoint YouTube invalide');
+                }
+                // Vérifier que l'endpoint correspond à la configuration
+                if (bbContents.config.youtubeEndpoint && !endpoint.startsWith(bbContents.config.youtubeEndpoint)) {
+                    throw new Error('Endpoint YouTube non autorisé');
+                }
+                // Valider le format de channelId (alphanumérique, tirets, underscores)
+                if (!channelId || !/^[a-zA-Z0-9_-]+$/.test(channelId)) {
+                    throw new Error('Channel ID invalide');
+                }
+                // Valider videoCount et allowShorts
+                const safeVideoCount = parseInt(videoCount, 10);
+                const safeAllowShorts = allowShorts === true || allowShorts === 'true';
+                
+                fetch(`${endpoint}?channelId=${encodeURIComponent(channelId)}&maxResults=${safeVideoCount}&allowShorts=${safeAllowShorts}`)
                     .then(response => {
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}`);
@@ -2009,7 +2129,7 @@
                             }
                         }
                         
-                        container.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${error.message}</div>`;
+                        container.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${bbContents.utils.sanitize(error.message || 'Erreur inconnue')}</div>`;
                     });
             },
             
