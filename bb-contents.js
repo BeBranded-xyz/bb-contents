@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.145
+ * @version 1.0.146
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.145');
+    console.log('bb-contents | v1.0.146');
 
     // Configuration
     const config = {
-        version: '1.0.145',
+        version: '1.0.146',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -519,13 +519,33 @@
                     element.appendChild(mainContainer);
                     element.setAttribute('data-bb-marquee-processed', 'true');
 
-                    // Initialisation simple avec délai fixe
+                    // Attendre que TOUTES les images dans TOUTES les copies soient chargées avant de démarrer
+                    // Cela évite l'apparition tardive des logos dans le champ de vision
+                    Promise.all([
+                        preloadImagesInBlock(repeatBlock1),
+                        preloadImagesInBlock(repeatBlock2)
+                    ]).then(function() {
+                        // Attendre encore un peu pour s'assurer que le rendu est complet
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                // Maintenant démarrer l'animation
+                                const initDelay = isVertical ? 500 : 100;
+                                setTimeout(() => {
+                                    this.initAnimation(element, scrollContainer, mainBlock, {
+                                        speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
+                                    });
+                                }, initDelay);
+                            });
+                        });
+                    }.bind(this)).catch(function() {
+                        // En cas d'erreur, démarrer quand même après un délai
                     const initDelay = isVertical ? 500 : 300;
                     setTimeout(() => {
                         this.initAnimation(element, scrollContainer, mainBlock, {
                             speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
                         });
                     }, initDelay);
+                    }.bind(this));
                 });
             },
 
