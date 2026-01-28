@@ -32,7 +32,7 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.150');
+    console.log('bb-contents | v1.0.151');
 
     // Configuration
     const config = {
@@ -575,6 +575,8 @@
                         // NOUVEAU: Forcer le rendu complet en déplaçant temporairement le conteneur
                         // pour que toutes les parties soient visibles (même brièvement)
                         // Cela force le navigateur à rendre même les parties très larges sur grands écrans
+                        // Pour "left", on force le rendu de la partie DROITE (où les copies apparaîtront)
+                        // Pour "right", on force le rendu de la partie GAUCHE
                         const forceFullRender = function() {
                             return new Promise(function(resolve) {
                                 // Calculer la largeur totale des copies
@@ -584,8 +586,7 @@
                                 );
                                 
                                 if (totalWidth > 0 && totalWidth > window.innerWidth) {
-                                    // Déplacer temporairement le conteneur pour forcer le rendu de toutes les parties
-                                    // On le place à gauche de l'écran puis on le déplace pour que tout soit visible
+                                    // Déplacer temporairement le conteneur pour forcer le rendu
                                     tempContainer.style.left = '0px';
                                     tempContainer.style.width = totalWidth + 'px';
                                     tempContainer.style.overflow = 'visible';
@@ -593,22 +594,36 @@
                                     // Forcer un reflow pour que le navigateur calcule les dimensions
                                     void tempContainer.offsetWidth;
                                     
-                                    // Maintenant déplacer pour que la fin soit visible (force le rendu de la fin)
-                                    const translateX = Math.max(0, totalWidth - window.innerWidth);
-                                    tempContainer.style.transform = 'translateX(-' + translateX + 'px)';
-                                    void tempContainer.offsetWidth;
+                                    // NOUVEAU: Pour "left", déplacer pour que la FIN soit visible (partie droite)
+                                    // Pour "right", déplacer pour que le DÉBUT soit visible (partie gauche)
+                                    // On va faire les deux pour être sûr que tout est rendu
+                                    const translateXEnd = Math.max(0, totalWidth - window.innerWidth);
+                                    const translateXStart = 0;
                                     
-                                    // Revenir à la position initiale
-                                    tempContainer.style.transform = '';
-                                    tempContainer.style.left = '-9999px';
-                                    tempContainer.style.width = 'auto';
+                                    // D'abord rendre la fin (pour "left" - où les copies apparaîtront)
+                                    tempContainer.style.transform = 'translateX(-' + translateXEnd + 'px)';
                                     void tempContainer.offsetWidth;
+                                    requestAnimationFrame(function() {
+                                        // Ensuite rendre le début (pour "right" - où les copies apparaîtront)
+                                        tempContainer.style.transform = 'translateX(-' + translateXStart + 'px)';
+                                        void tempContainer.offsetWidth;
+                                        requestAnimationFrame(function() {
+                                            // Revenir à la position initiale
+                                            tempContainer.style.transform = '';
+                                            tempContainer.style.left = '-9999px';
+                                            tempContainer.style.width = 'auto';
+                                            void tempContainer.offsetWidth;
+                                            requestAnimationFrame(function() {
+                                                requestAnimationFrame(resolve);
+                                            });
+                                        });
+                                    });
+                                } else {
+                                    // Si pas besoin de déplacement, juste attendre un frame
+                                    requestAnimationFrame(function() {
+                                        requestAnimationFrame(resolve);
+                                    });
                                 }
-                                
-                                // Attendre un frame pour que le rendu soit complet
-                                requestAnimationFrame(function() {
-                                    requestAnimationFrame(resolve);
-                                });
                             });
                         };
                         
