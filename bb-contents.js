@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.139
+ * @version 1.0.140
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.139');
+    console.log('bb-contents | v1.0.140');
 
     // Configuration
     const config = {
-        version: '1.0.139',
+        version: '1.0.140',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -395,7 +395,6 @@
                     const repeatBlock2 = mainBlock.cloneNode(true);
                     
                     // Pour les marquees horizontaux, calculer la hauteur ET la largeur avant de mettre en absolute
-                    let preCalculatedContentSize = null;
                     if (!isVertical) {
                         // Temporairement mettre scrollContainer en relative pour calculer les dimensions
                         scrollContainer.style.position = 'relative';
@@ -429,48 +428,101 @@
                         
                         // IMPORTANT: Calculer contentSize AVANT de mettre en absolute
                         // Car une fois en absolute, offsetWidth peut être 0
-                        preCalculatedContentSize = mainBlock.offsetWidth;
+                        // Stocker dans une propriété de l'élément pour y accéder plus tard
+                        const calculateWidth = () => {
+                            const width = mainBlock.offsetWidth;
+                            if (width > 0) {
+                                // Stocker dans l'élément pour y accéder dans initAnimation
+                                element._bbMarqueeContentSize = width;
+                                
+                                // Maintenant mettre scrollContainer en absolute
+                                scrollContainer.style.position = 'absolute';
+                                scrollContainer.style.height = '100%';
+                                scrollContainer.style.top = '0px';
+                                scrollContainer.style.left = '0px';
+                                scrollContainer.style.right = '0px'; // Ajouter right pour largeur complète
+                                
+                                // Initialiser l'animation maintenant que contentSize est calculé
+                                const initDelay = 100; // Court délai pour s'assurer que le layout est appliqué
+                                setTimeout(() => {
+                                    this.initAnimation(element, scrollContainer, mainBlock, {
+                                        speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
+                                    });
+                                }, initDelay);
+                            } else {
+                                // Si toujours 0, réessayer après un court délai (max 2 secondes)
+                                if (!element._bbMarqueeRetryCount) {
+                                    element._bbMarqueeRetryCount = 0;
+                                }
+                                element._bbMarqueeRetryCount++;
+                                if (element._bbMarqueeRetryCount < 40) { // 40 * 50ms = 2 secondes max
+                                    setTimeout(calculateWidth, 50);
+                                } else {
+                                    // Timeout : utiliser une valeur par défaut ou forcer le calcul
+                                    element._bbMarqueeContentSize = mainContainer.offsetWidth || 1000;
+                                    scrollContainer.style.position = 'absolute';
+                                    scrollContainer.style.height = '100%';
+                                    scrollContainer.style.top = '0px';
+                                    scrollContainer.style.left = '0px';
+                                    scrollContainer.style.right = '0px';
+                                    setTimeout(() => {
+                                        this.initAnimation(element, scrollContainer, mainBlock, {
+                                            speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
+                                        });
+                                    }, 100);
+                                }
+                            }
+                        };
                         
-                        // Maintenant mettre scrollContainer en absolute
-                        scrollContainer.style.position = 'absolute';
-                        scrollContainer.style.height = '100%';
-                        scrollContainer.style.top = '0px';
-                        scrollContainer.style.left = '0px';
+                        // Utiliser requestAnimationFrame pour s'assurer que le layout est calculé
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                calculateWidth();
+                            });
+                        });
                     } else {
                         // Pour vertical, garder le comportement actuel
                         scrollContainer.appendChild(mainBlock);
                         scrollContainer.appendChild(repeatBlock1);
                         scrollContainer.appendChild(repeatBlock2);
                         mainContainer.appendChild(scrollContainer);
+                        
+                        element.innerHTML = '';
+                        element.appendChild(mainContainer);
+                        element.setAttribute('data-bb-marquee-processed', 'true');
+
+                        // Initialisation simple avec délai fixe
+                        const initDelay = 500;
+                        setTimeout(() => {
+                            this.initAnimation(element, scrollContainer, mainBlock, {
+                                speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
+                            });
+                        }, initDelay);
                     }
                     
-                    element.innerHTML = '';
-                    element.appendChild(mainContainer);
-                    element.setAttribute('data-bb-marquee-processed', 'true');
-
-                    // Initialisation simple avec délai fixe
-                    const initDelay = isVertical ? 500 : 300;
-                    setTimeout(() => {
-                        this.initAnimation(element, scrollContainer, mainBlock, {
-                            speed, direction, pauseOnHover, gap, isVertical, useAutoHeight, preCalculatedContentSize
-                        });
-                    }, initDelay);
+                    // Pour horizontal, l'initialisation se fait dans calculateWidth
+                    if (!isVertical) {
+                        element.innerHTML = '';
+                        element.appendChild(mainContainer);
+                        element.setAttribute('data-bb-marquee-processed', 'true');
+                    }
                 });
             },
 
             initAnimation: function(element, scrollContainer, mainBlock, options) {
-                const { speed, direction, pauseOnHover, gap, isVertical, useAutoHeight, preCalculatedContentSize } = options;
+                const { speed, direction, pauseOnHover, gap, isVertical, useAutoHeight } = options;
                 
                 // Calculer les dimensions
-                // Pour horizontal, utiliser la valeur pré-calculée si disponible (calculée avant position absolute)
+                // Pour horizontal, utiliser la valeur stockée dans l'élément si disponible (calculée avant position absolute)
                 let contentSize;
-                if (!isVertical && preCalculatedContentSize && preCalculatedContentSize > 0) {
-                    contentSize = preCalculatedContentSize;
+                if (!isVertical && element._bbMarqueeContentSize && element._bbMarqueeContentSize > 0) {
+                    contentSize = element._bbMarqueeContentSize;
                 } else {
                     contentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
                 }
                 
                 if (contentSize === 0) {
+                    // Si toujours 0, réessayer après un délai
                     setTimeout(() => this.initAnimation(element, scrollContainer, mainBlock, options), 200);
                     return;
                 }
