@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.138
+ * @version 1.0.139
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.138');
+    console.log('bb-contents | v1.0.139');
 
     // Configuration
     const config = {
-        version: '1.0.138',
+        version: '1.0.139',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -394,9 +394,10 @@
                     const repeatBlock1 = mainBlock.cloneNode(true);
                     const repeatBlock2 = mainBlock.cloneNode(true);
                     
-                    // Pour les marquees horizontaux, calculer la hauteur avant de mettre en absolute
+                    // Pour les marquees horizontaux, calculer la hauteur ET la largeur avant de mettre en absolute
+                    let preCalculatedContentSize = null;
                     if (!isVertical) {
-                        // Temporairement mettre scrollContainer en relative pour calculer la hauteur
+                        // Temporairement mettre scrollContainer en relative pour calculer les dimensions
                         scrollContainer.style.position = 'relative';
                         scrollContainer.appendChild(mainBlock);
                         scrollContainer.appendChild(repeatBlock1);
@@ -426,6 +427,10 @@
                             mainContainer.style.height = maxHeight + 'px';
                         }
                         
+                        // IMPORTANT: Calculer contentSize AVANT de mettre en absolute
+                        // Car une fois en absolute, offsetWidth peut être 0
+                        preCalculatedContentSize = mainBlock.offsetWidth;
+                        
                         // Maintenant mettre scrollContainer en absolute
                         scrollContainer.style.position = 'absolute';
                         scrollContainer.style.height = '100%';
@@ -447,18 +452,23 @@
                     const initDelay = isVertical ? 500 : 300;
                     setTimeout(() => {
                         this.initAnimation(element, scrollContainer, mainBlock, {
-                            speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
+                            speed, direction, pauseOnHover, gap, isVertical, useAutoHeight, preCalculatedContentSize
                         });
                     }, initDelay);
                 });
             },
 
             initAnimation: function(element, scrollContainer, mainBlock, options) {
-                const { speed, direction, pauseOnHover, gap, isVertical, useAutoHeight } = options;
+                const { speed, direction, pauseOnHover, gap, isVertical, useAutoHeight, preCalculatedContentSize } = options;
                 
                 // Calculer les dimensions
-                const contentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
-                
+                // Pour horizontal, utiliser la valeur pré-calculée si disponible (calculée avant position absolute)
+                let contentSize;
+                if (!isVertical && preCalculatedContentSize && preCalculatedContentSize > 0) {
+                    contentSize = preCalculatedContentSize;
+                } else {
+                    contentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
+                }
                 
                 if (contentSize === 0) {
                     setTimeout(() => this.initAnimation(element, scrollContainer, mainBlock, options), 200);
@@ -480,8 +490,8 @@
                 } else {
                     // Solution standard : créer les copies seulement si elles n'existent pas déjà
                     // (elles ont peut-être été créées pour le calcul de hauteur en horizontal)
-                    const existingCopies = scrollContainer.querySelectorAll('div');
-                    const hasCopies = existingCopies.length >= 3; // mainBlock + 2 copies
+                    // Utiliser children.length au lieu de querySelectorAll pour compter uniquement les enfants directs
+                    const hasCopies = scrollContainer.children.length >= 3; // mainBlock + 2 copies
                     
                     if (!hasCopies) {
                         // Créer les copies maintenant (les navigateurs non-Safari gèrent mieux)
