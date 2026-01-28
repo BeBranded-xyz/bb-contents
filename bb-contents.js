@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.131
+ * @version 1.0.132
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.131');
+    console.log('bb-contents | v1.0.132');
 
     // Configuration
     const config = {
-        version: '1.0.131',
+        version: '1.0.132',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1340,7 +1340,7 @@
                         });
                     }
                     
-                    // Récupérer les dimensions du select natif avant de le masquer
+                    // Récupérer les styles du select natif avant de le masquer
                     const selectComputedStyle = window.getComputedStyle(element);
                     const selectWidth = element.offsetWidth || parseFloat(selectComputedStyle.width) || 'auto';
                     const selectHeight = element.offsetHeight || parseFloat(selectComputedStyle.height) || 'auto';
@@ -1348,6 +1348,16 @@
                     const selectMaxWidth = selectComputedStyle.maxWidth !== 'none' ? selectComputedStyle.maxWidth : null;
                     const selectMinHeight = selectComputedStyle.minHeight !== 'none' ? selectComputedStyle.minHeight : null;
                     const selectMaxHeight = selectComputedStyle.maxHeight !== 'none' ? selectComputedStyle.maxHeight : null;
+                    
+                    // Récupérer les styles visuels du select pour les appliquer au dropdown custom
+                    const selectBgColor = selectComputedStyle.backgroundColor;
+                    const selectBorder = selectComputedStyle.border || selectComputedStyle.borderWidth + ' ' + selectComputedStyle.borderStyle + ' ' + selectComputedStyle.borderColor;
+                    const selectBorderColor = selectComputedStyle.borderColor;
+                    const selectBorderRadius = selectComputedStyle.borderRadius;
+                    const selectColor = selectComputedStyle.color;
+                    const selectFontSize = selectComputedStyle.fontSize;
+                    const selectFontFamily = selectComputedStyle.fontFamily;
+                    const selectPadding = selectComputedStyle.padding || (selectComputedStyle.paddingTop + ' ' + selectComputedStyle.paddingRight + ' ' + selectComputedStyle.paddingBottom + ' ' + selectComputedStyle.paddingLeft);
                     
                     // Créer le wrapper avec les dimensions du select
                     const wrapper = document.createElement('div');
@@ -1384,7 +1394,31 @@
                         '';
                     
                     trigger.innerHTML = '<div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;"><span class="bb-country-flag" style="flex-shrink: 0;">' + selectedFlag + '</span><span class="bb-country-name" style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + bbContents.utils.sanitize(selectedName) + '</span></div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink: 0; transition: transform 0.2s;"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-                    let triggerStyle = 'display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer; font-size: inherit; font-family: inherit; color: inherit; transition: border-color 0.2s; box-sizing: border-box;';
+                    let triggerStyle = 'display: flex; align-items: center; justify-content: space-between; cursor: pointer; box-sizing: border-box; transition: border-color 0.2s;';
+                    // Appliquer les styles du select natif
+                    if (selectBgColor && selectBgColor !== 'rgba(0, 0, 0, 0)' && selectBgColor !== 'transparent') {
+                        triggerStyle += ' background-color: ' + selectBgColor + ';';
+                    }
+                    if (selectBorder && selectBorder !== 'none' && selectBorder !== '0px none rgb(0, 0, 0)') {
+                        triggerStyle += ' border: ' + selectBorder + ';';
+                    } else if (selectBorderColor && selectBorderColor !== 'rgba(0, 0, 0, 0)') {
+                        triggerStyle += ' border-color: ' + selectBorderColor + ';';
+                    }
+                    if (selectBorderRadius && selectBorderRadius !== '0px') {
+                        triggerStyle += ' border-radius: ' + selectBorderRadius + ';';
+                    }
+                    if (selectColor) {
+                        triggerStyle += ' color: ' + selectColor + ';';
+                    }
+                    if (selectFontSize) {
+                        triggerStyle += ' font-size: ' + selectFontSize + ';';
+                    }
+                    if (selectFontFamily) {
+                        triggerStyle += ' font-family: ' + selectFontFamily + ';';
+                    }
+                    if (selectPadding && selectPadding !== '0px') {
+                        triggerStyle += ' padding: ' + selectPadding + ';';
+                    }
                     // Utiliser les dimensions du select natif
                     if (selectWidth !== 'auto' && selectWidth > 0) {
                         triggerStyle += ' width: ' + selectWidth + 'px;';
@@ -1407,19 +1441,73 @@
                     const popover = document.createElement('div');
                     popover.className = 'bb-country-select-popover';
                     popover.setAttribute('role', 'listbox');
-                    popover.style.cssText = 'position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); max-height: 300px; overflow: hidden; display: none; z-index: 50;';
+                    let popoverStyle = 'position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; max-height: 300px; overflow: hidden; display: none; z-index: 50;';
+                    // Appliquer les styles du select natif au popover
+                    if (selectBgColor && selectBgColor !== 'rgba(0, 0, 0, 0)' && selectBgColor !== 'transparent') {
+                        popoverStyle += ' background-color: ' + selectBgColor + ';';
+                    } else {
+                        popoverStyle += ' background-color: white;';
+                    }
+                    if (selectBorder && selectBorder !== 'none' && selectBorder !== '0px none rgb(0, 0, 0)') {
+                        popoverStyle += ' border: ' + selectBorder + ';';
+                    } else if (selectBorderColor && selectBorderColor !== 'rgba(0, 0, 0, 0)') {
+                        popoverStyle += ' border: 1px solid ' + selectBorderColor + ';';
+                    } else {
+                        popoverStyle += ' border: 1px solid #e5e7eb;';
+                    }
+                    if (selectBorderRadius && selectBorderRadius !== '0px') {
+                        popoverStyle += ' border-radius: ' + selectBorderRadius + ';';
+                    } else {
+                        popoverStyle += ' border-radius: 6px;';
+                    }
+                    popoverStyle += ' box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);';
+                    popover.style.cssText = popoverStyle;
                     
                     // Barre de recherche
                     const searchWrapper = document.createElement('div');
                     searchWrapper.className = 'bb-country-search';
-                    searchWrapper.style.cssText = 'position: sticky; top: 0; padding: 8px; background: white; border-bottom: 1px solid #e5e7eb; z-index: 1;';
+                    let searchWrapperStyle = 'position: sticky; top: 0; padding: 8px; z-index: 1;';
+                    if (selectBgColor && selectBgColor !== 'rgba(0, 0, 0, 0)' && selectBgColor !== 'transparent') {
+                        searchWrapperStyle += ' background-color: ' + selectBgColor + ';';
+                    } else {
+                        searchWrapperStyle += ' background-color: white;';
+                    }
+                    if (selectBorderColor && selectBorderColor !== 'rgba(0, 0, 0, 0)') {
+                        searchWrapperStyle += ' border-bottom: 1px solid ' + selectBorderColor + ';';
+                    } else {
+                        searchWrapperStyle += ' border-bottom: 1px solid #e5e7eb;';
+                    }
+                    searchWrapper.style.cssText = searchWrapperStyle;
                     
                     const searchInput = document.createElement('input');
                     searchInput.type = 'text';
                     searchInput.className = 'bb-country-search-input';
                     searchInput.placeholder = searchPlaceholder;
                     searchInput.setAttribute('aria-label', searchPlaceholder);
-                    searchInput.style.cssText = 'width: 100%; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 4px; font-size: inherit; font-family: inherit; box-sizing: border-box;';
+                    let searchInputStyle = 'width: 100%; padding: 8px 12px; box-sizing: border-box;';
+                    if (selectFontSize) {
+                        searchInputStyle += ' font-size: ' + selectFontSize + ';';
+                    }
+                    if (selectFontFamily) {
+                        searchInputStyle += ' font-family: ' + selectFontFamily + ';';
+                    }
+                    if (selectColor) {
+                        searchInputStyle += ' color: ' + selectColor + ';';
+                    }
+                    if (selectBorderColor && selectBorderColor !== 'rgba(0, 0, 0, 0)') {
+                        searchInputStyle += ' border: 1px solid ' + selectBorderColor + ';';
+                    } else {
+                        searchInputStyle += ' border: 1px solid #e5e7eb;';
+                    }
+                    if (selectBorderRadius && selectBorderRadius !== '0px') {
+                        const borderRadiusValue = parseFloat(selectBorderRadius);
+                        if (!isNaN(borderRadiusValue)) {
+                            searchInputStyle += ' border-radius: ' + (borderRadiusValue * 0.75) + 'px;';
+                        }
+                    } else {
+                        searchInputStyle += ' border-radius: 4px;';
+                    }
+                    searchInput.style.cssText = searchInputStyle;
                     
                     searchWrapper.appendChild(searchInput);
                     popover.appendChild(searchWrapper);
