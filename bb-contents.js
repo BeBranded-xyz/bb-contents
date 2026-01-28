@@ -32,7 +32,7 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.148');
+    console.log('bb-contents | v1.0.149');
 
     // Configuration
     const config = {
@@ -508,61 +508,135 @@
                         forceImagesDisplay(repeatBlock1);
                         forceImagesDisplay(repeatBlock2);
                         
-                        // Pour les marquees horizontaux, utiliser position relative (plus simple et plus fiable)
-                        if (!isVertical) {
-                            scrollContainer.appendChild(mainBlock);
-                            scrollContainer.appendChild(repeatBlock1);
-                            scrollContainer.appendChild(repeatBlock2);
-                            mainContainer.appendChild(scrollContainer);
-                            
-                            // Calculer la hauteur maximale des items après ajout au DOM
-                            requestAnimationFrame(() => {
-                                requestAnimationFrame(() => {
-                                    const items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"], > *');
-                                    let maxHeight = 0;
-                                    items.forEach(function(item) {
-                                        const itemHeight = item.offsetHeight;
-                                        if (itemHeight > maxHeight) {
-                                            maxHeight = itemHeight;
+                        // NOUVELLE APPROCHE: Ajouter temporairement les copies au DOM (hors écran) 
+                        // pour forcer le navigateur à les rendre complètement avant l'animation
+                        const tempContainer = document.createElement('div');
+                        tempContainer.style.cssText = 'position: absolute; left: -9999px; top: -9999px; visibility: hidden;';
+                        tempContainer.appendChild(repeatBlock1);
+                        tempContainer.appendChild(repeatBlock2);
+                        document.body.appendChild(tempContainer);
+                        
+                        // Forcer le rendu en vérifiant que toutes les images sont vraiment chargées et rendues
+                        const waitForImagesRender = function(block) {
+                            return new Promise(function(resolve) {
+                                const images = block.querySelectorAll('img');
+                                if (images.length === 0) {
+                                    resolve();
+                                    return;
+                                }
+                                
+                                let renderedCount = 0;
+                                const totalImages = images.length;
+                                
+                                const checkRendered = function() {
+                                    if (renderedCount >= totalImages) {
+                                        resolve();
+                                    }
+                                };
+                                
+                                images.forEach(function(img) {
+                                    // Vérifier que l'image est vraiment rendue (naturalWidth > 0 ET dans le DOM)
+                                    const checkImage = function() {
+                                        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && img.offsetWidth > 0) {
+                                            renderedCount++;
+                                            checkRendered();
+                                        } else {
+                                            // Réessayer après un court délai
+                                            setTimeout(checkImage, 10);
                                         }
-                                    });
+                                    };
                                     
-                                    // Si aucun item trouvé, essayer de prendre la hauteur du scrollContainer
-                                    if (maxHeight === 0) {
-                                        maxHeight = scrollContainer.offsetHeight;
+                                    // Forcer le chargement si nécessaire
+                                    if (img.dataset.src && !img.src) {
+                                        img.src = img.dataset.src;
                                     }
                                     
-                                    // Appliquer la hauteur calculée au mainContainer si elle est valide
-                                    if (maxHeight > 0) {
-                                        mainContainer.style.height = maxHeight + 'px';
+                                    if (img.complete && img.naturalWidth > 0 && img.offsetWidth > 0) {
+                                        renderedCount++;
+                                        checkRendered();
+                                    } else {
+                                        img.onload = function() {
+                                            setTimeout(checkImage, 10);
+                                        };
+                                        checkImage();
                                     }
                                 });
+                                
+                                // Timeout de sécurité
+                                setTimeout(function() {
+                                    if (renderedCount < totalImages) {
+                                        renderedCount = totalImages;
+                                        checkRendered();
+                                    }
+                                }, 2000);
                             });
-                        } else {
-                            // Pour vertical, garder le comportement actuel
-                            scrollContainer.appendChild(mainBlock);
-                            scrollContainer.appendChild(repeatBlock1);
-                            scrollContainer.appendChild(repeatBlock2);
-                            mainContainer.appendChild(scrollContainer);
-                        }
+                        };
                         
-                        element.innerHTML = '';
-                        element.appendChild(mainContainer);
-                        element.setAttribute('data-bb-marquee-processed', 'true');
-
-                        // Attendre un peu pour s'assurer que le rendu est complet
-                        // Les images sont déjà chargées donc pas besoin d'attendre leur chargement
-                        requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                // Maintenant démarrer l'animation
-                                const initDelay = isVertical ? 500 : 100;
-                                setTimeout(() => {
-                                    this.initAnimation(element, scrollContainer, mainBlock, {
-                                        speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
+                        // Attendre que toutes les images soient rendues dans les copies
+                        Promise.all([
+                            waitForImagesRender(repeatBlock1),
+                            waitForImagesRender(repeatBlock2)
+                        ]).then(function() {
+                            // Retirer les copies du conteneur temporaire
+                            document.body.removeChild(tempContainer);
+                            
+                            // Maintenant ajouter les copies au scrollContainer
+                            // Les images sont maintenant complètement rendues
+                            if (!isVertical) {
+                                scrollContainer.appendChild(mainBlock);
+                                scrollContainer.appendChild(repeatBlock1);
+                                scrollContainer.appendChild(repeatBlock2);
+                                mainContainer.appendChild(scrollContainer);
+                                
+                                // Calculer la hauteur maximale des items après ajout au DOM
+                                requestAnimationFrame(() => {
+                                    requestAnimationFrame(() => {
+                                        const items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"], > *');
+                                        let maxHeight = 0;
+                                        items.forEach(function(item) {
+                                            const itemHeight = item.offsetHeight;
+                                            if (itemHeight > maxHeight) {
+                                                maxHeight = itemHeight;
+                                            }
+                                        });
+                                        
+                                        // Si aucun item trouvé, essayer de prendre la hauteur du scrollContainer
+                                        if (maxHeight === 0) {
+                                            maxHeight = scrollContainer.offsetHeight;
+                                        }
+                                        
+                                        // Appliquer la hauteur calculée au mainContainer si elle est valide
+                                        if (maxHeight > 0) {
+                                            mainContainer.style.height = maxHeight + 'px';
+                                        }
                                     });
-                                }, initDelay);
+                                });
+                            } else {
+                                // Pour vertical, garder le comportement actuel
+                                scrollContainer.appendChild(mainBlock);
+                                scrollContainer.appendChild(repeatBlock1);
+                                scrollContainer.appendChild(repeatBlock2);
+                                mainContainer.appendChild(scrollContainer);
+                            }
+                            
+                            element.innerHTML = '';
+                            element.appendChild(mainContainer);
+                            element.setAttribute('data-bb-marquee-processed', 'true');
+
+                            // Attendre un peu pour s'assurer que le rendu est complet
+                            // Les images sont maintenant complètement rendues
+                            requestAnimationFrame(() => {
+                                requestAnimationFrame(() => {
+                                    // Maintenant démarrer l'animation
+                                    const initDelay = isVertical ? 500 : 100;
+                                    setTimeout(() => {
+                                        this.initAnimation(element, scrollContainer, mainBlock, {
+                                            speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
+                                        });
+                                    }, initDelay);
+                                });
                             });
-                        });
+                        }.bind(this));
                     }.bind(this)).catch(function() {
                         // En cas d'erreur, créer les copies quand même et démarrer
                         const repeatBlock1 = mainBlock.cloneNode(true);
