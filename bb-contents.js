@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.143
+ * @version 1.0.144
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.143');
+    console.log('bb-contents | v1.0.144');
 
     // Configuration
     const config = {
-        version: '1.0.143',
+        version: '1.0.144',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -813,10 +813,14 @@
                                 if (currentPosition >= 0) {
                                     currentPosition = -(finalContentSize + gapSize);
                                 }
-            } else {
+                            } else {
                                 currentPosition -= step * deltaTime;
-                                if (currentPosition <= -(2 * (finalContentSize + gapSize))) {
-                                    currentPosition = -(finalContentSize + gapSize);
+                                // Reset BEAUCOUP PLUS TÔT pour éviter toute saccade visible (Safari)
+                                // Reset à 80% du chemin au lieu d'attendre 100% pour avoir une marge de sécurité
+                                const resetThreshold = -(1.8 * (finalContentSize + gapSize));
+                                if (currentPosition <= resetThreshold) {
+                                    // Reset en gardant la position relative pour éviter le saut visible
+                                    currentPosition = currentPosition + (finalContentSize + gapSize);
                                 }
                             }
                             
@@ -899,11 +903,13 @@
                             }
                         } else {
                             currentPosition -= step * clampedDelta;
-                            // Reset AVANT que le bloc ne sorte complètement
-                            // Reset quand on arrive à -(2 * (contentSize + gapSize)) pour que repeatBlock2 soit déjà visible
-                            // Mais on reset à -(contentSize + gapSize) pour que repeatBlock1 soit déjà visible
-                            if (currentPosition <= -(2 * (contentSize + gapSize))) {
-                                currentPosition = -(contentSize + gapSize);
+                            // Reset BEAUCOUP PLUS TÔT pour éviter toute saccade visible
+                            // Reset à 80% du chemin au lieu d'attendre 100% pour avoir une marge de sécurité
+                            // Cela garantit que la copie suivante est toujours visible avant le reset
+                            const resetThreshold = -(1.8 * (contentSize + gapSize));
+                            if (currentPosition <= resetThreshold) {
+                                // Reset en gardant la position relative pour éviter le saut visible
+                                currentPosition = currentPosition + (contentSize + gapSize);
                             }
                         }
                         
