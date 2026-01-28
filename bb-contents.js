@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.147
+ * @version 1.0.148
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.147');
+    console.log('bb-contents | v1.0.148');
 
     // Configuration
     const config = {
-        version: '1.0.147',
+        version: '1.0.148',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -941,10 +941,14 @@
                             
                             if (direction === (isVertical ? 'bottom' : 'right')) {
                                 currentPosition += step * deltaTime;
-                                if (currentPosition >= 0) {
-                                    currentPosition = -(finalContentSize + gapSize);
+                                // Reset BEAUCOUP PLUS TÔT pour "right" aussi (comme pour "left") - Safari
+                                // Reset à 80% du chemin au lieu d'attendre 100% pour avoir une marge de sécurité
+                                const resetThreshold = -(0.2 * (finalContentSize + gapSize)); // 80% du chemin (on est à -20%)
+                                if (currentPosition >= resetThreshold) {
+                                    // Reset en gardant la position relative pour éviter le saut visible
+                                    currentPosition = currentPosition - (finalContentSize + gapSize);
                                 }
-            } else {
+                            } else {
                                 currentPosition -= step * deltaTime;
                                 // Reset BEAUCOUP PLUS TÔT pour éviter toute saccade visible (Safari)
                                 // Reset à 80% du chemin au lieu d'attendre 100% pour avoir une marge de sécurité
@@ -1028,9 +1032,13 @@
                         
                         if (direction === (isVertical ? 'bottom' : 'right')) {
                             currentPosition += step * clampedDelta;
-                            // Reset AVANT que le bloc ne sorte complètement pour éviter la saccade
-                            if (currentPosition >= 0) {
-                                currentPosition = -(contentSize + gapSize);
+                            // Reset BEAUCOUP PLUS TÔT pour "right" aussi (comme pour "left")
+                            // Reset à 80% du chemin au lieu d'attendre 100% pour avoir une marge de sécurité
+                            // Cela garantit que la copie suivante est toujours visible avant le reset
+                            const resetThreshold = -(0.2 * (contentSize + gapSize)); // 80% du chemin (on est à -20%)
+                            if (currentPosition >= resetThreshold) {
+                                // Reset en gardant la position relative pour éviter le saut visible
+                                currentPosition = currentPosition - (contentSize + gapSize);
                             }
                         } else {
                             currentPosition -= step * clampedDelta;
