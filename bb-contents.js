@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.144
+ * @version 1.0.145
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.144');
+    console.log('bb-contents | v1.0.145');
 
     // Configuration
     const config = {
-        version: '1.0.144',
+        version: '1.0.145',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -396,31 +396,93 @@
                     const repeatBlock1 = mainBlock.cloneNode(true);
                     const repeatBlock2 = mainBlock.cloneNode(true);
                     
-                    // Forcer le chargement des images dans les copies pour éviter les saccades
+                    // Forcer le chargement COMPLET des images dans les copies pour éviter l'apparition tardive
                     const preloadImagesInBlock = function(block) {
-                        const images = block.querySelectorAll('img');
-                        images.forEach(function(img) {
-                            if (img.dataset.src && !img.src) {
-                                img.src = img.dataset.src;
+                        return new Promise(function(resolve) {
+                            const images = block.querySelectorAll('img');
+                            if (images.length === 0) {
+                                resolve();
+                                return;
                             }
-                            // Forcer le chargement même si l'image est déjà chargée dans le mainBlock
-                            if (img.src && !img.complete) {
-                                const newImg = new Image();
-                                newImg.src = img.src;
-                            }
+                            
+                            let loadedCount = 0;
+                            let errorCount = 0;
+                            const totalImages = images.length;
+                            
+                            const checkComplete = function() {
+                                if (loadedCount + errorCount >= totalImages) {
+                                    resolve();
+                                }
+                            };
+                            
+                            images.forEach(function(img) {
+                                // Charger l'image si nécessaire
+                                if (img.dataset.src && !img.src) {
+                                    img.src = img.dataset.src;
+                                }
+                                
+                                // Si l'image est déjà chargée, compter comme chargée
+                                if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+                                    loadedCount++;
+                                    checkComplete();
+                                } else {
+                                    // Précharger avec new Image() pour forcer le cache
+                                    const preloadImg = new Image();
+                                    preloadImg.onload = function() {
+                                        // S'assurer que l'image dans le DOM est aussi chargée
+                                        if (img.src && !img.complete) {
+                                            img.src = img.src; // Forcer le rechargement
+                                        }
+                                        loadedCount++;
+                                        checkComplete();
+                                    };
+                                    preloadImg.onerror = function() {
+                                        errorCount++;
+                                        checkComplete();
+                                    };
+                                    
+                                    if (img.src) {
+                                        preloadImg.src = img.src;
+                                    } else if (img.dataset.src) {
+                                        preloadImg.src = img.dataset.src;
+                                    } else {
+                                        errorCount++;
+                                        checkComplete();
+                                    }
+                                    
+                                    // Écouter aussi le chargement de l'image dans le DOM
+                                    const originalOnload = img.onload;
+                                    img.onload = function() {
+                                        if (originalOnload) originalOnload();
+                                        if (!img.complete || img.naturalWidth === 0) {
+                                            // Attendre encore un peu
+                                            setTimeout(function() {
+                                                if (img.complete && img.naturalWidth > 0) {
+                                                    loadedCount++;
+                                                    checkComplete();
+                                                }
+                                            }, 50);
+                                        } else {
+                                            loadedCount++;
+                                            checkComplete();
+                                        }
+                                    };
+                                    
+                                    // Si l'image a déjà un src, déclencher le chargement
+                                    if (img.src) {
+                                        img.src = img.src;
+                                    }
+                                }
+                            });
                         });
                     };
                     
-                    // Précharger les images dans les copies
-                    preloadImagesInBlock(repeatBlock1);
-                    preloadImagesInBlock(repeatBlock2);
-                    
                     // Pour les marquees horizontaux, utiliser position relative (plus simple et plus fiable)
                     if (!isVertical) {
-                        scrollContainer.appendChild(mainBlock);
-                        scrollContainer.appendChild(repeatBlock1);
-                        scrollContainer.appendChild(repeatBlock2);
-                        mainContainer.appendChild(scrollContainer);
+                    scrollContainer.appendChild(mainBlock);
+                    scrollContainer.appendChild(repeatBlock1);
+                    scrollContainer.appendChild(repeatBlock2);
+                    mainContainer.appendChild(scrollContainer);
                         
                         // Calculer la hauteur maximale des items après ajout au DOM
                         requestAnimationFrame(() => {
@@ -503,23 +565,27 @@
                         const repeatBlock1 = mainBlock.cloneNode(true);
                         const repeatBlock2 = mainBlock.cloneNode(true);
                         
-                        // Forcer le chargement des images dans les copies pour éviter les saccades
-                        const preloadImagesInBlock = function(block) {
+                        // Forcer le chargement COMPLET des images dans les copies
+                        const preloadImagesInBlockSync = function(block) {
                             const images = block.querySelectorAll('img');
                             images.forEach(function(img) {
                                 if (img.dataset.src && !img.src) {
                                     img.src = img.dataset.src;
                                 }
-                                // Forcer le chargement même si l'image est déjà chargée dans le mainBlock
-                                if (img.src && !img.complete) {
-                                    const newImg = new Image();
-                                    newImg.src = img.src;
+                                // Précharger avec new Image() pour forcer le cache
+                                if (img.src) {
+                                    const preloadImg = new Image();
+                                    preloadImg.src = img.src;
+                                    // Forcer aussi le chargement dans l'image du DOM
+                                    if (!img.complete) {
+                                        img.src = img.src;
+                                    }
                                 }
                             });
                         };
                         
-                        preloadImagesInBlock(repeatBlock1);
-                        preloadImagesInBlock(repeatBlock2);
+                        preloadImagesInBlockSync(repeatBlock1);
+                        preloadImagesInBlockSync(repeatBlock2);
                         
                         scrollContainer.appendChild(repeatBlock1);
                         scrollContainer.appendChild(repeatBlock2);
@@ -784,7 +850,7 @@
                     let currentPosition;
                     if (direction === (isVertical ? 'bottom' : 'right')) {
                         currentPosition = -(finalContentSize + gapSize);
-                    } else {
+            } else {
                         // Commencer avec repeatBlock1 déjà visible pour éviter la saccade
                         currentPosition = -(finalContentSize + gapSize);
                     }
@@ -813,7 +879,7 @@
                                 if (currentPosition >= 0) {
                                     currentPosition = -(finalContentSize + gapSize);
                                 }
-                            } else {
+            } else {
                                 currentPosition -= step * deltaTime;
                                 // Reset BEAUCOUP PLUS TÔT pour éviter toute saccade visible (Safari)
                                 // Reset à 80% du chemin au lieu d'attendre 100% pour avoir une marge de sécurité
@@ -1871,7 +1937,7 @@
                     wrapper.setAttribute('data-bb-country-select-processed', 'true');
                 });
                 
-            }
+        }
         },
 
         // Module Favicon (Favicon Dynamique)
