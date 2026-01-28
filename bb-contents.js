@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.146
+ * @version 1.0.147
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.146');
+    console.log('bb-contents | v1.0.147');
 
     // Configuration
     const config = {
-        version: '1.0.146',
+        version: '1.0.147',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -347,6 +347,94 @@
                     const mainBlock = document.createElement('div');
                     mainBlock.innerHTML = originalHTML;
                     
+                    // IMPORTANT: Forcer le chargement de TOUTES les images dans mainBlock AVANT de cloner
+                    // Cela garantit que les images sont dans le cache du navigateur avant le clonage
+                    const preloadAllImagesFirst = function(block) {
+                        return new Promise(function(resolve) {
+                            const images = block.querySelectorAll('img');
+                            if (images.length === 0) {
+                                resolve();
+                                return;
+                            }
+                            
+                            let loadedCount = 0;
+                            let errorCount = 0;
+                            const totalImages = images.length;
+                            
+                            const checkComplete = function() {
+                                if (loadedCount + errorCount >= totalImages) {
+                                    resolve();
+                                }
+                            };
+                            
+                            images.forEach(function(img) {
+                                // Charger l'image si nécessaire
+                                if (img.dataset.src && !img.src) {
+                                    img.src = img.dataset.src;
+                                }
+                                
+                                // Si l'image est déjà complètement chargée
+                                if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+                                    loadedCount++;
+                                    checkComplete();
+                                } else {
+                                    // Précharger avec new Image() pour forcer le cache
+                                    const preloadImg = new Image();
+                                    preloadImg.onload = function() {
+                                        // Forcer aussi le chargement dans l'image du DOM
+                                        if (img.src) {
+                                            img.src = img.src;
+                                        }
+                                        // Attendre que l'image du DOM soit aussi chargée
+                                        const checkDomImage = function() {
+                                            if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+                                                loadedCount++;
+                                                checkComplete();
+                                            } else {
+                                                setTimeout(checkDomImage, 10);
+                                            }
+                                        };
+                                        setTimeout(checkDomImage, 10);
+                                    };
+                                    preloadImg.onerror = function() {
+                                        errorCount++;
+                                        checkComplete();
+                                    };
+                                    
+                                    if (img.src) {
+                                        preloadImg.src = img.src;
+                                    } else if (img.dataset.src) {
+                                        preloadImg.src = img.dataset.src;
+                                    } else {
+                                        errorCount++;
+                                        checkComplete();
+                                    }
+                                    
+                                    // Écouter aussi le chargement de l'image dans le DOM
+                                    img.onload = function() {
+                                        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+                                            loadedCount++;
+                                            checkComplete();
+                                        }
+                                    };
+                                    
+                                    // Forcer le chargement si l'image a déjà un src
+                                    if (img.src) {
+                                        img.src = img.src;
+                                    }
+                                }
+                            });
+                            
+                            // Timeout de sécurité (max 5 secondes)
+                            setTimeout(function() {
+                                if (loadedCount + errorCount < totalImages) {
+                                    errorCount = totalImages - loadedCount;
+                                    checkComplete();
+                                }
+                            }, 5000);
+                        });
+                    };
+                    
                     // Permettre le retour à la ligne pour le texte dans les items du marquee
                     // Le white-space: nowrap sur le conteneur flex empêche les items de se retourner,
                     // mais ne doit pas empêcher le texte à l'intérieur des items de faire plusieurs lignes
@@ -392,140 +480,78 @@
                         ${isVertical ? 'min-height: 100px;' : ''}
                     `;
 
-                    // Créer 3 copies pour le défilement infini
-                    const repeatBlock1 = mainBlock.cloneNode(true);
-                    const repeatBlock2 = mainBlock.cloneNode(true);
-                    
-                    // Forcer le chargement COMPLET des images dans les copies pour éviter l'apparition tardive
-                    const preloadImagesInBlock = function(block) {
-                        return new Promise(function(resolve) {
+                    // NOUVELLE APPROCHE: Attendre que TOUTES les images du mainBlock soient chargées AVANT de cloner
+                    // Cela garantit que les copies héritent d'images déjà dans le cache du navigateur
+                    preloadAllImagesFirst(mainBlock).then(function() {
+                        // Maintenant créer les copies - les images sont déjà en cache
+                        const repeatBlock1 = mainBlock.cloneNode(true);
+                        const repeatBlock2 = mainBlock.cloneNode(true);
+                        
+                        // Forcer l'affichage immédiat des images dans les copies (elles sont en cache)
+                        const forceImagesDisplay = function(block) {
                             const images = block.querySelectorAll('img');
-                            if (images.length === 0) {
-                                resolve();
-                                return;
-                            }
-                            
-                            let loadedCount = 0;
-                            let errorCount = 0;
-                            const totalImages = images.length;
-                            
-                            const checkComplete = function() {
-                                if (loadedCount + errorCount >= totalImages) {
-                                    resolve();
-                                }
-                            };
-                            
                             images.forEach(function(img) {
-                                // Charger l'image si nécessaire
                                 if (img.dataset.src && !img.src) {
                                     img.src = img.dataset.src;
                                 }
-                                
-                                // Si l'image est déjà chargée, compter comme chargée
-                                if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-                                    loadedCount++;
-                                    checkComplete();
-                                } else {
-                                    // Précharger avec new Image() pour forcer le cache
-                                    const preloadImg = new Image();
-                                    preloadImg.onload = function() {
-                                        // S'assurer que l'image dans le DOM est aussi chargée
-                                        if (img.src && !img.complete) {
-                                            img.src = img.src; // Forcer le rechargement
-                                        }
-                                        loadedCount++;
-                                        checkComplete();
-                                    };
-                                    preloadImg.onerror = function() {
-                                        errorCount++;
-                                        checkComplete();
-                                    };
-                                    
-                                    if (img.src) {
-                                        preloadImg.src = img.src;
-                                    } else if (img.dataset.src) {
-                                        preloadImg.src = img.dataset.src;
-                                    } else {
-                                        errorCount++;
-                                        checkComplete();
-                                    }
-                                    
-                                    // Écouter aussi le chargement de l'image dans le DOM
-                                    const originalOnload = img.onload;
-                                    img.onload = function() {
-                                        if (originalOnload) originalOnload();
-                                        if (!img.complete || img.naturalWidth === 0) {
-                                            // Attendre encore un peu
-                                            setTimeout(function() {
-                                                if (img.complete && img.naturalWidth > 0) {
-                                                    loadedCount++;
-                                                    checkComplete();
-                                                }
-                                            }, 50);
-                                        } else {
-                                            loadedCount++;
-                                            checkComplete();
-                                        }
-                                    };
-                                    
-                                    // Si l'image a déjà un src, déclencher le chargement
-                                    if (img.src) {
-                                        img.src = img.src;
-                                    }
+                                // Forcer le chargement et l'affichage
+                                if (img.src) {
+                                    img.src = img.src;
+                                    img.style.opacity = '1';
+                                    img.style.visibility = 'visible';
+                                    // Forcer un reflow pour s'assurer que l'image est rendue
+                                    void img.offsetHeight;
                                 }
                             });
-                        });
-                    };
-                    
-                    // Pour les marquees horizontaux, utiliser position relative (plus simple et plus fiable)
-                    if (!isVertical) {
-                    scrollContainer.appendChild(mainBlock);
-                    scrollContainer.appendChild(repeatBlock1);
-                    scrollContainer.appendChild(repeatBlock2);
-                    mainContainer.appendChild(scrollContainer);
+                        };
                         
-                        // Calculer la hauteur maximale des items après ajout au DOM
-                        requestAnimationFrame(() => {
+                        forceImagesDisplay(repeatBlock1);
+                        forceImagesDisplay(repeatBlock2);
+                        
+                        // Pour les marquees horizontaux, utiliser position relative (plus simple et plus fiable)
+                        if (!isVertical) {
+                            scrollContainer.appendChild(mainBlock);
+                            scrollContainer.appendChild(repeatBlock1);
+                            scrollContainer.appendChild(repeatBlock2);
+                            mainContainer.appendChild(scrollContainer);
+                            
+                            // Calculer la hauteur maximale des items après ajout au DOM
                             requestAnimationFrame(() => {
-                                const items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"], > *');
-                                let maxHeight = 0;
-                                items.forEach(function(item) {
-                                    const itemHeight = item.offsetHeight;
-                                    if (itemHeight > maxHeight) {
-                                        maxHeight = itemHeight;
+                                requestAnimationFrame(() => {
+                                    const items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"], > *');
+                                    let maxHeight = 0;
+                                    items.forEach(function(item) {
+                                        const itemHeight = item.offsetHeight;
+                                        if (itemHeight > maxHeight) {
+                                            maxHeight = itemHeight;
+                                        }
+                                    });
+                                    
+                                    // Si aucun item trouvé, essayer de prendre la hauteur du scrollContainer
+                                    if (maxHeight === 0) {
+                                        maxHeight = scrollContainer.offsetHeight;
+                                    }
+                                    
+                                    // Appliquer la hauteur calculée au mainContainer si elle est valide
+                                    if (maxHeight > 0) {
+                                        mainContainer.style.height = maxHeight + 'px';
                                     }
                                 });
-                                
-                                // Si aucun item trouvé, essayer de prendre la hauteur du scrollContainer
-                                if (maxHeight === 0) {
-                                    maxHeight = scrollContainer.offsetHeight;
-                                }
-                                
-                                // Appliquer la hauteur calculée au mainContainer si elle est valide
-                                if (maxHeight > 0) {
-                                    mainContainer.style.height = maxHeight + 'px';
-                                }
                             });
-                        });
-                    } else {
-                        // Pour vertical, garder le comportement actuel
-                        scrollContainer.appendChild(mainBlock);
-                        scrollContainer.appendChild(repeatBlock1);
-                        scrollContainer.appendChild(repeatBlock2);
-                        mainContainer.appendChild(scrollContainer);
-                    }
-                    
-                    element.innerHTML = '';
-                    element.appendChild(mainContainer);
-                    element.setAttribute('data-bb-marquee-processed', 'true');
+                        } else {
+                            // Pour vertical, garder le comportement actuel
+                            scrollContainer.appendChild(mainBlock);
+                            scrollContainer.appendChild(repeatBlock1);
+                            scrollContainer.appendChild(repeatBlock2);
+                            mainContainer.appendChild(scrollContainer);
+                        }
+                        
+                        element.innerHTML = '';
+                        element.appendChild(mainContainer);
+                        element.setAttribute('data-bb-marquee-processed', 'true');
 
-                    // Attendre que TOUTES les images dans TOUTES les copies soient chargées avant de démarrer
-                    // Cela évite l'apparition tardive des logos dans le champ de vision
-                    Promise.all([
-                        preloadImagesInBlock(repeatBlock1),
-                        preloadImagesInBlock(repeatBlock2)
-                    ]).then(function() {
-                        // Attendre encore un peu pour s'assurer que le rendu est complet
+                        // Attendre un peu pour s'assurer que le rendu est complet
+                        // Les images sont déjà chargées donc pas besoin d'attendre leur chargement
                         requestAnimationFrame(() => {
                             requestAnimationFrame(() => {
                                 // Maintenant démarrer l'animation
@@ -538,13 +564,32 @@
                             });
                         });
                     }.bind(this)).catch(function() {
-                        // En cas d'erreur, démarrer quand même après un délai
-                    const initDelay = isVertical ? 500 : 300;
-                    setTimeout(() => {
-                        this.initAnimation(element, scrollContainer, mainBlock, {
-                            speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
-                        });
-                    }, initDelay);
+                        // En cas d'erreur, créer les copies quand même et démarrer
+                        const repeatBlock1 = mainBlock.cloneNode(true);
+                        const repeatBlock2 = mainBlock.cloneNode(true);
+                        
+                        if (!isVertical) {
+                            scrollContainer.appendChild(mainBlock);
+                            scrollContainer.appendChild(repeatBlock1);
+                            scrollContainer.appendChild(repeatBlock2);
+                            mainContainer.appendChild(scrollContainer);
+                        } else {
+                            scrollContainer.appendChild(mainBlock);
+                            scrollContainer.appendChild(repeatBlock1);
+                            scrollContainer.appendChild(repeatBlock2);
+                            mainContainer.appendChild(scrollContainer);
+                        }
+                        
+                        element.innerHTML = '';
+                        element.appendChild(mainContainer);
+                        element.setAttribute('data-bb-marquee-processed', 'true');
+                        
+                        const initDelay = isVertical ? 500 : 300;
+                        setTimeout(() => {
+                            this.initAnimation(element, scrollContainer, mainBlock, {
+                                speed, direction, pauseOnHover, gap, isVertical, useAutoHeight
+                            });
+                        }, initDelay);
                     }.bind(this));
                 });
             },
