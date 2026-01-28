@@ -32,7 +32,7 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.149');
+    console.log('bb-contents | v1.0.150');
 
     // Configuration
     const config = {
@@ -572,10 +572,51 @@
                             });
                         };
                         
+                        // NOUVEAU: Forcer le rendu complet en déplaçant temporairement le conteneur
+                        // pour que toutes les parties soient visibles (même brièvement)
+                        // Cela force le navigateur à rendre même les parties très larges sur grands écrans
+                        const forceFullRender = function() {
+                            return new Promise(function(resolve) {
+                                // Calculer la largeur totale des copies
+                                const totalWidth = Math.max(
+                                    repeatBlock1.offsetWidth || 0,
+                                    repeatBlock2.offsetWidth || 0
+                                );
+                                
+                                if (totalWidth > 0 && totalWidth > window.innerWidth) {
+                                    // Déplacer temporairement le conteneur pour forcer le rendu de toutes les parties
+                                    // On le place à gauche de l'écran puis on le déplace pour que tout soit visible
+                                    tempContainer.style.left = '0px';
+                                    tempContainer.style.width = totalWidth + 'px';
+                                    tempContainer.style.overflow = 'visible';
+                                    
+                                    // Forcer un reflow pour que le navigateur calcule les dimensions
+                                    void tempContainer.offsetWidth;
+                                    
+                                    // Maintenant déplacer pour que la fin soit visible (force le rendu de la fin)
+                                    const translateX = Math.max(0, totalWidth - window.innerWidth);
+                                    tempContainer.style.transform = 'translateX(-' + translateX + 'px)';
+                                    void tempContainer.offsetWidth;
+                                    
+                                    // Revenir à la position initiale
+                                    tempContainer.style.transform = '';
+                                    tempContainer.style.left = '-9999px';
+                                    tempContainer.style.width = 'auto';
+                                    void tempContainer.offsetWidth;
+                                }
+                                
+                                // Attendre un frame pour que le rendu soit complet
+                                requestAnimationFrame(function() {
+                                    requestAnimationFrame(resolve);
+                                });
+                            });
+                        };
+                        
                         // Attendre que toutes les images soient rendues dans les copies
                         Promise.all([
                             waitForImagesRender(repeatBlock1),
-                            waitForImagesRender(repeatBlock2)
+                            waitForImagesRender(repeatBlock2),
+                            forceFullRender() // NOUVEAU: Forcer le rendu complet
                         ]).then(function() {
                             // Retirer les copies du conteneur temporaire
                             document.body.removeChild(tempContainer);
