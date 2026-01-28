@@ -1503,7 +1503,18 @@
                         
                         list.innerHTML = countries.map(function(country) {
                             const isSelected = currentSelectedCountry && currentSelectedCountry.alpha2 === country.alpha2;
-                            return '<div class="bb-country-item" data-country="' + country.alpha2 + '" role="option" aria-selected="' + (isSelected ? 'true' : 'false') + '" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; font-size: inherit; font-family: inherit; transition: background-color 0.15s; min-height: 36px; box-sizing: border-box;' + (isSelected ? ' background-color: #f3f4f6;' : '') + '"><img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;"><span style="line-height: 1.2;">' + bbContents.utils.sanitize(country.name[language]) + '</span></div>';
+                            let itemStyle = 'display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; transition: background-color 0.15s; min-height: 36px; box-sizing: border-box;';
+                            // Appliquer uniquement font-size et font-family du select natif (pas la couleur)
+                            if (selectFontSize) {
+                                itemStyle += ' font-size: ' + selectFontSize + ';';
+                            }
+                            if (selectFontFamily) {
+                                itemStyle += ' font-family: ' + selectFontFamily + ';';
+                            }
+                            if (isSelected) {
+                                itemStyle += ' background-color: #f3f4f6;';
+                            }
+                            return '<div class="bb-country-item" data-country="' + country.alpha2 + '" role="option" aria-selected="' + (isSelected ? 'true' : 'false') + '" style="' + itemStyle + '"><img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;"><span style="line-height: 1.2;">' + bbContents.utils.sanitize(country.name[language]) + '</span></div>';
                         }).join('');
                         
                         // Ajouter hover effect
