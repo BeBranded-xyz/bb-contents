@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.0.132
+ * @version 1.0.133
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -32,11 +32,11 @@
     window._bbContentsInitialized = true;
 
     // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.0.132');
+    console.log('bb-contents | v1.0.133');
 
     // Configuration
     const config = {
-        version: '1.0.132',
+        version: '1.0.133',
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -1395,7 +1395,7 @@
                     
                     trigger.innerHTML = '<div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;"><span class="bb-country-flag" style="flex-shrink: 0;">' + selectedFlag + '</span><span class="bb-country-name" style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + bbContents.utils.sanitize(selectedName) + '</span></div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink: 0; transition: transform 0.2s;"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                     let triggerStyle = 'display: flex; align-items: center; justify-content: space-between; cursor: pointer; box-sizing: border-box; transition: border-color 0.2s;';
-                    // Appliquer les styles du select natif
+                    // Appliquer les styles du select natif (récupérés depuis CET élément spécifique)
                     if (selectBgColor && selectBgColor !== 'rgba(0, 0, 0, 0)' && selectBgColor !== 'transparent') {
                         triggerStyle += ' background-color: ' + selectBgColor + ';';
                     }
@@ -1407,7 +1407,8 @@
                     if (selectBorderRadius && selectBorderRadius !== '0px') {
                         triggerStyle += ' border-radius: ' + selectBorderRadius + ';';
                     }
-                    if (selectColor) {
+                    // Toujours appliquer la couleur du texte (même si héritée)
+                    if (selectColor && selectColor !== 'rgba(0, 0, 0, 0)') {
                         triggerStyle += ' color: ' + selectColor + ';';
                     }
                     if (selectFontSize) {
