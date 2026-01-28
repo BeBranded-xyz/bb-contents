@@ -11,7 +11,8 @@ Merci de suivre la documentation sur notre site pour l’intégration détaillé
 
 ### CDN (recommandé)
 ```html
-<script src="https://cdn.jsdelivr.net/npm/bb-contents@1/bb-contents.js"></script>
+<!-- BeBranded Contents -->
+<script async src="https://cdn.jsdelivr.net/npm/@bebranded/bb-contents@latest/bb-contents.js"></script>
 ```
 
 ### NPM
