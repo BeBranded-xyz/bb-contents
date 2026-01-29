@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.3
+ * @version 1.1.4
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.3';
+    const BB_CONTENTS_VERSION = '1.1.4';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -2481,6 +2481,11 @@
                 if (!endpoint || typeof endpoint !== 'string') {
                     throw new Error('Endpoint YouTube invalide');
                 }
+                // Validation URL stricte
+                if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+                    throw new Error('Endpoint YouTube doit être une URL valide');
+                }
+                // Validation que l'endpoint correspond à la configuration
                 if (bbContents.config.youtubeEndpoint && !endpoint.startsWith(bbContents.config.youtubeEndpoint)) {
                     throw new Error('Endpoint YouTube non autorisé');
                 }
@@ -2819,8 +2824,11 @@
             // Fonction pour décoder les entités HTML
             decodeHtmlEntities: function(text) {
                 if (!text) return '';
+                // Sécuriser en utilisant textContent d'abord pour éviter l'exécution de HTML
+                const div = document.createElement('div');
+                div.textContent = text;
                 const textarea = document.createElement('textarea');
-                textarea.innerHTML = text;
+                textarea.innerHTML = div.innerHTML;
                 return textarea.value;
             },
             
@@ -2864,6 +2872,16 @@
     // Méthode globale pour configurer YouTube après le chargement
     window.configureYouTube = function(endpoint) {
         if (bbContents) {
+            // Validation de l'endpoint
+            if (!endpoint || typeof endpoint !== 'string') {
+                console.error('bb-contents: Endpoint YouTube invalide');
+                return;
+            }
+            // Validation URL (doit commencer par http:// ou https://)
+            if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+                console.error('bb-contents: Endpoint YouTube doit être une URL valide (http:// ou https://)');
+                return;
+            }
             bbContents.config.youtubeEndpoint = endpoint;
             // Réinitialiser les modules YouTube
             bbContents.reinit();
