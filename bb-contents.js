@@ -2570,6 +2570,11 @@
             
             // Fonction pour récupérer les vidéos de plusieurs chaînes
             fetchMultipleChannels: function(endpoint, channelIds, maxResults, allowShorts) {
+                // Limiter le nombre de channelIds pour éviter les abus
+                if (channelIds.length > 10) {
+                    throw new Error('Maximum 10 channelIds allowed');
+                }
+                
                 // Faire une requête par channelId unique
                 const promises = channelIds.map(channelId => {
                     return fetch(`${endpoint}?channelId=${encodeURIComponent(channelId)}&maxResults=${maxResults}&allowShorts=${allowShorts}`)

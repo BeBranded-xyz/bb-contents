@@ -1,31 +1,23 @@
 // YouTube API Worker pour bb-contents
 // Déployez ce code sur Cloudflare Workers
 
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request, event.env))
-})
+export default {
+  async fetch(request, env) {
+    // Gérer les CORS
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        }
+      })
+    }
 
-async function handleRequest(request, env) {
-  // Gérer les CORS
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      }
-    })
-  }
-
-  try {
-    const url = new URL(request.url)
-    const channelId = url.searchParams.get('channelId')
-    const maxResults = url.searchParams.get('maxResults') || '10'
-    const allowShorts = url.searchParams.get('allowShorts') || 'false'
-    
-    if (!channelId) {
-      return new Response(JSON.stringify({ error: 'channelId parameter is required' }), {
-        status: 400,
+    // Seulement GET autorisé
+    if (request.method !== 'GET') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        status: 405,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
@@ -33,11 +25,161 @@ async function handleRequest(request, env) {
       })
     }
 
-    // Récupérer la clé API depuis les secrets Cloudflare
-    const apiKey = env.YOUTUBE_API_KEY
-    
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'API key not configured' }), {
+    try {
+      const url = new URL(request.url)
+      const channelId = url.searchParams.get('channelId')
+      let maxResults = url.searchParams.get('maxResults') || '10'
+      const allowShorts = url.searchParams.get('allowShorts') || 'false'
+      
+      // Validation channelId
+      if (!channelId) {
+        return new Response(JSON.stringify({ error: 'channelId parameter is required' }), {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        })
+      }
+      
+      // Validation format channelId (alphanumérique, tirets, underscores uniquement)
+      if (!/^[a-zA-Z0-9_-]+$/.test(channelId)) {
+        return new Response(JSON.stringify({ error: 'Invalid channelId format' }), {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        })
+      }
+      
+      // Validation et limitation maxResults
+      maxResults = parseInt(maxResults, 10)
+      if (isNaN(maxResults) || maxResults < 1) {
+        maxResults = 10
+      }
+      // Limiter à 50 max (limite API YouTube)
+      if (maxResults > 50) {
+        maxResults = 50
+      }
+      maxResults = String(maxResults)
+      
+      // Validation allowShorts
+      const safeAllowShorts = allowShorts === 'true'
+
+      // Récupérer la clé API depuis les secrets Cloudflare
+      const apiKey = env.YOUTUBE_API_KEY
+      
+      if (!apiKey) {
+        return new Response(JSON.stringify({ error: 'API key not configured' }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        })
+      }
+      
+      // Encoder les paramètres pour éviter l'injection
+      const encodedChannelId = encodeURIComponent(channelId)
+      const encodedMaxResults = encodeURIComponent(maxResults)
+      
+      // Timeout de 10 secondes pour les requêtes API
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
+      
+      try {
+        if (safeAllowShorts) {
+          // Récupérer uniquement les vidéos courtes (< 4 minutes)
+          const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${encodedChannelId}&maxResults=${encodedMaxResults}&order=date&type=video&videoDuration=short&key=${apiKey}`
+          const response = await fetch(apiUrl, { signal: controller.signal })
+          
+          clearTimeout(timeoutId)
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(`YouTube API error: ${response.status}`)
+          }
+          
+          const data = await response.json()
+          
+          // Validation de la structure des données
+          if (!data || typeof data !== 'object' || !Array.isArray(data.items)) {
+            throw new Error('Invalid response format from YouTube API')
+          }
+          
+          return new Response(JSON.stringify(data), {
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'Cache-Control': 'public, max-age=3600'
+            }
+          })
+        } else {
+          // Récupérer les vidéos moyennes ET longues (exclure les shorts)
+          const [mediumResponse, longResponse] = await Promise.all([
+            fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${encodedChannelId}&maxResults=${encodedMaxResults}&order=date&type=video&videoDuration=medium&key=${apiKey}`, { signal: controller.signal }),
+            fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${encodedChannelId}&maxResults=${encodedMaxResults}&order=date&type=video&videoDuration=long&key=${apiKey}`, { signal: controller.signal })
+          ])
+          
+          clearTimeout(timeoutId)
+          
+          if (!mediumResponse.ok || !longResponse.ok) {
+            const failedResponse = !mediumResponse.ok ? mediumResponse : longResponse
+            throw new Error(`YouTube API error: ${failedResponse.status}`)
+          }
+          
+          const [mediumData, longData] = await Promise.all([
+            mediumResponse.json(),
+            longResponse.json()
+          ])
+          
+          // Validation de la structure des données
+          if (!mediumData || typeof mediumData !== 'object' || !Array.isArray(mediumData.items)) {
+            throw new Error('Invalid response format from YouTube API (medium)')
+          }
+          if (!longData || typeof longData !== 'object' || !Array.isArray(longData.items)) {
+            throw new Error('Invalid response format from YouTube API (long)')
+          }
+          
+          // Combiner les résultats et trier par date
+          const combinedItems = [...(mediumData.items || []), ...(longData.items || [])]
+          combinedItems.sort((a, b) => {
+            const dateA = new Date(a.snippet?.publishedAt || 0)
+            const dateB = new Date(b.snippet?.publishedAt || 0)
+            return dateB - dateA
+          })
+          
+          // Limiter au nombre de résultats demandé
+          const limitedItems = combinedItems.slice(0, parseInt(maxResults, 10))
+          
+          return new Response(JSON.stringify({
+            ...mediumData,
+            items: limitedItems
+          }), {
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'Cache-Control': 'public, max-age=3600'
+            }
+          })
+        }
+      } catch (fetchError) {
+        clearTimeout(timeoutId)
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timeout')
+        }
+        throw fetchError
+      }
+      
+    } catch (error) {
+      // Ne pas exposer les détails d'erreur sensibles
+      const errorMessage = error.message || 'Internal server error'
+      
+      return new Response(JSON.stringify({ 
+        error: 'Internal server error',
+        message: errorMessage.includes('API key') ? 'Configuration error' : 'An error occurred'
+      }), {
         status: 500,
         headers: {
           'Content-Type': 'application/json',
@@ -45,77 +187,5 @@ async function handleRequest(request, env) {
         }
       })
     }
-    
-    // OPTIMISATION: Une seule requête API au lieu de deux
-    // Utiliser la requête la plus flexible pour récupérer tous les types de vidéos
-    let apiUrl
-    
-    if (allowShorts === 'true') {
-      // Récupérer uniquement les vidéos courtes (< 4 minutes)
-      apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=${maxResults}&order=date&type=video&videoDuration=short&key=${apiKey}`
-    } else {
-      // OPTIMISATION: Une seule requête pour récupérer les vidéos moyennes ET longues (exclure les shorts)
-      // On fait deux requêtes en parallèle pour medium et long, puis on combine
-      const [mediumResponse, longResponse] = await Promise.all([
-        fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=${maxResults}&order=date&type=video&videoDuration=medium&key=${apiKey}`),
-        fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=${maxResults}&order=date&type=video&videoDuration=long&key=${apiKey}`)
-      ])
-      
-      if (!mediumResponse.ok || !longResponse.ok) {
-        throw new Error(`YouTube API error: ${mediumResponse.status || longResponse.status}`)
-      }
-      
-      const [mediumData, longData] = await Promise.all([
-        mediumResponse.json(),
-        longResponse.json()
-      ])
-      
-      // Combiner les résultats et trier par date
-      const combinedItems = [...(mediumData.items || []), ...(longData.items || [])]
-      combinedItems.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt))
-      
-      // Limiter au nombre de résultats demandé
-      const limitedItems = combinedItems.slice(0, parseInt(maxResults))
-      
-      return new Response(JSON.stringify({
-        ...mediumData,
-        items: limitedItems
-      }), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=86400' // 24 heures au lieu de 1 heure
-        }
-      })
-    }
-    
-    const response = await fetch(apiUrl)
-    
-    if (!response.ok) {
-      throw new Error(`YouTube API error: ${response.status}`)
-    }
-    
-    const data = await response.json()
-    
-    // OPTIMISATION: Cache plus long pour réduire les appels API
-    return new Response(JSON.stringify(data), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=86400' // 24 heures au lieu de 1 heure
-      }
-    })
-    
-  } catch (error) {
-    return new Response(JSON.stringify({ 
-      error: 'Internal server error',
-      message: error.message 
-    }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    })
   }
 }
