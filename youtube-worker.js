@@ -2,10 +2,10 @@
 // Déployez ce code sur Cloudflare Workers
 
 addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
+  event.respondWith(handleRequest(event.request, event.env))
 })
 
-async function handleRequest(request) {
+async function handleRequest(request, env) {
   // Gérer les CORS
   if (request.method === 'OPTIONS') {
     return new Response(null, {
@@ -33,8 +33,18 @@ async function handleRequest(request) {
       })
     }
 
-    // Remplacez YOUR_YOUTUBE_API_KEY par votre vraie clé API YouTube
-    const apiKey = 'YOUR_YOUTUBE_API_KEY'
+    // Récupérer la clé API depuis les secrets Cloudflare
+    const apiKey = env.YOUTUBE_API_KEY
+    
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'API key not configured' }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      })
+    }
     
     // OPTIMISATION: Une seule requête API au lieu de deux
     // Utiliser la requête la plus flexible pour récupérer tous les types de vidéos

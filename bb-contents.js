@@ -1,13 +1,16 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.0
+ * @version 1.1.1
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
  */
 (function() {
     'use strict';
+
+    // Version du script
+    const BB_CONTENTS_VERSION = '1.1.1';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -31,12 +34,12 @@
     }
     window._bbContentsInitialized = true;
 
-    // Log de démarrage simple (une seule fois)
-    console.log('bb-contents | v1.1.0');
+    // Log de démarrage
+    console.log('bb-contents | v' + BB_CONTENTS_VERSION);
 
     // Configuration
     const config = {
-        version: '1.1.0',
+        version: BB_CONTENTS_VERSION,
         debug: false, // Debug désactivé pour rendu propre
         prefix: 'bb-', // utilisé pour générer les sélecteurs (data-bb-*)
         youtubeEndpoint: null, // URL du worker YouTube (à définir par l'utilisateur)
@@ -178,7 +181,7 @@
             this.checkAndReinitFailedElements();
         },
         
-        // Nouvelle méthode pour vérifier et réinitialiser les éléments échoués
+        // Vérifier et réinitialiser les éléments échoués
         checkAndReinitFailedElements: function() {
             const scope = document.querySelector('[data-bb-scope]') || document;
             let needsReinit = false;
@@ -280,14 +283,14 @@
 
     // Modules
     bbContents.modules = {
-        // Module Marquee - Version simplifiée et robuste
+        // Module Marquee
         marquee: {
-        detect: function(scope) {
-            const s = scope || document;
+            detect: function(scope) {
+                const s = scope || document;
                 return s.querySelector(bbContents._attrSelector('marquee')) !== null;
-        },
-        
-        init: function(root) {
+            },
+            
+            init: function(root) {
             const scope = root || document;
             if (scope.closest && scope.closest('[data-bb-disable]')) return;
                 const elements = scope.querySelectorAll(bbContents._attrSelector('marquee'));
@@ -320,20 +323,15 @@
                     const isVertical = orientation === 'vertical';
                     const useAutoHeight = isVertical && height === 'auto';
                     
-                    // Vérifier le overflow du parent pour respecter overflow: visible
-                    // Si le parent a overflow: visible, on laisse passer
-                    // Sinon (hidden, clip, auto, scroll), on contient les logos avec overflow: hidden
+                    // Respecter overflow du parent
                     const parentComputedStyle = getComputedStyle(element);
                     const parentOverflow = parentComputedStyle.overflow;
                     const parentOverflowX = parentComputedStyle.overflowX;
                     const parentOverflowY = parentComputedStyle.overflowY;
                     
-                    // Vérifier si le parent a explicitement overflow: visible (ou les deux axes)
                     const isParentOverflowVisible = (parentOverflow === 'visible' || parentOverflow === '') &&
                                                    (parentOverflowX === 'visible' || parentOverflowX === '') &&
                                                    (parentOverflowY === 'visible' || parentOverflowY === '');
-                    
-                    // Si le parent a overflow: visible, on laisse passer, sinon on contient avec hidden
                     const mainContainerOverflow = isParentOverflowVisible ? 'visible' : 'hidden';
                     
                     mainContainer.style.cssText = `
@@ -346,7 +344,7 @@
                     `;
 
                     const scrollContainer = document.createElement('div');
-                    // Pour horizontal, utiliser position relative au lieu de absolute pour éviter les problèmes de calcul
+                    // Position relative pour horizontal
                     const useRelativeForHorizontal = !isVertical;
                     scrollContainer.style.cssText = `
                         ${useAutoHeight || useRelativeForHorizontal ? 'position: relative;' : 'position: absolute;'}
@@ -363,8 +361,7 @@
                     const mainBlock = document.createElement('div');
                     mainBlock.innerHTML = originalHTML;
                     
-                    // IMPORTANT: Forcer le chargement de TOUTES les images dans mainBlock AVANT de cloner
-                    // Cela garantit que les images sont dans le cache du navigateur avant le clonage
+                    // Précharger toutes les images avant clonage
                     const preloadAllImagesFirst = function(block) {
                         return new Promise(function(resolve) {
                             const images = block.querySelectorAll('img');
@@ -451,14 +448,12 @@
                         });
                     };
                     
-                    // Permettre le retour à la ligne pour le texte dans les items du marquee
-                    // Le white-space: nowrap sur le conteneur flex empêche les items de se retourner,
-                    // mais ne doit pas empêcher le texte à l'intérieur des items de faire plusieurs lignes
+                    // Permettre le retour à la ligne du texte dans les items
                     if (!isVertical) {
                         setTimeout(() => {
                             const marqueeItems = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"]');
                             marqueeItems.forEach(item => {
-                                // Préserver la largeur de l'item définie dans Webflow
+                                // Préserver la largeur de l'item
                                 const computedStyle = getComputedStyle(item);
                                 const itemWidth = computedStyle.width;
                                 if (itemWidth && itemWidth !== 'auto' && itemWidth !== '0px') {
@@ -466,11 +461,10 @@
                                     item.style.width = itemWidth;
                                 }
                                 
-                                // Permettre le retour à la ligne pour les conteneurs de texte
-                                // Ne pas toucher aux éléments qui doivent garder leur taille auto (comme .tag-m)
+                                // Permettre le retour à la ligne du texte
                                 const textContainers = item.querySelectorAll('.use-case_client, .testimonial_client-info, [class*="text"], p, span');
                                 textContainers.forEach(container => {
-                                    // Exclure les éléments qui doivent garder leur taille auto (tags, badges, etc.)
+                                    // Exclure les tags/badges (taille auto)
                                     const containerStyle = container.getAttribute('style');
                                     const shouldPreserveAuto = container.classList.contains('tag-m') || 
                                                               container.classList.contains('tag') ||
@@ -478,33 +472,23 @@
                                                               (containerStyle && containerStyle.includes('width'));
                                     
                                     if (shouldPreserveAuto) {
-                                        // Ne pas toucher à ces éléments, ils gardent leur taille auto
                                         return;
                                     }
                                     
                                     const containerComputed = getComputedStyle(container);
-                                    // Vérifier si l'élément a un style inline width défini
                                     const hasInlineWidth = container.style.width && container.style.width !== '';
                                     
-                                    // Si l'élément a une largeur inline définie, la préserver
                                     if (hasInlineWidth) {
-                                        // Garder la largeur inline
                                         return;
                                     }
-                                    
-                                    // Si l'élément a une largeur calculée qui n'est pas auto, vérifier si c'est une valeur fixe
-                                    // Sinon, appliquer width: 100% seulement aux conteneurs de texte qui doivent wrapper
                                     const isTextContainer = container.classList.contains('use-case_client') || 
                                                            container.classList.contains('testimonial_client-info') ||
                                                            container.tagName === 'P' && !container.classList.contains('tag');
                                     
                                     if (isTextContainer) {
-                                        // Pour les conteneurs de texte principaux, permettre le wrapping
-                                        // Ne pas forcer width si déjà défini
                                         if (!containerComputed.width || containerComputed.width === 'auto' || containerComputed.width === '0px') {
                                             container.style.width = '100%';
                                         }
-                                        // Forcer le retour à la ligne
                                         container.style.whiteSpace = 'normal';
                                         container.style.wordWrap = 'break-word';
                                         container.style.overflowWrap = 'break-word';
@@ -524,27 +508,22 @@
                         ${isVertical ? 'min-height: 100px;' : ''}
                     `;
 
-                    // NOUVELLE APPROCHE: Attendre que TOUTES les images du mainBlock soient chargées AVANT de cloner
-                    // Cela garantit que les copies héritent d'images déjà dans le cache du navigateur
                     preloadAllImagesFirst(mainBlock).then(function() {
-                        // Maintenant créer les copies - les images sont déjà en cache
                         const repeatBlock1 = mainBlock.cloneNode(true);
                         const repeatBlock2 = mainBlock.cloneNode(true);
                         
-                        // Forcer l'affichage immédiat des images dans les copies (elles sont en cache)
+                        // Forcer l'affichage des images dans les copies
                         const forceImagesDisplay = function(block) {
                             const images = block.querySelectorAll('img');
                             images.forEach(function(img) {
                                 if (img.dataset.src && !img.src) {
                                     img.src = img.dataset.src;
                                 }
-                                // Forcer le chargement et l'affichage
-                                if (img.src) {
-                                    img.src = img.src;
-                                    img.style.opacity = '1';
-                                    img.style.visibility = 'visible';
-                                    // Forcer un reflow pour s'assurer que l'image est rendue
-                                    void img.offsetHeight;
+                                    if (img.src) {
+                                        img.src = img.src;
+                                        img.style.opacity = '1';
+                                        img.style.visibility = 'visible';
+                                        void img.offsetHeight;
                                 }
                             });
                         };
@@ -552,15 +531,14 @@
                         forceImagesDisplay(repeatBlock1);
                         forceImagesDisplay(repeatBlock2);
                         
-                        // NOUVELLE APPROCHE: Ajouter temporairement les copies au DOM (hors écran) 
-                        // pour forcer le navigateur à les rendre complètement avant l'animation
+                        // Pré-rendre les copies hors écran
                         const tempContainer = document.createElement('div');
                         tempContainer.style.cssText = 'position: absolute; left: -9999px; top: -9999px; visibility: hidden;';
                         tempContainer.appendChild(repeatBlock1);
                         tempContainer.appendChild(repeatBlock2);
                         document.body.appendChild(tempContainer);
                         
-                        // Forcer le rendu en vérifiant que toutes les images sont vraiment chargées et rendues
+                        // Vérifier que toutes les images sont rendues
                         const waitForImagesRender = function(block) {
                             return new Promise(function(resolve) {
                                 const images = block.querySelectorAll('img');
@@ -579,18 +557,14 @@
                                 };
                                 
                                 images.forEach(function(img) {
-                                    // Vérifier que l'image est vraiment rendue (naturalWidth > 0 ET dans le DOM)
                                     const checkImage = function() {
                                         if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && img.offsetWidth > 0) {
                                             renderedCount++;
                                             checkRendered();
                                         } else {
-                                            // Réessayer après un court délai
                                             setTimeout(checkImage, 10);
                                         }
                                     };
-                                    
-                                    // Forcer le chargement si nécessaire
                                     if (img.dataset.src && !img.src) {
                                         img.src = img.dataset.src;
                                     }
@@ -606,7 +580,7 @@
                                     }
                                 });
                                 
-                                // Timeout de sécurité
+                                // Timeout
                                 setTimeout(function() {
                                     if (renderedCount < totalImages) {
                                         renderedCount = totalImages;
@@ -616,11 +590,7 @@
                             });
                         };
                         
-                        // NOUVEAU: Forcer le rendu complet en déplaçant temporairement le conteneur
-                        // pour que toutes les parties soient visibles (même brièvement)
-                        // Cela force le navigateur à rendre même les parties très larges sur grands écrans
-                        // Pour "left", on force le rendu de la partie DROITE (où les copies apparaîtront)
-                        // Pour "right", on force le rendu de la partie GAUCHE
+                        // Forcer le rendu complet (grands écrans)
                         const forceFullRender = function() {
                             return new Promise(function(resolve) {
                                 // Calculer la largeur totale des copies
@@ -630,29 +600,19 @@
                                 );
                                 
                                 if (totalWidth > 0 && totalWidth > window.innerWidth) {
-                                    // Déplacer temporairement le conteneur pour forcer le rendu
                                     tempContainer.style.left = '0px';
                                     tempContainer.style.width = totalWidth + 'px';
                                     tempContainer.style.overflow = 'visible';
-                                    
-                                    // Forcer un reflow pour que le navigateur calcule les dimensions
                                     void tempContainer.offsetWidth;
-                                    
-                                    // NOUVEAU: Pour "left", déplacer pour que la FIN soit visible (partie droite)
-                                    // Pour "right", déplacer pour que le DÉBUT soit visible (partie gauche)
-                                    // On va faire les deux pour être sûr que tout est rendu
                                     const translateXEnd = Math.max(0, totalWidth - window.innerWidth);
                                     const translateXStart = 0;
                                     
-                                    // D'abord rendre la fin (pour "left" - où les copies apparaîtront)
                                     tempContainer.style.transform = 'translateX(-' + translateXEnd + 'px)';
                                     void tempContainer.offsetWidth;
                                     requestAnimationFrame(function() {
-                                        // Ensuite rendre le début (pour "right" - où les copies apparaîtront)
                                         tempContainer.style.transform = 'translateX(-' + translateXStart + 'px)';
                                         void tempContainer.offsetWidth;
                                         requestAnimationFrame(function() {
-                                            // Revenir à la position initiale
                                             tempContainer.style.transform = '';
                                             tempContainer.style.left = '-9999px';
                                             tempContainer.style.width = 'auto';
@@ -663,7 +623,6 @@
                                         });
                                     });
                                 } else {
-                                    // Si pas besoin de déplacement, juste attendre un frame
                                     requestAnimationFrame(function() {
                                         requestAnimationFrame(resolve);
                                     });
@@ -675,14 +634,13 @@
                         Promise.all([
                             waitForImagesRender(repeatBlock1),
                             waitForImagesRender(repeatBlock2),
-                            forceFullRender() // NOUVEAU: Forcer le rendu complet
+                            forceFullRender()
                         ]).then(function() {
                             // Retirer les copies du conteneur temporaire (si toujours présent)
                             if (tempContainer && tempContainer.parentNode === document.body) {
                                 document.body.removeChild(tempContainer);
                             }
                             
-                            // Maintenant ajouter les copies au scrollContainer
                             // Les images sont maintenant complètement rendues
                             if (!isVertical) {
                                 scrollContainer.appendChild(mainBlock);
@@ -690,10 +648,9 @@
                                 scrollContainer.appendChild(repeatBlock2);
                                 mainContainer.appendChild(scrollContainer);
                                 
-                                // Calculer la hauteur maximale des items après ajout au DOM
                                 requestAnimationFrame(() => {
                                     requestAnimationFrame(() => {
-                                        const items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"], > *');
+                                        const items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"]');
                                         let maxHeight = 0;
                                         items.forEach(function(item) {
                                             const itemHeight = item.offsetHeight;
@@ -701,20 +658,15 @@
                                                 maxHeight = itemHeight;
                                             }
                                         });
-                                        
-                                        // Si aucun item trouvé, essayer de prendre la hauteur du scrollContainer
                                         if (maxHeight === 0) {
                                             maxHeight = scrollContainer.offsetHeight;
                                         }
-                                        
-                                        // Appliquer la hauteur calculée au mainContainer si elle est valide
                                         if (maxHeight > 0) {
                                             mainContainer.style.height = maxHeight + 'px';
                                         }
                                     });
                                 });
                             } else {
-                                // Pour vertical, garder le comportement actuel
                                 scrollContainer.appendChild(mainBlock);
                                 scrollContainer.appendChild(repeatBlock1);
                                 scrollContainer.appendChild(repeatBlock2);
@@ -725,11 +677,8 @@
                             element.appendChild(mainContainer);
                             element.setAttribute('data-bb-marquee-processed', 'true');
 
-                            // Attendre un peu pour s'assurer que le rendu est complet
-                            // Les images sont maintenant complètement rendues
                             requestAnimationFrame(() => {
                                 requestAnimationFrame(() => {
-                                    // Maintenant démarrer l'animation
                                     const initDelay = isVertical ? 500 : 100;
                                     setTimeout(() => {
                                         this.initAnimation(element, scrollContainer, mainBlock, {
@@ -740,12 +689,9 @@
                             });
                         }.bind(this));
                     }.bind(this)).catch(function() {
-                        // En cas d'erreur, nettoyer le tempContainer s'il existe
                         if (tempContainer && tempContainer.parentNode === document.body) {
                             document.body.removeChild(tempContainer);
                         }
-                        
-                        // Créer les copies quand même et démarrer
                         const repeatBlock1 = mainBlock.cloneNode(true);
                         const repeatBlock2 = mainBlock.cloneNode(true);
                         
@@ -779,11 +725,9 @@
                 const { speed, direction, pauseOnHover, gap, isVertical, useAutoHeight } = options;
                 
                 // Calculer les dimensions
-                // Maintenant que scrollContainer est en position relative pour horizontal, offsetWidth devrait fonctionner
                 const contentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
                 
                 if (contentSize === 0) {
-                    // Si toujours 0, réessayer après un délai
                     setTimeout(() => this.initAnimation(element, scrollContainer, mainBlock, options), 200);
                     return;
                 }
@@ -796,33 +740,26 @@
                 let isPaused = false;
 
                 if (isSafari) {
-                    // Solution Safari : Animation CSS avec keyframes
                     this.initSafariAnimation(element, scrollContainer, mainBlock, {
                         speed, direction, gap, isVertical, useAutoHeight, contentSize, gapSize
                     });
                 } else {
-                    // Solution standard : créer les copies seulement si elles n'existent pas déjà
-                    // (elles ont peut-être été créées pour le calcul de hauteur en horizontal)
-                    // Utiliser children.length au lieu de querySelectorAll pour compter uniquement les enfants directs
-                    const hasCopies = scrollContainer.children.length >= 3; // mainBlock + 2 copies
+                    const hasCopies = scrollContainer.children.length >= 3;
                     
                     if (!hasCopies) {
-                        // Créer les copies maintenant (les navigateurs non-Safari gèrent mieux)
                         const repeatBlock1 = mainBlock.cloneNode(true);
                         const repeatBlock2 = mainBlock.cloneNode(true);
                         
-                        // Forcer le chargement COMPLET des images dans les copies
+                        // Précharger les images dans les copies
                         const preloadImagesInBlockSync = function(block) {
                             const images = block.querySelectorAll('img');
                             images.forEach(function(img) {
                                 if (img.dataset.src && !img.src) {
                                     img.src = img.dataset.src;
                                 }
-                                // Précharger avec new Image() pour forcer le cache
                                 if (img.src) {
                                     const preloadImg = new Image();
                                     preloadImg.src = img.src;
-                                    // Forcer aussi le chargement dans l'image du DOM
                                     if (!img.complete) {
                                         img.src = img.src;
                                     }
@@ -836,8 +773,6 @@
                         scrollContainer.appendChild(repeatBlock1);
                         scrollContainer.appendChild(repeatBlock2);
                     }
-                    
-                    // Solution standard pour autres navigateurs
                     this.initStandardAnimation(element, scrollContainer, mainBlock, {
                         speed, direction, pauseOnHover, gap, isVertical, useAutoHeight, contentSize, gapSize, step
                     });
@@ -847,8 +782,7 @@
             initSafariAnimation: function(element, scrollContainer, mainBlock, options) {
                 const { speed, direction, gap, isVertical, useAutoHeight, contentSize, gapSize } = options;
                 
-                
-                // SOLUTION SAFARI : Forcer le chargement des images avant animation
+                // Précharger les images
                 const images = mainBlock.querySelectorAll('img');
                 let imagesLoaded = 0;
                 const totalImages = images.length;
@@ -857,9 +791,7 @@
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                 // Détecter spécifiquement Safari (pas Chrome mobile)
                 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iPhone|iPad|iPod/.test(navigator.userAgent);
-                
-                // OPTIMISATION: Charger les images et appliquer les styles SVG AVANT le clonage
-                // pour éviter les reflows qui causent la saccade de l'animation
+                // Appliquer les styles avant clonage
                 images.forEach(img => {
                     if (img.dataset.src && !img.src) {
                         img.src = img.dataset.src;
@@ -868,39 +800,27 @@
                     
                     // Détecter si c'est un SVG (par l'extension du src ou le type)
                     const isSVG = img.src && (img.src.toLowerCase().endsWith('.svg') || img.src.includes('data:image/svg+xml'));
-                    
-                    // OPTIMISATION: Préserver les styles CSS existants (object-fit, etc.)
+                    // Préserver les styles existants
                     const originalObjectFit = img.style.objectFit || getComputedStyle(img).objectFit;
                     const originalObjectPosition = img.style.objectPosition || getComputedStyle(img).objectPosition;
                     const originalWidth = img.style.width;
                     const originalHeight = img.style.height;
                     
                     img.onload = () => {
-                        // SOLUTION SAFARI : Pour les SVG sur Safari (desktop et mobile), utiliser contain avec optimisations
                         if (isSVG && isSafari) {
-                            // SUR SAFARI : Utiliser contain MAIS avec des optimisations pour éviter le flou
                             img.style.objectFit = 'contain';
                             img.style.objectPosition = 'center';
-                            
-                            // Contraindre les dimensions sans forcer (max-width/max-height au lieu de width/height 100%)
                             img.style.maxWidth = '100%';
                             img.style.maxHeight = '100%';
                             img.style.boxSizing = 'border-box';
-                            
-                            // Optimisations pour améliorer le rendu des SVG avec contain
-                            // Utiliser auto au lieu de crisp-edges pour contain
                             img.style.imageRendering = 'auto';
                             img.style.webkitBackfaceVisibility = 'hidden';
                             img.style.backfaceVisibility = 'hidden';
-                            
-                            // Forcer le GPU rendering AVANT d'appliquer contain
                             img.style.webkitTransform = 'translateZ(0)';
                             img.style.transform = 'translateZ(0)';
                             
-                            // Conteneur parent pour contraindre et centrer (sans forcer les dimensions)
                             const parent = img.parentElement;
                             if (parent) {
-                                // Vérifier si le parent a déjà des dimensions définies
                                 const parentStyles = getComputedStyle(parent);
                                 const hasParentWidth = parentStyles.width && parentStyles.width !== 'auto' && parentStyles.width !== '0px';
                                 const hasParentHeight = parentStyles.height && parentStyles.height !== 'auto' && parentStyles.height !== '0px';
@@ -911,12 +831,10 @@
                                 parent.style.overflow = 'hidden';
                                 parent.style.boxSizing = 'border-box';
                                 
-                                // Ne forcer les dimensions que si le parent n'en a pas déjà
                                 if (!hasParentWidth && !parent.style.width) parent.style.width = '100%';
                                 if (!hasParentHeight && !parent.style.height) parent.style.height = '100%';
                             }
                         } else if (isSVG && isMobile) {
-                            // Pour Chrome mobile, utiliser contain normalement
                             img.style.objectFit = 'contain';
                             img.style.objectPosition = 'center';
                             img.style.maxWidth = '100%';
@@ -934,8 +852,6 @@
                                 parent.style.boxSizing = 'border-box';
                             }
                         } else if (isSafari) {
-                            // SUR SAFARI : Optimisations GPU et dimensions pour toutes les images
-                            // Restaurer les styles CSS après chargement pour les non-SVG
                             if (originalObjectFit && originalObjectFit !== 'none') {
                                 img.style.objectFit = originalObjectFit;
                             }
@@ -950,29 +866,22 @@
                             if (!originalHeight || originalHeight === '') {
                                 img.style.height = 'auto';
                             }
-                            
-                            // Optimisations GPU pour Safari (desktop et mobile)
                             img.style.webkitBackfaceVisibility = 'hidden';
                             img.style.backfaceVisibility = 'hidden';
                             img.style.webkitTransform = 'translateZ(0)';
                             img.style.transform = 'translateZ(0)';
-                            
-                            // Conteneur parent pour contraindre
                             const parent = img.parentElement;
                             if (parent) {
                                 parent.style.overflow = 'hidden';
                                 parent.style.boxSizing = 'border-box';
                             }
                         } else {
-                            // OPTIMISATION: Restaurer les styles CSS après chargement pour les non-SVG (autres navigateurs)
                             if (originalObjectFit && originalObjectFit !== 'none') {
                                 img.style.objectFit = originalObjectFit;
                             }
                             if (originalObjectPosition && originalObjectPosition !== 'initial') {
                                 img.style.objectPosition = originalObjectPosition;
                             }
-                            
-                            // OPTIMISATION: Préserver les dimensions naturelles des images
                             if (!originalWidth || originalWidth === '') {
                                 img.style.width = 'auto';
                             }
@@ -1051,9 +960,7 @@
                         });
                     }
                     
-                    // Les styles sont maintenant appliqués AVANT le clonage (dans img.onload)
-                    // Cela évite les reflows qui causaient la saccade de l'animation
-                    // Les copies héritent automatiquement des styles des images originales
+                    // Styles appliqués avant clonage
                     
                     // Recalculer la taille après chargement des images
                     const newContentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
@@ -1072,12 +979,11 @@
                         }
                     }
                     
-                    // Solution Safari simplifiée
                     const totalSize = finalContentSize * 3 + gapSize * 2;
                     const step = (parseFloat(speed) * (isVertical ? 1.5 : 0.8)) / 60;
                     let isPaused = false;
                     
-                    // OPTIMISATION SAFARI MOBILE : Ajouter will-change pour améliorer la fluidité
+                    // Optimisations Safari mobile
                     if (isSafari && isMobile) {
                         scrollContainer.style.willChange = 'transform';
                         scrollContainer.style.webkitBackfaceVisibility = 'hidden';
@@ -1092,7 +998,7 @@
                     }
 
                     // Position initiale optimisée pour Safari
-                    // Pour direction left, commencer à -(finalContentSize + gapSize) pour que repeatBlock1 soit déjà visible
+                    // Position initiale pour éviter saccade
                     let currentPosition;
                     if (direction === (isVertical ? 'bottom' : 'right')) {
                         currentPosition = -(finalContentSize + gapSize);
@@ -1107,7 +1013,7 @@
                         : `translate3d(${currentPosition}px, 0, 0)`;
                     scrollContainer.style.transform = initialTransform;
 
-                    // OPTIMISATION SAFARI MOBILE : Forcer un reflow avant de démarrer l'animation
+                    // Forcer reflow Safari mobile
                     if (isSafari && isMobile) {
                         void scrollContainer.offsetHeight;
                     }
@@ -1116,7 +1022,7 @@
                     let lastTime = performance.now();
                     const animate = (currentTime) => {
                         if (!isPaused) {
-                            // OPTIMISATION SAFARI MOBILE : Utiliser le temps réel pour une animation plus fluide
+                            // Animation basée sur le temps
                             const deltaTime = isSafari && isMobile ? (currentTime - lastTime) / 16.67 : 1;
                             lastTime = currentTime;
                             
@@ -1183,8 +1089,7 @@
                 let isPaused = false;
                 
                 // Position initiale
-                // Pour direction left, commencer à -(contentSize + gapSize) pour que repeatBlock1 soit déjà visible
-                // Cela évite la saccade au premier cycle
+                // Position initiale pour éviter saccade
                 let currentPosition;
                 if (direction === (isVertical ? 'bottom' : 'right')) {
                     currentPosition = -(contentSize + gapSize);
@@ -1215,7 +1120,6 @@
                             currentPosition += step * clampedDelta;
                             // Reset BEAUCOUP PLUS TÔT pour "right" aussi (comme pour "left")
                             // Reset à 80% du chemin au lieu d'attendre 100% pour avoir une marge de sécurité
-                            // Cela garantit que la copie suivante est toujours visible avant le reset
                             const resetThreshold = -(0.2 * (contentSize + gapSize)); // 80% du chemin (on est à -20%)
                             if (currentPosition >= resetThreshold) {
                                 // Reset en gardant la position relative pour éviter le saut visible
@@ -1225,7 +1129,6 @@
                             currentPosition -= step * clampedDelta;
                             // Reset BEAUCOUP PLUS TÔT pour éviter toute saccade visible
                             // Reset à 80% du chemin au lieu d'attendre 100% pour avoir une marge de sécurité
-                            // Cela garantit que la copie suivante est toujours visible avant le reset
                             const resetThreshold = -(1.8 * (contentSize + gapSize));
                             if (currentPosition <= resetThreshold) {
                                 // Reset en gardant la position relative pour éviter le saut visible
@@ -1258,8 +1161,8 @@
 
         // Module Share (Partage Social)
         share: {
-        // Configuration des réseaux
-        networks: {
+            // Configuration des réseaux
+            networks: {
             twitter: function(data) {
                 return 'https://twitter.com/intent/tweet?url=' + 
                        encodeURIComponent(data.url) + 
@@ -1295,14 +1198,14 @@
             }
         },
         
-        // Détection
-        detect: function(scope) {
-            const s = scope || document;
-            return s.querySelector(bbContents._attrSelector('share')) !== null;
-        },
-        
-        // Initialisation
-        init: function(root) {
+            // Détection
+            detect: function(scope) {
+                const s = scope || document;
+                return s.querySelector(bbContents._attrSelector('share')) !== null;
+            },
+            
+            // Initialisation
+            init: function(root) {
             const scope = root || document;
             if (scope.closest && scope.closest('[data-bb-disable]')) return;
             const elements = scope.querySelectorAll(bbContents._attrSelector('share'));
@@ -1349,8 +1252,8 @@
             bbContents.utils.log('Module Share initialisé:', elements.length, 'éléments');
         },
         
-        // Fonction de partage
-        share: function(network, data, element) {
+            // Fonction de partage
+            share: function(network, data, element) {
             const networkFunc = this.networks[network];
             
             if (!networkFunc) {
@@ -1389,8 +1292,8 @@
             bbContents.utils.log('Partage sur', network, data);
         },
         
-        // Copier dans le presse-papier
-        copyToClipboard: function(text, element, silent) {
+            // Copier dans le presse-papier
+            copyToClipboard: function(text, element, silent) {
             const isSilent = !!silent;
             // Méthode moderne
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1407,8 +1310,8 @@
             }
         },
         
-        // Fallback copie
-        fallbackCopy: function(text, element, silent) {
+            // Fallback copie
+            fallbackCopy: function(text, element, silent) {
             const isSilent = !!silent;
             // Pas de UI si silencieux (exigence produit)
             if (isSilent) return;
@@ -1421,8 +1324,8 @@
             }
         },
         
-        // Partage natif (Web Share API)
-        nativeShare: function(data, element) {
+            // Partage natif (Web Share API)
+            nativeShare: function(data, element) {
             // Vérifier si Web Share API est disponible
             if (navigator.share) {
                 navigator.share({
@@ -1443,8 +1346,8 @@
             }
         },
         
-        // Feedback visuel
-        showFeedback: function(element, message) {
+            // Feedback visuel
+            showFeedback: function(element, message) {
             const originalText = element.textContent;
             element.textContent = message;
             element.style.pointerEvents = 'none';
@@ -1458,11 +1361,12 @@
 
         // Module Current Year (Année courante)
         currentYear: {
-        detect: function(scope) {
-            const s = scope || document;
-            return s.querySelector(bbContents._attrSelector('current-year')) !== null;
-        },
-        init: function(root) {
+            detect: function(scope) {
+                const s = scope || document;
+                return s.querySelector(bbContents._attrSelector('current-year')) !== null;
+            },
+            
+            init: function(root) {
             const scope = root || document;
             if (scope.closest && scope.closest('[data-bb-disable]')) return;
             const elements = scope.querySelectorAll(bbContents._attrSelector('current-year'));
@@ -1491,13 +1395,13 @@
 
         // Module Reading Time (Temps de lecture)
         readingTime: {
-        detect: function(scope) {
-            const s = scope || document;
-            return s.querySelector(bbContents._attrSelector('reading-time')) !== null;
-        },
-        
-        // Fonction pour extraire le texte et les images depuis une URL
-        fetchContentFromUrl: function(url, targetSelector) {
+            detect: function(scope) {
+                const s = scope || document;
+                return s.querySelector(bbContents._attrSelector('reading-time')) !== null;
+            },
+            
+            // Fonction pour extraire le texte et les images depuis une URL
+            fetchContentFromUrl: function(url, targetSelector) {
             return fetch(url)
                 .then(function(response) {
                     if (!response.ok) {
@@ -1554,10 +1458,10 @@
                     
                     return { text: text, images: images };
                 });
-        },
-        
-        // Fonction pour calculer le temps de lecture
-        calculateReadingTime: function(text, images, wordsPerMinute, secondsPerImage) {
+            },
+            
+            // Fonction pour calculer le temps de lecture
+            calculateReadingTime: function(text, images, wordsPerMinute, secondsPerImage) {
             // Utiliser split(/\s+/) pour un comptage plus fiable (comme le code de référence)
             const wordCount = text ? text.trim().split(/\s+/).filter(function(word) { return word.length > 0; }).length : 0;
             const imageCount = images ? images.length : 0;
@@ -2196,13 +2100,13 @@
 
         // Module Favicon (Favicon Dynamique)
         favicon: {
-        originalFavicon: null,
-        
-        // Détection
-        detect: function(scope) {
-            const s = scope || document;
-            return s.querySelector(bbContents._attrSelector('favicon')) !== null;
-        },
+            originalFavicon: null,
+            
+            // Détection
+            detect: function(scope) {
+                const s = scope || document;
+                return s.querySelector(bbContents._attrSelector('favicon')) !== null;
+            },
         
         // Initialisation
         init: function(root) {
@@ -2240,8 +2144,8 @@
             }
         },
         
-        // Helper: Récupérer ou créer un élément favicon
-        getFaviconElement: function() {
+            // Helper: Récupérer ou créer un élément favicon
+            getFaviconElement: function() {
             let favicon = document.querySelector('link[rel="icon"]') ||
                 document.querySelector('link[rel="shortcut icon"]');
             if (!favicon) {
@@ -2252,8 +2156,8 @@
             return favicon;
         },
         
-        // Changer le favicon
-        setFavicon: function(url) {
+            // Changer le favicon
+            setFavicon: function(url) {
             if (!url) return;
             
             // Ajouter un timestamp pour forcer le rafraîchissement du cache
@@ -2264,8 +2168,8 @@
             favicon.href = urlWithCacheBuster;
         },
         
-        // Support dark mode (méthode simplifiée et directe)
-        setupDarkMode: function(lightUrl, darkUrl) {
+            // Support dark mode (méthode simplifiée et directe)
+            setupDarkMode: function(lightUrl, darkUrl) {
             // Fonction pour mettre à jour le favicon selon le mode sombre
             const updateFavicon = function(e) {
                 const darkModeOn = e ? e.matches : window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -2288,7 +2192,7 @@
 
         // Module YouTube Feed
         youtube: {
-            // OPTIMISATION: Détection améliorée des bots pour éviter les appels API inutiles
+            // Détection des bots
             isBot: function() {
                 const userAgent = navigator.userAgent.toLowerCase();
                 const botPatterns = [
@@ -2317,7 +2221,7 @@
                 return isBot;
             },
             
-            // OPTIMISATION: Cache amélioré avec protection contre les appels multiples
+            // Cache avec protection appels multiples
             cache: {
                 get: function(key) {
                     try {
@@ -2327,7 +2231,7 @@
                         const data = JSON.parse(cached);
                         const now = Date.now();
                         
-                        // OPTIMISATION: Cache plus long (24h maintenu)
+                        // Cache 24h
                         if (now - data.timestamp > 24 * 60 * 60 * 1000) {
                             localStorage.removeItem(key);
                             return null;
@@ -2352,7 +2256,7 @@
                 }
             },
             
-            // OPTIMISATION: Protection globale contre les appels multiples
+            // Protection globale contre les appels multiples
             _activeRequests: new Set(),
             
             isRequestActive: function(cacheKey) {
@@ -2386,6 +2290,9 @@
                 
                 // Module détecté: youtube
                 
+                // OPTIMISATION: Grouper les éléments par configuration unique pour partager les requêtes API
+                const elementsByConfig = {};
+                
                 elements.forEach(element => {
                     // Vérifier si l'élément a déjà été traité par un autre module
                     if (element.bbProcessed || element.hasAttribute('data-bb-marquee-processed')) {
@@ -2394,57 +2301,123 @@
                     }
                     element.bbProcessed = true;
                     
-                    // Utiliser la nouvelle fonction initElement
-                    this.initElement(element);
+                    const channelIdsRaw = bbContents._getAttr(element, 'bb-youtube-channel');
+                    if (!channelIdsRaw) return;
+                    
+                    // Parser les channelIds (peuvent être séparés par virgules)
+                    const channelIds = channelIdsRaw.split(',').map(id => id.trim()).filter(id => id);
+                    if (channelIds.length === 0) return;
+                    
+                    // Normaliser et trier les channelIds pour créer une clé unique
+                    const normalizedChannelIds = channelIds.sort().join(',');
+                    
+                    const allowShorts = bbContents._getAttr(element, 'bb-youtube-allow-shorts') === 'true';
+                    const language = bbContents._getAttr(element, 'bb-youtube-language') || 'fr';
+                    const videoCount = parseInt(bbContents._getAttr(element, 'bb-youtube-video-count') || '10', 10);
+                    const skip = parseInt(bbContents._getAttr(element, 'bb-youtube-skip') || '0', 10);
+                    
+                    // Créer une clé unique par configuration (channelIds + allowShorts + language)
+                    const configKey = `${normalizedChannelIds}_${allowShorts}_${language}`;
+                    
+                    if (!elementsByConfig[configKey]) {
+                        elementsByConfig[configKey] = {
+                            elements: [],
+                            maxVideoCount: 0,
+                            maxSkip: 0,
+                            channelIds: normalizedChannelIds,
+                            allowShorts: allowShorts,
+                            language: language
+                        };
+                    }
+                    
+                    elementsByConfig[configKey].elements.push(element);
+                    // Garder le max videoCount et maxSkip pour ce groupe
+                    elementsByConfig[configKey].maxVideoCount = Math.max(
+                        elementsByConfig[configKey].maxVideoCount,
+                        videoCount
+                    );
+                    elementsByConfig[configKey].maxSkip = Math.max(
+                        elementsByConfig[configKey].maxSkip,
+                        skip
+                    );
+                });
+                
+                // Initialiser chaque groupe d'éléments
+                Object.keys(elementsByConfig).forEach(configKey => {
+                    const group = elementsByConfig[configKey];
+                    
+                    // Initialiser tous les éléments de ce groupe
+                    group.elements.forEach(element => {
+                        const videoCount = parseInt(bbContents._getAttr(element, 'bb-youtube-video-count') || '10', 10);
+                        const skip = parseInt(bbContents._getAttr(element, 'bb-youtube-skip') || '0', 10);
+                        this.initElement(element, group, videoCount, skip);
+                    });
                 });
             },
             
             // Fonction pour initialiser un seul élément YouTube
-            initElement: function(element) {
+            initElement: function(element, groupConfig, videoCount, skip) {
                 // Vérifier si c'est un bot - pas d'appel API
                 if (this.isBot()) {
                     return;
                 }
                 
-                const channelId = bbContents._getAttr(element, 'bb-youtube-channel');
-                const videoCount = bbContents._getAttr(element, 'bb-youtube-video-count') || '10';
-                const allowShorts = bbContents._getAttr(element, 'bb-youtube-allow-shorts') === 'true';
-                const language = bbContents._getAttr(element, 'bb-youtube-language') || 'fr';
+                // Si les paramètres ne sont pas fournis, les récupérer depuis l'élément
+                if (!groupConfig) {
+                    const channelIdsRaw = bbContents._getAttr(element, 'bb-youtube-channel');
+                    if (!channelIdsRaw) return;
+                    
+                    const channelIds = channelIdsRaw.split(',').map(id => id.trim()).filter(id => id);
+                    if (channelIds.length === 0) return;
+                    
+                    const normalizedChannelIds = channelIds.sort().join(',');
+                    const allowShorts = bbContents._getAttr(element, 'bb-youtube-allow-shorts') === 'true';
+                    const language = bbContents._getAttr(element, 'bb-youtube-language') || 'fr';
+                    
+                    groupConfig = {
+                        channelIds: normalizedChannelIds,
+                        allowShorts: allowShorts,
+                        language: language,
+                        maxVideoCount: parseInt(bbContents._getAttr(element, 'bb-youtube-video-count') || '10', 10),
+                        maxSkip: parseInt(bbContents._getAttr(element, 'bb-youtube-skip') || '0', 10)
+                    };
+                    videoCount = groupConfig.maxVideoCount;
+                    skip = groupConfig.maxSkip;
+                }
+                
+                if (!videoCount) {
+                    videoCount = parseInt(bbContents._getAttr(element, 'bb-youtube-video-count') || '10', 10);
+                }
+                if (skip === undefined || skip === null) {
+                    skip = parseInt(bbContents._getAttr(element, 'bb-youtube-skip') || '0', 10);
+                }
                 
                 // Vérifier la configuration au moment de l'initialisation
                 const endpoint = bbContents.checkYouTubeConfig() ? bbContents.config.youtubeEndpoint : null;
                 
-                
-                if (!channelId) {
-                    return;
-                }
-                
                 if (!endpoint) {
-                    // OPTIMISATION: Réduire drastiquement les retries (de 50 à 10)
+                    // Limiter les retries
                     const retryCount = element.getAttribute('data-youtube-retry-count') || '0';
                     const retries = parseInt(retryCount);
                     
-                    if (retries < 10) { // 10 * 500ms = 5 secondes max (plus espacé)
+                    if (retries < 10) {
                         element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Configuration YouTube en cours...</div>';
                         element.setAttribute('data-youtube-retry-count', (retries + 1).toString());
                         
-                        // OPTIMISATION: Espacer les retries (500ms au lieu de 100ms)
                         setTimeout(() => {
                             this.initElement(element);
                         }, 500);
                         return;
                     } else {
-                        // Timeout après 5 secondes
                         element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = \'votre-worker-url\';<br>&lt;/script&gt;</code></div>';
-                            return;
+                        return;
                     }
                 }
                 
-                // Chercher le template pour une vidéo (directement dans l'élément ou dans un conteneur)
+                // Chercher le template pour une vidéo
                 let template = element.querySelector('[bb-youtube-item]');
                 let container = element;
                 
-                // Si pas de template direct, chercher dans un conteneur
                 if (!template) {
                     const containerElement = element.querySelector('[bb-youtube-container]');
                     if (containerElement) {
@@ -2455,110 +2428,208 @@
                 
                 if (!template) {
                     element.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Template manquant</strong><br>Ajoutez un élément avec l\'attribut bb-youtube-item</div>';
-                            return;
-                        }
-                        
+                    return;
+                }
+                
                 // Cacher le template original
                 template.style.display = 'none';
                 
                 // Marquer l'élément comme traité par le module YouTube
                 element.setAttribute('data-bb-youtube-processed', 'true');
                 
-                // Vérifier le cache d'abord
-                const cacheKey = `youtube_${channelId}_${videoCount}_${allowShorts}_${language}`;
-                const cachedData = this.cache.get(cacheKey);
+                // OPTIMISATION: Cache partagé par configuration (sans videoCount ni skip)
+                const baseCacheKey = `youtube_${groupConfig.channelIds}_${groupConfig.allowShorts}_${groupConfig.language}`;
+                const cachedData = this.cache.get(baseCacheKey);
                 
                 if (cachedData && cachedData.value) {
                     // Données YouTube récupérées du cache (économie API)
-                    this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
+                    // Appliquer skip puis limiter par videoCount
+                    const limitedData = this.applySkipAndLimit(cachedData.value, skip, videoCount);
+                    this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
                     return;
                 }
                 
-                // OPTIMISATION: Protection globale contre les appels multiples
-                if (this.isRequestActive(cacheKey)) {
-                    // Un appel est déjà en cours pour cette clé, attendre
+                if (this.isRequestActive(baseCacheKey)) {
                     const checkActive = () => {
-                        if (!this.isRequestActive(cacheKey)) {
+                        if (!this.isRequestActive(baseCacheKey)) {
                             // L'autre appel est terminé, vérifier le cache
-                            const newCachedData = this.cache.get(cacheKey);
+                            const newCachedData = this.cache.get(baseCacheKey);
                             if (newCachedData && newCachedData.value) {
-                                this.generateYouTubeFeed(container, template, newCachedData.value, allowShorts, language);
-                                    } else {
+                                const limitedData = this.applySkipAndLimit(newCachedData.value, skip, videoCount);
+                                this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
+                            } else {
                                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Erreur de chargement</div>';
                             }
                         } else {
-                            setTimeout(checkActive, 200); // Vérifier moins souvent
+                            setTimeout(checkActive, 200);
                         }
                     };
                     checkActive();
                     return;
                 }
                 
-                // Marquer qu'un appel API est en cours
-                this.markRequestActive(cacheKey);
+                // Marquer qu'un appel API est en cours (utiliser baseCacheKey)
+                this.markRequestActive(baseCacheKey);
                 
                 // Afficher un loader
                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vidéos YouTube...</div>';
                 
-                // Appeler l'API via le Worker
-                // Valider l'endpoint et le channelId avant fetch
+                // OPTIMISATION: Utiliser le maxVideoCount et maxSkip du groupe pour la requête API
+                const apiVideoCount = groupConfig.maxVideoCount + groupConfig.maxSkip;
+                
+                // Valider l'endpoint
                 if (!endpoint || typeof endpoint !== 'string') {
                     throw new Error('Endpoint YouTube invalide');
                 }
-                // Vérifier que l'endpoint correspond à la configuration
                 if (bbContents.config.youtubeEndpoint && !endpoint.startsWith(bbContents.config.youtubeEndpoint)) {
                     throw new Error('Endpoint YouTube non autorisé');
                 }
-                // Valider le format de channelId (alphanumérique, tirets, underscores)
-                if (!channelId || !/^[a-zA-Z0-9_-]+$/.test(channelId)) {
-                    throw new Error('Channel ID invalide');
-                }
-                // Valider videoCount et allowShorts
-                const safeVideoCount = parseInt(videoCount, 10);
-                const safeAllowShorts = allowShorts === true || allowShorts === 'true';
                 
-                fetch(`${endpoint}?channelId=${encodeURIComponent(channelId)}&maxResults=${safeVideoCount}&allowShorts=${safeAllowShorts}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.error) {
-                            throw new Error(data.error.message || 'Erreur API YouTube');
-                        }
-                        
-                        // OPTIMISATION: Sauvegarder en cache pour 24h
-                        this.cache.set(cacheKey, data);
-                        // Données YouTube mises en cache pour 24h (économie API)
-                        
-                        this.generateYouTubeFeed(container, template, data, allowShorts, language);
-                        
-                        // OPTIMISATION: Libérer le verrou avec la nouvelle méthode
-                        this.markRequestComplete(cacheKey);
-                    })
-                    .catch(error => {
-                        // Erreur dans le module youtube
-                        
-                        // OPTIMISATION: Libérer le verrou en cas d'erreur
-                        this.markRequestComplete(cacheKey);
-                        
-                        // En cas d'erreur, essayer de récupérer du cache même expiré
-                        const expiredCache = localStorage.getItem(cacheKey);
-                        if (expiredCache) {
-                            try {
-                                const cachedData = JSON.parse(expiredCache);
-                                // Utilisation du cache expiré en cas d'erreur API
-                                this.generateYouTubeFeed(container, template, cachedData.value, allowShorts, language);
-                                return;
-                            } catch (e) {
-                                // Ignorer les erreurs de parsing
+                // Parser les channelIds
+                const channelIds = groupConfig.channelIds.split(',');
+                
+                // Valider les channelIds
+                channelIds.forEach(channelId => {
+                    if (!channelId || !/^[a-zA-Z0-9_-]+$/.test(channelId)) {
+                        throw new Error('Channel ID invalide: ' + channelId);
+                    }
+                });
+                
+                const safeAllowShorts = groupConfig.allowShorts === true || groupConfig.allowShorts === 'true';
+                
+                // OPTIMISATION: Si plusieurs channelIds, récupérer depuis plusieurs chaînes
+                if (channelIds.length > 1) {
+                    this.fetchMultipleChannels(endpoint, channelIds, apiVideoCount, safeAllowShorts)
+                        .then(data => {
+                            if (data.error) {
+                                throw new Error(data.error.message || 'Erreur API YouTube');
                             }
-                        }
-                        
-                        container.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${bbContents.utils.sanitize(error.message || 'Erreur inconnue')}</div>`;
+                            
+                            // Stocker dans le cache avec la clé de base (sans videoCount ni skip)
+                            this.cache.set(baseCacheKey, data);
+                            
+                            // Appliquer skip puis limiter par videoCount pour cet élément
+                            const limitedData = this.applySkipAndLimit(data, skip, videoCount);
+                            
+                            this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
+                            
+                            this.markRequestComplete(baseCacheKey);
+                        })
+                        .catch(error => {
+                            this.markRequestComplete(baseCacheKey);
+                            this.handleFetchError(error, container, baseCacheKey, skip, videoCount, template, groupConfig);
+                        });
+                } else {
+                    // Un seul channelId, requête simple
+                    fetch(`${endpoint}?channelId=${encodeURIComponent(channelIds[0])}&maxResults=${apiVideoCount}&allowShorts=${safeAllowShorts}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.error) {
+                                throw new Error(data.error.message || 'Erreur API YouTube');
+                            }
+                            
+                            // Stocker dans le cache avec la clé de base (sans videoCount ni skip)
+                            this.cache.set(baseCacheKey, data);
+                            
+                            // Appliquer skip puis limiter par videoCount pour cet élément
+                            const limitedData = this.applySkipAndLimit(data, skip, videoCount);
+                            
+                            this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
+                            
+                            this.markRequestComplete(baseCacheKey);
+                        })
+                        .catch(error => {
+                            this.markRequestComplete(baseCacheKey);
+                            this.handleFetchError(error, container, baseCacheKey, skip, videoCount, template, groupConfig);
+                        });
+                }
+            },
+            
+            // Fonction pour appliquer skip puis limiter par videoCount
+            applySkipAndLimit: function(data, skip, videoCount) {
+                if (!data || !data.items) {
+                    return data;
+                }
+                
+                // Appliquer skip
+                const afterSkip = skip > 0 ? data.items.slice(skip) : data.items;
+                
+                // Limiter par videoCount
+                const limited = afterSkip.slice(0, videoCount);
+                
+                return {
+                    ...data,
+                    items: limited
+                };
+            },
+            
+            // Fonction pour récupérer les vidéos de plusieurs chaînes
+            fetchMultipleChannels: function(endpoint, channelIds, maxResults, allowShorts) {
+                // Faire une requête par channelId unique
+                const promises = channelIds.map(channelId => {
+                    return fetch(`${endpoint}?channelId=${encodeURIComponent(channelId)}&maxResults=${maxResults}&allowShorts=${allowShorts}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status} for channel ${channelId}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.error) {
+                                throw new Error(data.error.message || 'Erreur API YouTube');
+                            }
+                            return data.items || [];
+                        })
+                        .catch(error => {
+                            // En cas d'erreur pour une chaîne, retourner un tableau vide
+                            // Les autres chaînes continueront à fonctionner
+                            return [];
+                        });
+                });
+                
+                return Promise.all(promises).then(allItems => {
+                    // Fusionner tous les items de toutes les chaînes
+                    const mergedItems = [].concat(...allItems);
+                    
+                    // Trier par date (publishedAt) - du plus récent au plus ancien
+                    mergedItems.sort((a, b) => {
+                        const dateA = new Date(a.snippet.publishedAt);
+                        const dateB = new Date(b.snippet.publishedAt);
+                        return dateB - dateA;
                     });
+                    
+                    // Retourner dans le format attendu
+                    return {
+                        items: mergedItems,
+                        pageInfo: {
+                            totalResults: mergedItems.length,
+                            resultsPerPage: mergedItems.length
+                        }
+                    };
+                });
+            },
+            
+            // Fonction pour gérer les erreurs de fetch
+            handleFetchError: function(error, container, cacheKey, skip, videoCount, template, groupConfig) {
+                // En cas d'erreur, essayer de récupérer du cache même expiré
+                const expiredCache = localStorage.getItem(cacheKey);
+                if (expiredCache) {
+                    try {
+                        const cachedData = JSON.parse(expiredCache);
+                        const limitedData = this.applySkipAndLimit(cachedData.value, skip, videoCount);
+                        this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
+                        return;
+                    } catch (e) {
+                        // Ignorer les erreurs de parsing
+                    }
+                }
+                
+                container.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${bbContents.utils.sanitize(error.message || 'Erreur inconnue')}</div>`;
             },
             
             generateYouTubeFeed: function(container, template, data, allowShorts, language = 'fr') {
@@ -2732,7 +2803,7 @@
                 return textarea.value;
             },
             
-            // OPTIMISATION: Nettoyer le cache expiré (48h)
+            // Nettoyer le cache expiré
             cleanCache: function() {
                 try {
                     const keys = Object.keys(localStorage);
@@ -2743,7 +2814,7 @@
                         if (key.startsWith('youtube_')) {
                             try {
                                 const cached = JSON.parse(localStorage.getItem(key));
-                                // OPTIMISATION: Cache 24h maintenu
+                                // Cache 24h
                                 if (now - cached.timestamp > 24 * 60 * 60 * 1000) {
                                     localStorage.removeItem(key);
                                     cleaned++;
@@ -2778,51 +2849,25 @@
         }
     };
 
-    // Initialisation automatique avec délai pour éviter le blocage
+    // Initialisation automatique avec délai
     function initBBContents() {
-        // Attendre que la page soit prête
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
-                // Délai pour éviter le blocage du rendu
                 const delay = document.body.hasAttribute('bb-performance-boost') ? 300 : 100;
                 setTimeout(function() {
                     bbContents.init();
                 }, delay);
             });
         } else {
-            // Délai pour éviter le blocage du rendu
             const delay = document.body.hasAttribute('bb-performance-boost') ? 300 : 100;
             setTimeout(function() {
                 bbContents.init();
             }, delay);
         }
-        
-        // Initialisation différée supplémentaire pour les cas difficiles - Solution cache optimisée
-        window.addEventListener('load', function() {
-            const loadDelay = document.body.hasAttribute('bb-performance-boost') ? 4000 : 3000; // Délais plus longs pour le cache
-            setTimeout(function() {
-                // Vérifier s'il y a des éléments non initialisés
-                const unprocessedMarquees = document.querySelectorAll('[bb-marquee]:not([data-bb-marquee-processed])');
-                if (unprocessedMarquees.length > 0) {
-                    // Éléments marquee non initialisés détectés après load, réinitialisation
-                    bbContents.reinit();
-                }
-                
-                // Vérification supplémentaire des images chargées - Solution cache optimisée
-                const allImages = document.querySelectorAll('img');
-                const unloadedImages = Array.from(allImages).filter(img => !img.complete || img.naturalHeight === 0);
-                if (unloadedImages.length > 0) {
-                    // Images non chargées détectées, attente supplémentaire plus longue
-                    setTimeout(() => {
-                        bbContents.reinit();
-                    }, 2000); // 2 secondes au lieu de 1 seconde
-                }
-            }, loadDelay);
-        });
     }
 
     // Initialisation
     initBBContents();
 
-    // Message de confirmation supprimé pour une console plus propre
+    // Message de confirmation supprimé
 })();
