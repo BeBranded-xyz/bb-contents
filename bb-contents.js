@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.2
+ * @version 1.1.3
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.2';
+    const BB_CONTENTS_VERSION = '1.1.3';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -2588,33 +2588,38 @@
                             if (data.error) {
                                 throw new Error(data.error.message || 'Erreur API YouTube');
                             }
-                            return data.items || [];
+                            return { success: true, items: data.items || [] };
                         })
                         .catch(error => {
-                            // En cas d'erreur pour une chaîne, retourner un tableau vide
+                            // En cas d'erreur pour une chaîne, retourner un objet avec success: false
                             // Les autres chaînes continueront à fonctionner
-                            return [];
+                            return { success: false, items: [] };
                         });
                 });
                 
-                return Promise.all(promises).then(allItems => {
+                return Promise.all(promises).then(allResults => {
+                    // Vérifier si toutes les chaînes ont échoué
+                    const allChannelsFailed = allResults.every(result => !result.success);
+                    
                     // Fusionner tous les items de toutes les chaînes
-                    const mergedItems = [].concat(...allItems);
+                    const mergedItems = [].concat(...allResults.map(result => result.items));
                     
                     // Trier par date (publishedAt) - du plus récent au plus ancien
+                    // Protection contre publishedAt manquant
                     mergedItems.sort((a, b) => {
-                        const dateA = new Date(a.snippet.publishedAt);
-                        const dateB = new Date(b.snippet.publishedAt);
+                        const dateA = new Date(a.snippet?.publishedAt || 0);
+                        const dateB = new Date(b.snippet?.publishedAt || 0);
                         return dateB - dateA;
                     });
                     
-                    // Retourner dans le format attendu
+                    // Retourner dans le format attendu avec flag d'erreur
                     return {
                         items: mergedItems,
                         pageInfo: {
                             totalResults: mergedItems.length,
                             resultsPerPage: mergedItems.length
-                        }
+                        },
+                        allChannelsFailed: allChannelsFailed
                     };
                 });
             },
@@ -2639,7 +2644,12 @@
             
             generateYouTubeFeed: function(container, template, data, allowShorts, language = 'fr') {
                 if (!data || !data.items || data.items.length === 0) {
-                    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vidéo trouvée</div>';
+                    // Distinguer "aucune vidéo" de "toutes les chaînes ont échoué"
+                    if (data && data.allChannelsFailed) {
+                        container.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626; text-align: center;"><strong>Erreur de chargement</strong><br>Impossible de récupérer les vidéos des chaînes YouTube</div>';
+                    } else {
+                        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vidéo trouvée</div>';
+                    }
                     return;
                 }
                 
@@ -2658,7 +2668,13 @@
                 
                 // Cloner le template pour chaque vidéo
                 videos.forEach(item => {
-                    const videoId = item.id.videoId;
+                    // Validation de videoId avant utilisation
+                    const videoId = item.id?.videoId;
+                    if (!videoId) {
+                        // Ignorer les vidéos sans ID valide
+                        return;
+                    }
+                    
                     const snippet = item.snippet;
                     
                     // Cloner le template
