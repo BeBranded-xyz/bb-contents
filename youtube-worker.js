@@ -79,6 +79,12 @@ export default {
           }
         })
       }
+
+      // Cache Cloudflare 24h : retourner la réponse en cache si présente
+      const cachedResponse = await caches.default.match(request)
+      if (cachedResponse) {
+        return cachedResponse
+      }
       
       // Encoder les paramètres pour éviter l'injection
       const encodedChannelId = encodeURIComponent(channelId)
@@ -92,29 +98,31 @@ export default {
         if (safeAllowShorts) {
           // Récupérer uniquement les vidéos courtes (< 4 minutes)
           const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${encodedChannelId}&maxResults=${encodedMaxResults}&order=date&type=video&videoDuration=short&key=${apiKey}`
-          const response = await fetch(apiUrl, { signal: controller.signal })
+          const apiResponse = await fetch(apiUrl, { signal: controller.signal })
           
           clearTimeout(timeoutId)
           
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}))
-            throw new Error(`YouTube API error: ${response.status}`)
+          if (!apiResponse.ok) {
+            const errorData = await apiResponse.json().catch(() => ({}))
+            throw new Error(`YouTube API error: ${apiResponse.status}`)
           }
           
-          const data = await response.json()
+          const data = await apiResponse.json()
           
           // Validation de la structure des données
           if (!data || typeof data !== 'object' || !Array.isArray(data.items)) {
             throw new Error('Invalid response format from YouTube API')
           }
           
-          return new Response(JSON.stringify(data), {
+          const response = new Response(JSON.stringify(data), {
             headers: {
               'Content-Type': 'application/json',
               'Access-Control-Allow-Origin': '*',
-              'Cache-Control': 'public, max-age=3600'
+              'Cache-Control': 'public, max-age=86400'
             }
           })
+          await caches.default.put(request, response.clone())
+          return response
         } else {
           // Récupérer les vidéos moyennes ET longues (exclure les shorts)
           const [mediumResponse, longResponse] = await Promise.all([
@@ -153,16 +161,18 @@ export default {
           // Limiter au nombre de résultats demandé
           const limitedItems = combinedItems.slice(0, parseInt(maxResults, 10))
           
-          return new Response(JSON.stringify({
+          const response = new Response(JSON.stringify({
             ...mediumData,
             items: limitedItems
           }), {
             headers: {
               'Content-Type': 'application/json',
               'Access-Control-Allow-Origin': '*',
-              'Cache-Control': 'public, max-age=3600'
+              'Cache-Control': 'public, max-age=86400'
             }
           })
+          await caches.default.put(request, response.clone())
+          return response
         }
       } catch (fetchError) {
         clearTimeout(timeoutId)

@@ -1,0 +1,5 @@
+# Wrangler (Cloudflare Workers)
+.wrangler/
+
+# Dependencies
+node_modules/
