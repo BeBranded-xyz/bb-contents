@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.8
+ * @version 1.1.9
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.8';
+    const BB_CONTENTS_VERSION = '1.1.9';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -449,10 +449,11 @@
                         });
                     };
                     
-                    // Permettre le retour à la ligne du texte dans les items
+                    // Permettre le retour à la ligne du texte dans les items (CMS ou static : fallback sur enfants directs)
                     if (!isVertical) {
                         setTimeout(() => {
-                            const marqueeItems = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"]');
+                            let marqueeItems = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"]');
+                            if (marqueeItems.length === 0) marqueeItems = mainBlock.querySelectorAll(':scope > *');
                             marqueeItems.forEach(item => {
                                 // Préserver la largeur de l'item
                                 const computedStyle = getComputedStyle(item);
@@ -643,13 +644,14 @@
                                 mainContainer.appendChild(scrollContainer);
                                 requestAnimationFrame(() => {
                                     requestAnimationFrame(() => {
-                                        const items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"]');
+                                        let items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"]');
+                                        if (items.length === 0) items = mainBlock.querySelectorAll(':scope > *');
                                         let maxHeight = 0;
                                         items.forEach(function(item) {
                                             const itemHeight = item.offsetHeight;
                                             if (itemHeight > maxHeight) maxHeight = itemHeight;
                                         });
-                                        if (maxHeight === 0) maxHeight = scrollContainer.offsetHeight;
+                                        if (maxHeight === 0) maxHeight = mainBlock.offsetHeight || scrollContainer.offsetHeight;
                                         if (maxHeight > 0) mainContainer.style.height = maxHeight + 'px';
                                     });
                                 });
@@ -723,6 +725,13 @@
                 
                 if (contentSize === 0) {
                     setTimeout(() => this.initAnimation(element, scrollContainer, mainBlock, options), 200);
+                    return;
+                }
+                // Static marquee : retry une fois si dimensions suspectes (layout pas encore prêt)
+                const minSize = isVertical ? 50 : 100;
+                if (contentSize > 0 && contentSize < minSize && !element._marqueeSizeRetry) {
+                    element._marqueeSizeRetry = true;
+                    setTimeout(() => this.initAnimation(element, scrollContainer, mainBlock, options), 100);
                     return;
                 }
 
