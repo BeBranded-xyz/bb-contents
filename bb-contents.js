@@ -314,6 +314,7 @@
                     const orientation = bbContents._getAttr(element, 'bb-marquee-orientation') || 'horizontal';
                     const height = bbContents._getAttr(element, 'bb-marquee-height') || '300';
                     const minHeight = bbContents._getAttr(element, 'bb-marquee-min-height');
+                    const isMobileMarquee = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
                     // Sauvegarder le contenu original
                     const originalHTML = element.innerHTML;
@@ -438,13 +439,13 @@
                                 }
                             });
                             
-                            // Timeout de sécurité (max 5 secondes)
+                            // Timeout de sécurité (réduit sur mobile pour init plus rapide)
                             setTimeout(function() {
                                 if (loadedCount + errorCount < totalImages) {
                                     errorCount = totalImages - loadedCount;
                                     checkComplete();
                                 }
-                            }, 5000);
+                            }, isMobileMarquee ? 2500 : 5000);
                         });
                     };
                     
@@ -580,13 +581,13 @@
                                     }
                                 });
                                 
-                                // Timeout
+                                // Timeout (réduit sur mobile)
                                 setTimeout(function() {
                                     if (renderedCount < totalImages) {
                                         renderedCount = totalImages;
                                         checkRendered();
                                     }
-                                }, 2000);
+                                }, isMobileMarquee ? 1000 : 2000);
                             });
                         };
                         
@@ -897,8 +898,8 @@
                     };
                 });
                 
-                // Timeout plus long sur mobile pour laisser le temps aux images de se charger
-                const maxWaitTime = isMobile ? 5000 : 3000; // 5 secondes sur mobile
+                // Timeout sur mobile réduit pour init plus rapide (images déjà préchargées avant)
+                const maxWaitTime = isMobile ? 2500 : 3000;
                 let waitTimeout = 0;
                 
                 const waitForImages = () => {
@@ -924,8 +925,8 @@
                         
                         if (imagesReady) {
                             // Toutes les images sont chargées ET ont leurs dimensions
-                            // Attendre plus longtemps sur mobile Safari pour le rendu visuel
-                            const renderDelay = isSafari && isMobile ? 1500 : (isMobile ? 1000 : 200);
+                            // Délai court pour laisser le layout se stabiliser (réduit pour init rapide)
+                            const renderDelay = isSafari && isMobile ? 300 : (isMobile ? 500 : 200);
                         setTimeout(() => {
                             startSafariAnimation();
                         }, renderDelay);
@@ -937,7 +938,7 @@
                         // Timeout atteint : forcer le démarrage mais c'est un fallback
                         if (bbContents.config.debug) {
                         }
-                        const renderDelay = isSafari && isMobile ? 1500 : (isMobile ? 1000 : 200);
+                        const renderDelay = isSafari && isMobile ? 300 : (isMobile ? 500 : 200);
                         setTimeout(() => {
                             startSafariAnimation();
                         }, renderDelay);
