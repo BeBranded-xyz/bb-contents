@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.9
+ * @version 1.1.10
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.9';
+    const BB_CONTENTS_VERSION = '1.1.10';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -2437,10 +2437,9 @@
                 const baseCacheKey = `youtube_${groupConfig.channelIds}_${groupConfig.allowShorts}_${groupConfig.language}`;
                 const cachedData = this.cache.get(baseCacheKey);
                 
-                if (cachedData && cachedData.value) {
-                    // Données YouTube récupérées du cache (économie API)
-                    // Appliquer skip puis limiter par videoCount
-                    const limitedData = this.applySkipAndLimit(cachedData.value, skip, videoCount);
+                if (cachedData && cachedData.items) {
+                    // Données YouTube récupérées du cache (économie API) — cache.get retourne la réponse API directement
+                    const limitedData = this.applySkipAndLimit(cachedData, skip, videoCount);
                     this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
                     return;
                 }
@@ -2450,8 +2449,8 @@
                         if (!this.isRequestActive(baseCacheKey)) {
                             // L'autre appel est terminé, vérifier le cache
                             const newCachedData = this.cache.get(baseCacheKey);
-                            if (newCachedData && newCachedData.value) {
-                                const limitedData = this.applySkipAndLimit(newCachedData.value, skip, videoCount);
+                            if (newCachedData && newCachedData.items) {
+                                const limitedData = this.applySkipAndLimit(newCachedData, skip, videoCount);
                                 this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
                             } else {
                                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Erreur de chargement</div>';
