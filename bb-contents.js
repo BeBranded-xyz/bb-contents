@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.6
+ * @version 1.1.7
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.6';
+    const BB_CONTENTS_VERSION = '1.1.7';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -445,7 +445,7 @@
                                     errorCount = totalImages - loadedCount;
                                     checkComplete();
                                 }
-                            }, isMobileMarquee ? 2500 : 5000);
+                            }, isMobileMarquee ? 1500 : 5000);
                         });
                     };
                     
@@ -537,9 +537,9 @@
                         tempContainer.style.cssText = 'position: absolute; left: -9999px; top: -9999px; visibility: hidden;';
                         tempContainer.appendChild(repeatBlock1);
                         tempContainer.appendChild(repeatBlock2);
-                        document.body.appendChild(tempContainer);
+                        if (!isMobileMarquee) document.body.appendChild(tempContainer);
                         
-                        // Vérifier que toutes les images sont rendues
+                        // Vérifier que toutes les images sont rendues (sauté sur mobile pour init rapide)
                         const waitForImagesRender = function(block) {
                             return new Promise(function(resolve) {
                                 const images = block.querySelectorAll('img');
@@ -587,7 +587,7 @@
                                         renderedCount = totalImages;
                                         checkRendered();
                                     }
-                                }, isMobileMarquee ? 1000 : 2000);
+                                }, isMobileMarquee ? 500 : 2000);
                             });
                         };
                         
@@ -631,40 +631,26 @@
                             });
                         };
                         
-                        // Attendre que toutes les images soient rendues dans les copies
-                        Promise.all([
-                            waitForImagesRender(repeatBlock1),
-                            waitForImagesRender(repeatBlock2),
-                            forceFullRender()
-                        ]).then(function() {
-                            // Retirer les copies du conteneur temporaire (si toujours présent)
+                        // Sur mobile : 2 rAF puis affichage (sans attendre waitForImagesRender/forceFullRender)
+                        const doFinish = function() {
                             if (tempContainer && tempContainer.parentNode === document.body) {
                                 document.body.removeChild(tempContainer);
                             }
-                            
-                            // Les images sont maintenant complètement rendues
                             if (!isVertical) {
                                 scrollContainer.appendChild(mainBlock);
                                 scrollContainer.appendChild(repeatBlock1);
                                 scrollContainer.appendChild(repeatBlock2);
                                 mainContainer.appendChild(scrollContainer);
-                                
                                 requestAnimationFrame(() => {
                                     requestAnimationFrame(() => {
                                         const items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"]');
                                         let maxHeight = 0;
                                         items.forEach(function(item) {
                                             const itemHeight = item.offsetHeight;
-                                            if (itemHeight > maxHeight) {
-                                                maxHeight = itemHeight;
-                                            }
+                                            if (itemHeight > maxHeight) maxHeight = itemHeight;
                                         });
-                                        if (maxHeight === 0) {
-                                            maxHeight = scrollContainer.offsetHeight;
-                                        }
-                                        if (maxHeight > 0) {
-                                            mainContainer.style.height = maxHeight + 'px';
-                                        }
+                                        if (maxHeight === 0) maxHeight = scrollContainer.offsetHeight;
+                                        if (maxHeight > 0) mainContainer.style.height = maxHeight + 'px';
                                     });
                                 });
                             } else {
@@ -673,11 +659,9 @@
                                 scrollContainer.appendChild(repeatBlock2);
                                 mainContainer.appendChild(scrollContainer);
                             }
-                            
                             element.innerHTML = '';
                             element.appendChild(mainContainer);
                             element.setAttribute('data-bb-marquee-processed', 'true');
-
                             requestAnimationFrame(() => {
                                 requestAnimationFrame(() => {
                                     const initDelay = isVertical ? 500 : 100;
@@ -688,7 +672,16 @@
                                     }, initDelay);
                                 });
                             });
-                        }.bind(this));
+                        }.bind(this);
+                        if (isMobileMarquee) {
+                            requestAnimationFrame(() => requestAnimationFrame(doFinish));
+                        } else {
+                            Promise.all([
+                                waitForImagesRender(repeatBlock1),
+                                waitForImagesRender(repeatBlock2),
+                                forceFullRender()
+                            ]).then(doFinish);
+                        }
                     }.bind(this)).catch(function() {
                         if (tempContainer && tempContainer.parentNode === document.body) {
                             document.body.removeChild(tempContainer);
@@ -899,7 +892,7 @@
                 });
                 
                 // Timeout sur mobile réduit pour init plus rapide (images déjà préchargées avant)
-                const maxWaitTime = isMobile ? 2500 : 3000;
+                const maxWaitTime = isMobile ? 1500 : 3000;
                 let waitTimeout = 0;
                 
                 const waitForImages = () => {
