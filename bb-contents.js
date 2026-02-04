@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.7
+ * @version 1.1.8
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.7';
+    const BB_CONTENTS_VERSION = '1.1.8';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -889,10 +889,13 @@
                     img.onerror = () => {
                         imagesLoaded++;
                     };
+                    // Compter les images déjà chargées (précharge dans l'init principal) pour éviter d'attendre inutilement
+                    if (img.complete && img.naturalWidth > 0) imagesLoaded++;
                 });
                 
-                // Timeout sur mobile réduit pour init plus rapide (images déjà préchargées avant)
-                const maxWaitTime = isMobile ? 1500 : 3000;
+                // Timeout réduit sur Safari (images souvent déjà préchargées)
+                let maxWaitTime = isMobile ? 1500 : 3000;
+                if (isSafari) maxWaitTime = Math.min(maxWaitTime, 600);
                 let waitTimeout = 0;
                 
                 const waitForImages = () => {
@@ -906,32 +909,16 @@
                             startSafariAnimation();
                         }, renderDelay);
                     } else if (imagesLoaded >= totalImages) {
-                        // SAFARI MOBILE : Vérifier que les images ont vraiment leurs dimensions
-                        let imagesReady = true;
-                        if (isSafari && isMobile) {
-                            images.forEach(img => {
-                                if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
-                                    imagesReady = false;
-                                }
-                            });
-                        }
-                        
-                        if (imagesReady) {
-                            // Toutes les images sont chargées ET ont leurs dimensions
-                            // Délai court pour laisser le layout se stabiliser (réduit pour init rapide)
-                            const renderDelay = isSafari && isMobile ? 300 : (isMobile ? 500 : 200);
+                        // Toutes les images sont chargées (pas de re-vérif naturalWidth sur Safari pour init rapide)
+                        const renderDelay = isSafari && isMobile ? 80 : (isMobile ? 500 : 200);
                         setTimeout(() => {
                             startSafariAnimation();
                         }, renderDelay);
-                    } else {
-                            // Continuer à attendre que les dimensions soient disponibles
-                            setTimeout(waitForImages, 100);
-                        }
                     } else if (waitTimeout >= maxWaitTime) {
                         // Timeout atteint : forcer le démarrage mais c'est un fallback
                         if (bbContents.config.debug) {
                         }
-                        const renderDelay = isSafari && isMobile ? 300 : (isMobile ? 500 : 200);
+                        const renderDelay = isSafari && isMobile ? 80 : (isMobile ? 500 : 200);
                         setTimeout(() => {
                             startSafariAnimation();
                         }, renderDelay);
@@ -941,7 +928,13 @@
                     }
                 };
                 
-                waitForImages();
+                // Si toutes les images sont déjà chargées (précharge), ne pas attendre la boucle
+                if (imagesLoaded >= totalImages) {
+                    const renderDelay = isSafari && isMobile ? 80 : (isMobile ? 500 : 200);
+                    setTimeout(() => startSafariAnimation(), renderDelay);
+                } else {
+                    waitForImages();
+                }
                 
                 const startSafariAnimation = () => {
                     // Forcer le chargement des images restantes si timeout
