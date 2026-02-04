@@ -1,0 +1,16 @@
+# Workflow de publication bb-contents
+
+Quand l'utilisateur demande de **publier** :
+
+- **Toujours publier sur GitHub ET sur npm en même temps.**
+
+## "Publier en develop et test"
+- **GitHub** : push sur la branche **develop**
+- **npm** : `npm publish --tag test` (version publiée sous le tag `test`, pas `latest`)
+
+## "Publier sur main" / "push sur main"
+- **GitHub** : push sur la branche **main** (live / principale)
+- **npm** : `npm publish` (tag `latest`) — version live
+
+## Synchronisation
+- Garder le même versioning entre GitHub et npm : même numéro de version dans `package.json`, dans le header de `bb-contents.js` (`@version`, `BB_CONTENTS_VERSION`), puis push + publish avec le bon tag.
