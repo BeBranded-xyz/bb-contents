@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.10
+ * @version 1.1.11
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.10';
+    const BB_CONTENTS_VERSION = '1.1.11';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -2281,38 +2281,27 @@
                 // Nettoyer le cache expiré au démarrage
                 this.cleanCache();
                 
-                const elements = scope.querySelectorAll('[bb-youtube-channel]');
-                if (elements.length === 0) return;
+                // OPTIMISATION: Calculer maxVideoCount/maxSkip sur tout le document pour que le cache
+                // contienne assez de vidéos même quand les grids sont dans des scopes différents
+                const allElements = document.querySelectorAll('[bb-youtube-channel]');
+                if (allElements.length === 0) return;
                 
-                // Module détecté: youtube
-                
-                // OPTIMISATION: Grouper les éléments par configuration unique pour partager les requêtes API
                 const elementsByConfig = {};
                 
-                elements.forEach(element => {
-                    // Vérifier si l'élément a déjà été traité par un autre module
-                    if (element.bbProcessed || element.hasAttribute('data-bb-marquee-processed')) {
-                        // Élément youtube déjà traité par un autre module, ignoré
-                        return;
-                    }
-                    element.bbProcessed = true;
+                allElements.forEach(element => {
+                    if (element.bbProcessed || element.hasAttribute('data-bb-marquee-processed')) return;
                     
                     const channelIdsRaw = bbContents._getAttr(element, 'bb-youtube-channel');
                     if (!channelIdsRaw) return;
                     
-                    // Parser les channelIds (peuvent être séparés par virgules)
                     const channelIds = channelIdsRaw.split(',').map(id => id.trim()).filter(id => id);
                     if (channelIds.length === 0) return;
                     
-                    // Normaliser et trier les channelIds pour créer une clé unique
                     const normalizedChannelIds = channelIds.sort().join(',');
-                    
                     const allowShorts = bbContents._getAttr(element, 'bb-youtube-allow-shorts') === 'true';
                     const language = bbContents._getAttr(element, 'bb-youtube-language') || 'fr';
                     const videoCount = parseInt(bbContents._getAttr(element, 'bb-youtube-video-count') || '10', 10);
                     const skip = parseInt(bbContents._getAttr(element, 'bb-youtube-skip') || '0', 10);
-                    
-                    // Créer une clé unique par configuration (channelIds + allowShorts + language)
                     const configKey = `${normalizedChannelIds}_${allowShorts}_${language}`;
                     
                     if (!elementsByConfig[configKey]) {
@@ -2326,8 +2315,7 @@
                         };
                     }
                     
-                    elementsByConfig[configKey].elements.push(element);
-                    // Garder le max videoCount et maxSkip pour ce groupe
+                    // maxVideoCount/maxSkip calculés sur toute la page (document)
                     elementsByConfig[configKey].maxVideoCount = Math.max(
                         elementsByConfig[configKey].maxVideoCount,
                         videoCount
@@ -2336,13 +2324,16 @@
                         elementsByConfig[configKey].maxSkip,
                         skip
                     );
+                    
+                    // N'ajouter et n'initialiser que les éléments du scope courant
+                    if (scope.contains(element)) {
+                        element.bbProcessed = true;
+                        elementsByConfig[configKey].elements.push(element);
+                    }
                 });
                 
-                // Initialiser chaque groupe d'éléments
                 Object.keys(elementsByConfig).forEach(configKey => {
                     const group = elementsByConfig[configKey];
-                    
-                    // Initialiser tous les éléments de ce groupe
                     group.elements.forEach(element => {
                         const videoCount = parseInt(bbContents._getAttr(element, 'bb-youtube-video-count') || '10', 10);
                         const skip = parseInt(bbContents._getAttr(element, 'bb-youtube-skip') || '0', 10);
