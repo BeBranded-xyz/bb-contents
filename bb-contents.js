@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.11
+ * @version 1.1.12
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.11';
+    const BB_CONTENTS_VERSION = '1.1.12';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -2427,22 +2427,29 @@
                 // OPTIMISATION: Cache partagé par configuration (sans videoCount ni skip)
                 const baseCacheKey = `youtube_${groupConfig.channelIds}_${groupConfig.allowShorts}_${groupConfig.language}`;
                 const cachedData = this.cache.get(baseCacheKey);
+                const minItemsNeeded = skip + videoCount;
                 
-                if (cachedData && cachedData.items) {
-                    // Données YouTube récupérées du cache (économie API) — cache.get retourne la réponse API directement
+                if (cachedData && cachedData.items && cachedData.items.length >= minItemsNeeded) {
+                    // Cache suffisant pour cette grid
                     const limitedData = this.applySkipAndLimit(cachedData, skip, videoCount);
                     this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
                     return;
+                }
+                if (cachedData && cachedData.items && cachedData.items.length < minItemsNeeded) {
+                    // Cache insuffisant (ex. première grid seule en DOM a rempli le cache) → invalider pour refetch
+                    try { localStorage.removeItem(baseCacheKey); } catch (e) {}
                 }
                 
                 if (this.isRequestActive(baseCacheKey)) {
                     const checkActive = () => {
                         if (!this.isRequestActive(baseCacheKey)) {
-                            // L'autre appel est terminé, vérifier le cache
                             const newCachedData = this.cache.get(baseCacheKey);
-                            if (newCachedData && newCachedData.items) {
+                            if (newCachedData && newCachedData.items && newCachedData.items.length >= minItemsNeeded) {
                                 const limitedData = this.applySkipAndLimit(newCachedData, skip, videoCount);
                                 this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
+                            } else if (newCachedData && newCachedData.items && newCachedData.items.length < minItemsNeeded) {
+                                try { localStorage.removeItem(baseCacheKey); } catch (e) {}
+                                this.initElement(element, groupConfig, videoCount, skip);
                             } else {
                                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Erreur de chargement</div>';
                             }
