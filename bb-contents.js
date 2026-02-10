@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.14
+ * @version 1.1.15
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.14';
+    const BB_CONTENTS_VERSION = '1.1.15';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -297,7 +297,7 @@
                     block.querySelector('[class*="dropdown"]') !== null;
             },
 
-            // Active le comportement hover pour les dropdowns dans un bloc du marquee (items indépendants)
+            // Active le comportement hover pour les dropdowns dans un bloc du marquee (portal hors scrollContainer pour éviter le clipping)
             _enableMarqueeDropdowns: function(block) {
                 if (!block || !block.querySelectorAll) return;
                 const items = block.querySelectorAll('.bb-marquee_item, [role="listitem"]');
@@ -306,19 +306,49 @@
                     const dropdowns = item.querySelectorAll('.w-dropdown, [class*="dropdown"]');
                     dropdowns.forEach(function(dropdown) {
                         const list = dropdown.querySelector('.w-dropdown-list, [class*="dropdown-list"], [class*="dropdown_list"]');
-                        if (!list) return;
+                        const toggle = dropdown.querySelector('.w-dropdown-toggle, [class*="dropdown-toggle"]');
+                        if (!list || !toggle) return;
                         item.style.overflow = 'visible';
                         dropdown.style.overflow = 'visible';
-                        list.style.zIndex = '10';
                         let leaveTimer;
-                        dropdown.addEventListener('mouseenter', function() {
+                        let portalWrapper = null;
+
+                        function closePortal() {
+                            if (portalWrapper && portalWrapper.parentNode) {
+                                portalWrapper.parentNode.removeChild(portalWrapper);
+                            }
+                            portalWrapper = null;
+                            dropdown.classList.remove('w--open');
+                        }
+
+                        function openPortal() {
                             clearTimeout(leaveTimer);
+                            if (portalWrapper && portalWrapper.parentNode) return;
+                            const rect = toggle.getBoundingClientRect();
+                            portalWrapper = document.createElement('div');
+                            portalWrapper.setAttribute('data-bb-marquee-dropdown-portal', 'true');
+                            portalWrapper.style.cssText = 'position:fixed;left:' + rect.left + 'px;top:' + (rect.bottom + 4) + 'px;z-index:9999;';
+                            const clone = list.cloneNode(true);
+                            clone.style.display = 'block';
+                            clone.style.visibility = 'visible';
+                            clone.style.opacity = '1';
+                            clone.style.position = 'absolute';
+                            clone.style.left = '0';
+                            clone.style.top = '0';
+                            portalWrapper.appendChild(clone);
+                            portalWrapper.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
+                            portalWrapper.addEventListener('mouseleave', function() {
+                                leaveTimer = setTimeout(closePortal, 150);
+                            });
+                            document.body.appendChild(portalWrapper);
                             dropdown.classList.add('w--open');
+                        }
+
+                        dropdown.addEventListener('mouseenter', function() {
+                            openPortal();
                         });
                         dropdown.addEventListener('mouseleave', function() {
-                            leaveTimer = setTimeout(function() {
-                                dropdown.classList.remove('w--open');
-                            }, 150);
+                            leaveTimer = setTimeout(closePortal, 150);
                         });
                     });
                 });
