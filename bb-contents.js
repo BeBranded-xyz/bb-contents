@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.19
+ * @version 1.1.20
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.19';
+    const BB_CONTENTS_VERSION = '1.1.20';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -297,7 +297,7 @@
                     block.querySelector('[class*="dropdown"]') !== null;
             },
 
-            // Dropdown en portal (fixed) au-dessus du toggle, aligné en haut à droite; copie des styles Webflow, délai pour atteindre la list
+            // Dropdown en portal : position fixe *par rapport au toggle* (mise à jour au scroll/resize pour suivre le bouton)
             _enableMarqueeDropdowns: function(block) {
                 if (!block || !block.querySelectorAll) return;
                 const items = block.querySelectorAll('.bb-marquee_item, [role="listitem"]');
@@ -312,12 +312,24 @@
                         dropdown.style.overflow = 'visible';
                         let portalWrapper = null;
                         let leaveTimer = null;
+                        let scrollResizeCleanup = null;
 
                         var marqueeEl = dropdown.closest('[data-bb-marquee-processed]');
+
+                        function updatePortalPosition() {
+                            if (!portalWrapper || !portalWrapper.parentNode) return;
+                            var rect = toggle.getBoundingClientRect();
+                            portalWrapper.style.right = (window.innerWidth - rect.right) + 'px';
+                            portalWrapper.style.top = rect.top + 'px';
+                        }
 
                         function closePortal() {
                             if (leaveTimer) clearTimeout(leaveTimer);
                             leaveTimer = null;
+                            if (scrollResizeCleanup) {
+                                scrollResizeCleanup();
+                                scrollResizeCleanup = null;
+                            }
                             if (portalWrapper && portalWrapper.parentNode) {
                                 portalWrapper.parentNode.removeChild(portalWrapper);
                             }
@@ -331,15 +343,15 @@
                             leaveTimer = null;
                             if (portalWrapper && portalWrapper.parentNode) return;
                             if (marqueeEl) marqueeEl.setAttribute('data-bb-marquee-dropdown-open', '1');
-                            const rect = toggle.getBoundingClientRect();
-                            const listStyle = getComputedStyle(list);
+                            var rect = toggle.getBoundingClientRect();
+                            var listStyle = getComputedStyle(list);
                             portalWrapper = document.createElement('div');
                             portalWrapper.setAttribute('data-bb-marquee-dropdown-portal', 'true');
                             portalWrapper.className = 'w-dropdown';
                             portalWrapper.style.cssText =
-                                'position:fixed;right:' + (window.innerWidth - rect.right) + 'px;top:' + rect.top + 'px;' +
-                                'transform:translateY(-100%);margin-top:-4px;z-index:9999;background:none;border:none;';
-                            const clone = list.cloneNode(true);
+                                'position:fixed;transform:translateY(-100%);margin-top:-4px;z-index:9999;background:none;border:none;';
+                            updatePortalPosition();
+                            var clone = list.cloneNode(true);
                             clone.style.display = 'block';
                             clone.style.background = listStyle.background || listStyle.backgroundColor || 'transparent';
                             clone.style.backgroundColor = listStyle.backgroundColor;
@@ -354,6 +366,15 @@
                             });
                             document.body.appendChild(portalWrapper);
                             dropdown.classList.add('w--open');
+                            var onScrollOrResize = function() {
+                                updatePortalPosition();
+                            };
+                            window.addEventListener('scroll', onScrollOrResize, true);
+                            window.addEventListener('resize', onScrollOrResize);
+                            scrollResizeCleanup = function() {
+                                window.removeEventListener('scroll', onScrollOrResize, true);
+                                window.removeEventListener('resize', onScrollOrResize);
+                            };
                         }
 
                         dropdown.addEventListener('mouseenter', function() {
