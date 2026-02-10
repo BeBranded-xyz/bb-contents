@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.18
+ * @version 1.1.19
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.18';
+    const BB_CONTENTS_VERSION = '1.1.19';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -297,7 +297,7 @@
                     block.querySelector('[class*="dropdown"]') !== null;
             },
 
-            // Dropdown en portal (fixed) au-dessus du toggle, aligné en haut à droite, pour éviter le clipping du marquee
+            // Dropdown en portal (fixed) au-dessus du toggle, aligné en haut à droite; copie des styles Webflow, délai pour atteindre la list
             _enableMarqueeDropdowns: function(block) {
                 if (!block || !block.querySelectorAll) return;
                 const items = block.querySelectorAll('.bb-marquee_item, [role="listitem"]');
@@ -311,38 +311,59 @@
                         item.style.overflow = 'visible';
                         dropdown.style.overflow = 'visible';
                         let portalWrapper = null;
+                        let leaveTimer = null;
+
+                        var marqueeEl = dropdown.closest('[data-bb-marquee-processed]');
 
                         function closePortal() {
+                            if (leaveTimer) clearTimeout(leaveTimer);
+                            leaveTimer = null;
                             if (portalWrapper && portalWrapper.parentNode) {
                                 portalWrapper.parentNode.removeChild(portalWrapper);
                             }
                             portalWrapper = null;
                             dropdown.classList.remove('w--open');
+                            if (marqueeEl) marqueeEl.removeAttribute('data-bb-marquee-dropdown-open');
                         }
 
                         function openPortal() {
+                            if (leaveTimer) clearTimeout(leaveTimer);
+                            leaveTimer = null;
                             if (portalWrapper && portalWrapper.parentNode) return;
+                            if (marqueeEl) marqueeEl.setAttribute('data-bb-marquee-dropdown-open', '1');
                             const rect = toggle.getBoundingClientRect();
+                            const listStyle = getComputedStyle(list);
                             portalWrapper = document.createElement('div');
                             portalWrapper.setAttribute('data-bb-marquee-dropdown-portal', 'true');
+                            portalWrapper.className = 'w-dropdown';
                             portalWrapper.style.cssText =
                                 'position:fixed;right:' + (window.innerWidth - rect.right) + 'px;top:' + rect.top + 'px;' +
-                                'transform:translateY(-100%);margin-top:-4px;z-index:9999;background:transparent;';
+                                'transform:translateY(-100%);margin-top:-4px;z-index:9999;background:none;border:none;';
                             const clone = list.cloneNode(true);
                             clone.style.display = 'block';
+                            clone.style.background = listStyle.background || listStyle.backgroundColor || 'transparent';
+                            clone.style.backgroundColor = listStyle.backgroundColor;
+                            clone.style.backgroundImage = listStyle.backgroundImage;
                             portalWrapper.appendChild(clone);
-                            portalWrapper.addEventListener('mouseenter', function() {});
-                            portalWrapper.addEventListener('mouseleave', function() { closePortal(); });
+                            portalWrapper.addEventListener('mouseenter', function() {
+                                if (leaveTimer) clearTimeout(leaveTimer);
+                                leaveTimer = null;
+                            });
+                            portalWrapper.addEventListener('mouseleave', function() {
+                                leaveTimer = setTimeout(closePortal, 120);
+                            });
                             document.body.appendChild(portalWrapper);
                             dropdown.classList.add('w--open');
                         }
 
                         dropdown.addEventListener('mouseenter', function() {
+                            if (leaveTimer) clearTimeout(leaveTimer);
+                            leaveTimer = null;
                             openPortal();
                         });
                         dropdown.addEventListener('mouseleave', function(e) {
                             if (portalWrapper && e.relatedTarget && portalWrapper.contains(e.relatedTarget)) return;
-                            closePortal();
+                            leaveTimer = setTimeout(closePortal, 120);
                         });
                     });
                 });
@@ -1096,7 +1117,8 @@
                     // Fonction d'animation Safari optimisée
                     let lastTime = performance.now();
                     const animate = (currentTime) => {
-                        if (!isPaused) {
+                        const dropdownOpen = element.getAttribute('data-bb-marquee-dropdown-open') === '1';
+                        if (!isPaused && !dropdownOpen) {
                             // Animation basée sur le temps
                             const deltaTime = isSafari && isMobile ? (currentTime - lastTime) / 16.67 : 1;
                             lastTime = currentTime;
@@ -1183,7 +1205,8 @@
                 // Fonction d'animation standard avec gestion du temps pour fluidité constante
                 let lastTime = performance.now();
                 const animate = (currentTime) => {
-                    if (!isPaused) {
+                    const dropdownOpen = element.getAttribute('data-bb-marquee-dropdown-open') === '1';
+                    if (!isPaused && !dropdownOpen) {
                         // Calculer le delta de temps pour une vitesse constante même si le navigateur ralentit
                         const deltaTime = (currentTime - lastTime) / 16.67; // Normaliser à 60fps
                         lastTime = currentTime;
