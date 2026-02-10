@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.16
+ * @version 1.1.17
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.16';
+    const BB_CONTENTS_VERSION = '1.1.17';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -297,8 +297,7 @@
                     block.querySelector('[class*="dropdown"]') !== null;
             },
 
-            // Active le comportement hover pour les dropdowns dans un bloc du marquee (portal hors scrollContainer pour éviter le clipping)
-            // Respecte le design Webflow : position au-dessus du logo, pas de surcharge de styles, pas de latence.
+            // Active le comportement hover pour les dropdowns dans un bloc du marquee (w--open uniquement, position et styles 100 % Webflow)
             _enableMarqueeDropdowns: function(block) {
                 if (!block || !block.querySelectorAll) return;
                 const items = block.querySelectorAll('.bb-marquee_item, [role="listitem"]');
@@ -307,41 +306,14 @@
                     const dropdowns = item.querySelectorAll('.w-dropdown, [class*="dropdown"]');
                     dropdowns.forEach(function(dropdown) {
                         const list = dropdown.querySelector('.w-dropdown-list, [class*="dropdown-list"], [class*="dropdown_list"]');
-                        const toggle = dropdown.querySelector('.w-dropdown-toggle, [class*="dropdown-toggle"]');
-                        if (!list || !toggle) return;
+                        if (!list) return;
                         item.style.overflow = 'visible';
                         dropdown.style.overflow = 'visible';
-                        let portalWrapper = null;
-
-                        function closePortal() {
-                            if (portalWrapper && portalWrapper.parentNode) {
-                                portalWrapper.parentNode.removeChild(portalWrapper);
-                            }
-                            portalWrapper = null;
-                            dropdown.classList.remove('w--open');
-                        }
-
-                        function openPortal() {
-                            if (portalWrapper && portalWrapper.parentNode) return;
-                            const rect = toggle.getBoundingClientRect();
-                            portalWrapper = document.createElement('div');
-                            portalWrapper.setAttribute('data-bb-marquee-dropdown-portal', 'true');
-                            portalWrapper.style.cssText = 'position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;transform:translateY(-100%);margin-top:-4px;z-index:9999;';
-                            const clone = list.cloneNode(true);
-                            clone.style.display = 'block';
-                            portalWrapper.appendChild(clone);
-                            portalWrapper.addEventListener('mouseenter', function() {});
-                            portalWrapper.addEventListener('mouseleave', function() { closePortal(); });
-                            document.body.appendChild(portalWrapper);
-                            dropdown.classList.add('w--open');
-                        }
-
                         dropdown.addEventListener('mouseenter', function() {
-                            openPortal();
+                            dropdown.classList.add('w--open');
                         });
-                        dropdown.addEventListener('mouseleave', function(e) {
-                            if (portalWrapper && e.relatedTarget && portalWrapper.contains(e.relatedTarget)) return;
-                            closePortal();
+                        dropdown.addEventListener('mouseleave', function() {
+                            dropdown.classList.remove('w--open');
                         });
                     });
                 });
@@ -419,7 +391,10 @@
                     const mainBlock = document.createElement('div');
                     mainBlock.innerHTML = originalHTML;
                     const hasDropdowns = this._hasDropdownInBlock(mainBlock);
-                    if (hasDropdowns) mainContainer.style.overflow = 'visible';
+                    if (hasDropdowns) {
+                        mainContainer.style.overflow = 'visible';
+                        scrollContainer.style.overflow = 'visible';
+                    }
 
                     // Précharger toutes les images avant clonage
                     const preloadAllImagesFirst = function(block) {
