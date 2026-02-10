@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.15
+ * @version 1.1.16
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.15';
+    const BB_CONTENTS_VERSION = '1.1.16';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -298,6 +298,7 @@
             },
 
             // Active le comportement hover pour les dropdowns dans un bloc du marquee (portal hors scrollContainer pour éviter le clipping)
+            // Respecte le design Webflow : position au-dessus du logo, pas de surcharge de styles, pas de latence.
             _enableMarqueeDropdowns: function(block) {
                 if (!block || !block.querySelectorAll) return;
                 const items = block.querySelectorAll('.bb-marquee_item, [role="listitem"]');
@@ -310,7 +311,6 @@
                         if (!list || !toggle) return;
                         item.style.overflow = 'visible';
                         dropdown.style.overflow = 'visible';
-                        let leaveTimer;
                         let portalWrapper = null;
 
                         function closePortal() {
@@ -322,24 +322,16 @@
                         }
 
                         function openPortal() {
-                            clearTimeout(leaveTimer);
                             if (portalWrapper && portalWrapper.parentNode) return;
                             const rect = toggle.getBoundingClientRect();
                             portalWrapper = document.createElement('div');
                             portalWrapper.setAttribute('data-bb-marquee-dropdown-portal', 'true');
-                            portalWrapper.style.cssText = 'position:fixed;left:' + rect.left + 'px;top:' + (rect.bottom + 4) + 'px;z-index:9999;';
+                            portalWrapper.style.cssText = 'position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;transform:translateY(-100%);margin-top:-4px;z-index:9999;';
                             const clone = list.cloneNode(true);
                             clone.style.display = 'block';
-                            clone.style.visibility = 'visible';
-                            clone.style.opacity = '1';
-                            clone.style.position = 'absolute';
-                            clone.style.left = '0';
-                            clone.style.top = '0';
                             portalWrapper.appendChild(clone);
-                            portalWrapper.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
-                            portalWrapper.addEventListener('mouseleave', function() {
-                                leaveTimer = setTimeout(closePortal, 150);
-                            });
+                            portalWrapper.addEventListener('mouseenter', function() {});
+                            portalWrapper.addEventListener('mouseleave', function() { closePortal(); });
                             document.body.appendChild(portalWrapper);
                             dropdown.classList.add('w--open');
                         }
@@ -347,8 +339,9 @@
                         dropdown.addEventListener('mouseenter', function() {
                             openPortal();
                         });
-                        dropdown.addEventListener('mouseleave', function() {
-                            leaveTimer = setTimeout(closePortal, 150);
+                        dropdown.addEventListener('mouseleave', function(e) {
+                            if (portalWrapper && e.relatedTarget && portalWrapper.contains(e.relatedTarget)) return;
+                            closePortal();
                         });
                     });
                 });
