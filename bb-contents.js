@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.20
+ * @version 1.1.21
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.20';
+    const BB_CONTENTS_VERSION = '1.1.21';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -317,7 +317,7 @@
                         var marqueeEl = dropdown.closest('[data-bb-marquee-processed]');
 
                         function updatePortalPosition() {
-                            if (!portalWrapper || !portalWrapper.parentNode) return;
+                            if (!portalWrapper) return;
                             var rect = toggle.getBoundingClientRect();
                             portalWrapper.style.right = (window.innerWidth - rect.right) + 'px';
                             portalWrapper.style.top = rect.top + 'px';
@@ -350,7 +350,6 @@
                             portalWrapper.className = 'w-dropdown';
                             portalWrapper.style.cssText =
                                 'position:fixed;transform:translateY(-100%);margin-top:-4px;z-index:9999;background:none;border:none;';
-                            updatePortalPosition();
                             var clone = list.cloneNode(true);
                             clone.style.display = 'block';
                             clone.style.background = listStyle.background || listStyle.backgroundColor || 'transparent';
@@ -365,9 +364,10 @@
                                 leaveTimer = setTimeout(closePortal, 120);
                             });
                             document.body.appendChild(portalWrapper);
+                            updatePortalPosition();
                             dropdown.classList.add('w--open');
                             var onScrollOrResize = function() {
-                                updatePortalPosition();
+                                if (portalWrapper && portalWrapper.parentNode) updatePortalPosition();
                             };
                             window.addEventListener('scroll', onScrollOrResize, true);
                             window.addEventListener('resize', onScrollOrResize);
