@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.13
+ * @version 1.1.14
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.13';
+    const BB_CONTENTS_VERSION = '1.1.14';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -309,6 +309,7 @@
                         if (!list) return;
                         item.style.overflow = 'visible';
                         dropdown.style.overflow = 'visible';
+                        list.style.zIndex = '10';
                         let leaveTimer;
                         dropdown.addEventListener('mouseenter', function() {
                             clearTimeout(leaveTimer);
@@ -688,8 +689,7 @@
                                         });
                                         if (maxHeight === 0) maxHeight = mainBlock.offsetHeight || scrollContainer.offsetHeight;
                                         if (maxHeight > 0) {
-                                            const extraForDropdowns = hasDropdowns ? 280 : 0;
-                                            mainContainer.style.height = (maxHeight + extraForDropdowns) + 'px';
+                                            mainContainer.style.height = maxHeight + 'px';
                                         }
                                         if (hasDropdowns) {
                                             this._enableMarqueeDropdowns(mainBlock);
@@ -758,19 +758,6 @@
                             this._enableMarqueeDropdowns(mainBlock);
                             this._enableMarqueeDropdowns(repeatBlock1);
                             this._enableMarqueeDropdowns(repeatBlock2);
-                        }
-                        if (!isVertical && hasDropdowns) {
-                            requestAnimationFrame(function() {
-                                let items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"]');
-                                if (items.length === 0) items = mainBlock.querySelectorAll(':scope > *');
-                                let maxHeight = 0;
-                                items.forEach(function(item) {
-                                    const h = item.offsetHeight;
-                                    if (h > maxHeight) maxHeight = h;
-                                });
-                                if (maxHeight === 0) maxHeight = mainBlock.offsetHeight || scrollContainer.offsetHeight;
-                                if (maxHeight > 0) mainContainer.style.height = (maxHeight + 280) + 'px';
-                            });
                         }
                         const initDelay = isVertical ? 500 : 300;
                         setTimeout(() => {
