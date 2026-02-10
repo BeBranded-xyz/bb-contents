@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.12
+ * @version 1.1.13
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.12';
+    const BB_CONTENTS_VERSION = '1.1.13';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -289,7 +289,40 @@
                 const s = scope || document;
                 return s.querySelector(bbContents._attrSelector('marquee')) !== null;
             },
-            
+
+            // Détecte si un bloc contient des dropdowns (Webflow ou structure similaire)
+            _hasDropdownInBlock: function(block) {
+                if (!block || !block.querySelector) return false;
+                return block.querySelector('.w-dropdown') !== null ||
+                    block.querySelector('[class*="dropdown"]') !== null;
+            },
+
+            // Active le comportement hover pour les dropdowns dans un bloc du marquee (items indépendants)
+            _enableMarqueeDropdowns: function(block) {
+                if (!block || !block.querySelectorAll) return;
+                const items = block.querySelectorAll('.bb-marquee_item, [role="listitem"]');
+                const itemList = items.length ? items : block.querySelectorAll(':scope > *');
+                itemList.forEach(function(item) {
+                    const dropdowns = item.querySelectorAll('.w-dropdown, [class*="dropdown"]');
+                    dropdowns.forEach(function(dropdown) {
+                        const list = dropdown.querySelector('.w-dropdown-list, [class*="dropdown-list"], [class*="dropdown_list"]');
+                        if (!list) return;
+                        item.style.overflow = 'visible';
+                        dropdown.style.overflow = 'visible';
+                        let leaveTimer;
+                        dropdown.addEventListener('mouseenter', function() {
+                            clearTimeout(leaveTimer);
+                            dropdown.classList.add('w--open');
+                        });
+                        dropdown.addEventListener('mouseleave', function() {
+                            leaveTimer = setTimeout(function() {
+                                dropdown.classList.remove('w--open');
+                            }, 150);
+                        });
+                    });
+                });
+            },
+
             init: function(root) {
             const scope = root || document;
             if (scope.closest && scope.closest('[data-bb-disable]')) return;
@@ -334,7 +367,7 @@
                                                    (parentOverflowX === 'visible' || parentOverflowX === '') &&
                                                    (parentOverflowY === 'visible' || parentOverflowY === '');
                     const mainContainerOverflow = isParentOverflowVisible ? 'visible' : 'hidden';
-                    
+
                     mainContainer.style.cssText = `
                         position: relative;
                         width: 100%;
@@ -361,7 +394,9 @@
 
                     const mainBlock = document.createElement('div');
                     mainBlock.innerHTML = originalHTML;
-                    
+                    const hasDropdowns = this._hasDropdownInBlock(mainBlock);
+                    if (hasDropdowns) mainContainer.style.overflow = 'visible';
+
                     // Précharger toutes les images avant clonage
                     const preloadAllImagesFirst = function(block) {
                         return new Promise(function(resolve) {
@@ -652,7 +687,15 @@
                                             if (itemHeight > maxHeight) maxHeight = itemHeight;
                                         });
                                         if (maxHeight === 0) maxHeight = mainBlock.offsetHeight || scrollContainer.offsetHeight;
-                                        if (maxHeight > 0) mainContainer.style.height = maxHeight + 'px';
+                                        if (maxHeight > 0) {
+                                            const extraForDropdowns = hasDropdowns ? 280 : 0;
+                                            mainContainer.style.height = (maxHeight + extraForDropdowns) + 'px';
+                                        }
+                                        if (hasDropdowns) {
+                                            this._enableMarqueeDropdowns(mainBlock);
+                                            this._enableMarqueeDropdowns(repeatBlock1);
+                                            this._enableMarqueeDropdowns(repeatBlock2);
+                                        }
                                     });
                                 });
                             } else {
@@ -660,6 +703,11 @@
                                 scrollContainer.appendChild(repeatBlock1);
                                 scrollContainer.appendChild(repeatBlock2);
                                 mainContainer.appendChild(scrollContainer);
+                                if (hasDropdowns) {
+                                    this._enableMarqueeDropdowns(mainBlock);
+                                    this._enableMarqueeDropdowns(repeatBlock1);
+                                    this._enableMarqueeDropdowns(repeatBlock2);
+                                }
                             }
                             element.innerHTML = '';
                             element.appendChild(mainContainer);
@@ -706,7 +754,24 @@
                         element.innerHTML = '';
                         element.appendChild(mainContainer);
                         element.setAttribute('data-bb-marquee-processed', 'true');
-                        
+                        if (hasDropdowns) {
+                            this._enableMarqueeDropdowns(mainBlock);
+                            this._enableMarqueeDropdowns(repeatBlock1);
+                            this._enableMarqueeDropdowns(repeatBlock2);
+                        }
+                        if (!isVertical && hasDropdowns) {
+                            requestAnimationFrame(function() {
+                                let items = mainBlock.querySelectorAll('.bb-marquee_item, [role="listitem"]');
+                                if (items.length === 0) items = mainBlock.querySelectorAll(':scope > *');
+                                let maxHeight = 0;
+                                items.forEach(function(item) {
+                                    const h = item.offsetHeight;
+                                    if (h > maxHeight) maxHeight = h;
+                                });
+                                if (maxHeight === 0) maxHeight = mainBlock.offsetHeight || scrollContainer.offsetHeight;
+                                if (maxHeight > 0) mainContainer.style.height = (maxHeight + 280) + 'px';
+                            });
+                        }
                         const initDelay = isVertical ? 500 : 300;
                         setTimeout(() => {
                             this.initAnimation(element, scrollContainer, mainBlock, {
