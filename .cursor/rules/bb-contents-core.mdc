@@ -1,0 +1,120 @@
+---
+description: Core project conventions for bb-contents — coding standards, architecture, and publishing workflow
+alwaysApply: true
+---
+
+# bb-contents Core Conventions
+
+## Project Overview
+
+`@bebranded/bb-contents` is a vanilla JS IIFE library for Webflow. It adds features via `data-bb-*` HTML attributes. Single file, no external dependencies, loaded via CDN or npm. Version must always be in sync across 3 places (see Publishing).
+
+## Module Pattern
+
+Every module lives in `bbContents.modules` and follows this exact contract:
+
+```js
+moduleName: {
+    detect: function(scope) {
+        // Return true if the page has elements for this module
+        return (scope || document).querySelector(bbContents._attrSelector('bb-attr')) !== null;
+    },
+    init: function(root) {
+        const scope = root || document;
+        if (scope.closest && scope.closest('[data-bb-disable]')) return;
+        const elements = scope.querySelectorAll(bbContents._attrSelector('bb-attr'));
+        elements.forEach(function(element) {
+            if (element.bbProcessed) return; // always guard re-init
+            element.bbProcessed = true;
+            // ... module logic
+        });
+    }
+}
+```
+
+- Always use `bbContents._attrSelector('bb-name')` for queries (dual `bb-*` + `data-bb-*` support).
+- Always use `bbContents._getAttr(element, 'bb-name')` to read attribute values.
+- Always guard with `element.bbProcessed` to prevent double-initialization.
+- Respect `[data-bb-disable]` at the top of `init`.
+
+## Security
+
+Before any DOM insertion:
+- Text content → `bbContents.utils.sanitize(value)`
+- CSS values → `bbContents.utils.escapeCss(value)`
+- URLs → validate with `bbContents.utils.isValidUrl(url)` first
+- Country codes → validate with `bbContents.utils.isValidCountryCode(code)`
+
+## Error Handling
+
+Never leave an empty or silent `catch`. Always at minimum `console.error`:
+
+```js
+// ❌ BAD
+} catch (e) {}
+
+// ✅ GOOD
+} catch (e) {
+    console.error('[bb-contents] Module failed:', e);
+}
+```
+
+Retry loops must always have a hard max (e.g. `_maxInitRetries`). Never use infinite polling without a timeout.
+
+## Documentation
+
+**Every code change must be reflected in documentation.**
+
+### JSDoc inside `bb-contents.js`
+
+Each module must have a JSDoc comment block above it describing its purpose and all supported attributes:
+
+```js
+/**
+ * Module Tooltip
+ * @attr {string} bb-tooltip - Tooltip text to display
+ * @attr {'top'|'bottom'|'left'|'right'} [bb-tooltip-position=top] - Position
+ */
+tooltipName: {
+```
+
+### `README.md`
+
+`README.md` is the public-facing reference. Keep it up to date whenever:
+- A new module is added → add a section with its name, description, and all `data-bb-*` attributes
+- A module attribute is added, changed, or removed → update the relevant section
+- Installation instructions change → update the installation section
+
+The README structure to maintain per module:
+
+```markdown
+## Module Name
+
+Brief description.
+
+| Attribute | Values | Default | Description |
+|---|---|---|---|
+| `data-bb-attr` | — | — | Main trigger |
+| `data-bb-attr-option` | `a` \| `b` | `a` | Option description |
+```
+
+### When to update
+
+| Action | JSDoc | README |
+|---|---|---|
+| Add a module | ✅ Required | ✅ Required |
+| Add an attribute | ✅ Required | ✅ Required |
+| Change behavior | ✅ Update | ✅ Update if user-facing |
+| Bug fix (no API change) | — | — |
+
+## Publishing Workflow
+
+**Always publish GitHub + npm simultaneously. Version must be identical in all 3 places:**
+1. `package.json` → `"version"`
+2. `bb-contents.js` → `BB_CONTENTS_VERSION` constant (line ~13)
+3. `bb-contents.js` → `@version` JSDoc header (line ~4)
+
+| Target | GitHub | npm |
+|---|---|---|
+| `develop` / test | `git push origin develop` | `npm publish --tag test` |
+| `main` / live | `git push origin main` | `npm publish` (tag `latest`) |
