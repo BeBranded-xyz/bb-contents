@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels pour Webflow
- * @version 1.1.21
+ * @version 1.1.22-test.0
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -2050,7 +2050,7 @@
   };
 
   // src/core.js
-  var BB_CONTENTS_VERSION = "1.1.21";
+  var BB_CONTENTS_VERSION = "1.1.22-test.0";
   var _schedule = typeof window !== "undefined" && window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : (cb) => setTimeout(cb, 16);
   if (typeof window !== "undefined") {
     if (!window._bbContentsConfig) window._bbContentsConfig = {};
