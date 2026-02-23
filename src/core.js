@@ -8,7 +8,7 @@ import countrySelect from './modules/countrySelect.js';
 import favicon from './modules/favicon.js';
 import youtube from './modules/youtube.js';
 
-const BB_CONTENTS_VERSION = '1.1.22-test.0';
+const BB_CONTENTS_VERSION = '1.1.22-test.1';
 
 // rAF fallback for WebViews / JSDOM / SSR hydration edge cases
 const _schedule = (typeof window !== 'undefined' && window.requestAnimationFrame)
