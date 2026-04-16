@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.21
+ * @version 1.1.22
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.21';
+    const BB_CONTENTS_VERSION = '1.1.22';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -2172,21 +2172,21 @@
                             nameSpan.textContent = country.name[language];
                         }
                         
-                        // Mettre à jour le select natif avec le nom du pays (pas le code ISO)
+                        // Synchroniser avec le select natif Webflow sans casser ses valeurs internes
                         const countryName = country.name[language];
-                        element.value = countryName;
-                        // Mettre aussi le texte de l'option
-                        const existingOption = Array.from(element.options).find(function(opt) {
-                            return opt.value === countryName;
+                        let nativeOption = Array.from(element.options).find(function(opt) {
+                            return (opt.textContent || '').trim().toLowerCase() === countryName.toLowerCase();
                         });
-                        if (!existingOption) {
-                            // Créer l'option si elle n'existe pas
+                        if (!nativeOption) {
+                            nativeOption = Array.from(element.options).find(function(opt) {
+                                return (opt.value || '').trim().toLowerCase() === countryName.toLowerCase();
+                            });
+                        }
+                        if (!nativeOption) {
                             const newOption = document.createElement('option');
                             newOption.value = countryName;
                             newOption.textContent = countryName;
-                            // Vérifier s'il y a d'autres options avant de tout supprimer
                             if (element.options.length > 0) {
-                                // Supprimer seulement les options vides ou placeholder
                                 Array.from(element.options).forEach(function(opt) {
                                     if (!opt.value || opt.value === '') {
                                         opt.remove();
@@ -2194,7 +2194,10 @@
                                 });
                             }
                             element.appendChild(newOption);
+                            nativeOption = newOption;
                         }
+                        nativeOption.selected = true;
+                        element.value = nativeOption.value;
                         const changeEvent = new Event('change', { bubbles: true });
                         element.dispatchEvent(changeEvent);
                         
