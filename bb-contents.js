@@ -1,7 +1,7 @@
 /**
  * BeBranded Contents
  * Contenus additionnels français pour Webflow
- * @version 1.1.22
+ * @version 1.1.23
  * @author BeBranded
  * @license MIT
  * @website https://www.bebranded.xyz
@@ -10,7 +10,7 @@
     'use strict';
 
     // Version du script
-    const BB_CONTENTS_VERSION = '1.1.22';
+    const BB_CONTENTS_VERSION = '1.1.23';
 
     // Créer l'objet temporaire pour la configuration si il n'existe pas
     if (!window._bbContentsConfig) {
@@ -2325,13 +2325,10 @@
                     'pagespeed', 'pingdom', 'uptime', 'monitor', 'check', 'test'
                 ];
                 
-                // Vérifications supplémentaires pour détecter plus de bots
-                const isBot = botPatterns.some(pattern => userAgent.includes(pattern)) || 
-                       navigator.webdriver || 
+                const isBot = botPatterns.some(pattern => userAgent.includes(pattern)) ||
+                       navigator.webdriver === true ||
                        !navigator.userAgent ||
-                       !window.chrome || // Détecte les navigateurs headless
-                       navigator.userAgent.includes('HeadlessChrome') ||
-                       window.navigator.plugins.length === 0; // Bots n'ont souvent pas de plugins
+                       navigator.userAgent.includes('HeadlessChrome');
                 
                 if (isBot) {
                     // Log pour debug (en mode debug seulement)
