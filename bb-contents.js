@@ -2197,6 +2197,79 @@
     }
   };
 
+  // src/internal/utils.js
+  var utils_default = {
+    log(...args) {
+      if (bbContents.config.debug) {
+        console.log("[BB Contents]", ...args);
+      }
+    },
+    // Escapes for safe insertion into HTML, in both text-node AND
+    // attribute (value="...") contexts. A plain textContent->innerHTML
+    // round-trip does NOT escape " or ', allowing attribute-context breakout.
+    sanitize(str) {
+      if (typeof str !== "string") return "";
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    },
+    isValidCountryCode(code) {
+      if (!code || typeof code !== "string") return false;
+      return /^[a-z]{2}$/i.test(code.trim());
+    },
+    escapeCss(value) {
+      if (!value || typeof value !== "string") return "";
+      return value.replace(/[<>"']/g, (match) => ({
+        "<": "\\3C ",
+        ">": "\\3E ",
+        '"': "\\22 ",
+        "'": "\\27 "
+      })[match] || match);
+    },
+    cleanHtml(html) {
+      if (!html || typeof html !== "string") return "";
+      let cleaned = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+      cleaned = cleaned.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, "");
+      cleaned = cleaned.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, "");
+      return cleaned;
+    },
+    // Accepts only absolute http(s) URLs. Rejects javascript:, data:, etc.
+    isValidUrl(string) {
+      try {
+        const protocol = new URL(string).protocol;
+        return protocol === "http:" || protocol === "https:";
+      } catch (_) {
+        return false;
+      }
+    }
+  };
+
+  // src/internal/option-rules.js
+  var option_rules_default = [
+    { option: "marquee-speed", root: "marquee" },
+    { option: "marquee-direction", root: "marquee" },
+    { option: "marquee-pause", root: "marquee" },
+    { option: "marquee-gap", root: "marquee" },
+    { option: "marquee-orientation", root: "marquee" },
+    { option: "marquee-height", root: "marquee" },
+    { option: "marquee-min-height", root: "marquee" },
+    { option: "url", root: "share" },
+    { option: "text", root: "share" },
+    { option: "current-year-format", root: "current-year" },
+    { option: "current-year-prefix", root: "current-year" },
+    { option: "current-year-suffix", root: "current-year" },
+    { option: "reading-time-target", root: "reading-time" },
+    { option: "reading-time-speed", root: "reading-time" },
+    { option: "reading-time-image-speed", root: "reading-time" },
+    { option: "reading-time-format", root: "reading-time" },
+    { option: "reading-time-url", root: "reading-time" },
+    { option: "country-select-preferred", root: "country-select" },
+    { option: "country-select-default", root: "country-select" },
+    { option: "favicon-dark", root: "favicon" },
+    { option: "youtube-video-count", root: "youtube-channel" },
+    { option: "youtube-skip", root: "youtube-channel" },
+    { option: "youtube-language", root: "youtube-channel" },
+    { option: "youtube-allow-shorts", root: "youtube-channel" }
+  ];
+
   // src/core.js
   var BB_CONTENTS_VERSION = "1.1.22-test.1";
   var _schedule = typeof window !== "undefined" && window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : (cb) => setTimeout(cb, 16);
@@ -2244,32 +2317,7 @@
     // Internal attribute suffixes that must never trigger module init
     _internalSuffixes: ["processed", "initialized"],
     // Option → root rules for dev-mode validation
-    _optionRules: [
-      { option: "marquee-speed", root: "marquee" },
-      { option: "marquee-direction", root: "marquee" },
-      { option: "marquee-pause", root: "marquee" },
-      { option: "marquee-gap", root: "marquee" },
-      { option: "marquee-orientation", root: "marquee" },
-      { option: "marquee-height", root: "marquee" },
-      { option: "marquee-min-height", root: "marquee" },
-      { option: "url", root: "share" },
-      { option: "text", root: "share" },
-      { option: "current-year-format", root: "current-year" },
-      { option: "current-year-prefix", root: "current-year" },
-      { option: "current-year-suffix", root: "current-year" },
-      { option: "reading-time-target", root: "reading-time" },
-      { option: "reading-time-speed", root: "reading-time" },
-      { option: "reading-time-image-speed", root: "reading-time" },
-      { option: "reading-time-format", root: "reading-time" },
-      { option: "reading-time-url", root: "reading-time" },
-      { option: "country-select-preferred", root: "country-select" },
-      { option: "country-select-default", root: "country-select" },
-      { option: "favicon-dark", root: "favicon" },
-      { option: "youtube-video-count", root: "youtube-channel" },
-      { option: "youtube-skip", root: "youtube-channel" },
-      { option: "youtube-language", root: "youtube-channel" },
-      { option: "youtube-allow-shorts", root: "youtube-channel" }
-    ],
+    _optionRules: option_rules_default,
     // Cached compound CSS selector (compiled once in init)
     _scanSelector: null,
     // Observer state
@@ -2278,49 +2326,7 @@
     _pending: null,
     // Map<moduleName, Set<Element>>
     // ─── Utilities ────────────────────────────────────────────────────────────
-    utils: {
-      log(...args) {
-        if (bbContents2.config.debug) {
-          console.log("[BB Contents]", ...args);
-        }
-      },
-      // Escapes for safe insertion into HTML, in both text-node AND
-      // attribute (value="...") contexts. The previous textContent->innerHTML
-      // round-trip did NOT escape " or ', allowing attribute-context breakout.
-      sanitize(str) {
-        if (typeof str !== "string") return "";
-        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-      },
-      isValidCountryCode(code) {
-        if (!code || typeof code !== "string") return false;
-        return /^[a-z]{2}$/i.test(code.trim());
-      },
-      escapeCss(value) {
-        if (!value || typeof value !== "string") return "";
-        return value.replace(/[<>"']/g, (match) => ({
-          "<": "\\3C ",
-          ">": "\\3E ",
-          '"': "\\22 ",
-          "'": "\\27 "
-        })[match] || match);
-      },
-      cleanHtml(html) {
-        if (!html || typeof html !== "string") return "";
-        let cleaned = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
-        cleaned = cleaned.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, "");
-        cleaned = cleaned.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, "");
-        return cleaned;
-      },
-      // Accepts only absolute http(s) URLs. Rejects javascript:, data:, etc.
-      isValidUrl(string) {
-        try {
-          const protocol = new URL(string).protocol;
-          return protocol === "http:" || protocol === "https:";
-        } catch (_) {
-          return false;
-        }
-      }
-    },
+    utils: utils_default,
     // ─── Helpers ──────────────────────────────────────────────────────────────
     // Accepts both 'marquee' and 'bb-marquee'
     _attrSelector(name) {
