@@ -27,7 +27,7 @@ export default {
         // flag every Firefox/Safari (and most modern browsers) as bots and hide
         // the feed from real visitors.
         const isBot = botPatterns.some(pattern => userAgent.includes(pattern)) ||
-               navigator.webdriver ||
+               navigator.webdriver === true ||
                !navigator.userAgent ||
                navigator.userAgent.includes('HeadlessChrome');
 

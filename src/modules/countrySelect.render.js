@@ -119,10 +119,20 @@ function bindList(ctx) {
             nameSpan.textContent = country.name[language];
         }
 
+        // Sync with the native Webflow <select> WITHOUT clobbering its internal
+        // option values: match an existing option by visible label, then by value,
+        // and only create a new option when nothing matches. Preserves the value
+        // Webflow stores/submits for the country.
         const countryName = country.name[language];
-        element.value = countryName;
-        const existingOption = Array.from(element.options).find(function(opt) { return opt.value === countryName; });
-        if (!existingOption) {
+        let nativeOption = Array.from(element.options).find(function(opt) {
+            return (opt.textContent || '').trim().toLowerCase() === countryName.toLowerCase();
+        });
+        if (!nativeOption) {
+            nativeOption = Array.from(element.options).find(function(opt) {
+                return (opt.value || '').trim().toLowerCase() === countryName.toLowerCase();
+            });
+        }
+        if (!nativeOption) {
             const newOption = document.createElement('option');
             newOption.value = countryName;
             newOption.textContent = countryName;
@@ -130,7 +140,10 @@ function bindList(ctx) {
                 Array.from(element.options).forEach(function(opt) { if (!opt.value || opt.value === '') opt.remove(); });
             }
             element.appendChild(newOption);
+            nativeOption = newOption;
         }
+        nativeOption.selected = true;
+        element.value = nativeOption.value;
         element.dispatchEvent(new Event('change', { bubbles: true }));
 
         popover.style.display = 'none';

@@ -1636,11 +1636,15 @@
         nameSpan.textContent = country.name[language];
       }
       const countryName = country.name[language];
-      element.value = countryName;
-      const existingOption = Array.from(element.options).find(function(opt) {
-        return opt.value === countryName;
+      let nativeOption = Array.from(element.options).find(function(opt) {
+        return (opt.textContent || "").trim().toLowerCase() === countryName.toLowerCase();
       });
-      if (!existingOption) {
+      if (!nativeOption) {
+        nativeOption = Array.from(element.options).find(function(opt) {
+          return (opt.value || "").trim().toLowerCase() === countryName.toLowerCase();
+        });
+      }
+      if (!nativeOption) {
         const newOption = document.createElement("option");
         newOption.value = countryName;
         newOption.textContent = countryName;
@@ -1650,7 +1654,10 @@
           });
         }
         element.appendChild(newOption);
+        nativeOption = newOption;
       }
+      nativeOption.selected = true;
+      element.value = nativeOption.value;
       element.dispatchEvent(new Event("change", { bubbles: true }));
       popover.style.display = "none";
       trigger.setAttribute("aria-expanded", "false");
@@ -2067,7 +2074,7 @@
         "check",
         "test"
       ];
-      const isBot = botPatterns.some((pattern) => userAgent.includes(pattern)) || navigator.webdriver || !navigator.userAgent || navigator.userAgent.includes("HeadlessChrome");
+      const isBot = botPatterns.some((pattern) => userAgent.includes(pattern)) || navigator.webdriver === true || !navigator.userAgent || navigator.userAgent.includes("HeadlessChrome");
       if (isBot && bbContents.config.debug) {
         bbContents.utils.log("Bot d\xE9tect\xE9, pas d'appel API YouTube");
       }
