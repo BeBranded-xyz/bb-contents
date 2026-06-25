@@ -196,12 +196,16 @@ const marquee = {
                             const preloadImg = new Image();
                             preloadImg.onload = function() {
                                 if (img.src) img.src = img.src;
+                                let domAttempts = 0;
                                 const checkDomImage = function() {
                                     if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
                                         loadedCount++;
                                         checkComplete();
-                                    } else {
+                                    } else if (++domAttempts < 200) { // ~2s hard cap
                                         setTimeout(checkDomImage, 10);
+                                    } else {
+                                        errorCount++;
+                                        checkComplete();
                                     }
                                 };
                                 setTimeout(checkDomImage, 10);
@@ -319,12 +323,16 @@ const marquee = {
                         const checkRendered = function() { if (renderedCount >= totalImages) resolve(); };
 
                         images.forEach(function(img) {
+                            let renderAttempts = 0;
                             const checkImage = function() {
                                 if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && img.offsetWidth > 0) {
                                     renderedCount++;
                                     checkRendered();
-                                } else {
+                                } else if (++renderAttempts < 200) { // ~2s hard cap
                                     setTimeout(checkImage, 10);
+                                } else {
+                                    renderedCount++; // give up waiting; count as rendered
+                                    checkRendered();
                                 }
                             };
                             if (img.dataset.src && !img.src) img.src = img.dataset.src;
@@ -475,7 +483,12 @@ const marquee = {
         const contentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
 
         if (contentSize === 0) {
-            setTimeout(() => this.initAnimation(element, scrollContainer, mainBlock, options), 200);
+            // Bounded retry: a permanently-collapsed element (e.g. hidden tab)
+            // must not poll forever. ~10s cap (50 * 200ms).
+            element._marqueeInitRetry = (element._marqueeInitRetry || 0) + 1;
+            if (element._marqueeInitRetry <= 50 && element.isConnected) {
+                setTimeout(() => this.initAnimation(element, scrollContainer, mainBlock, options), 200);
+            }
             return;
         }
         const minSize = isVertical ? 50 : 100;
@@ -652,6 +665,10 @@ const marquee = {
 
             let lastTime = performance.now();
             const animate = (currentTime) => {
+                // Stop the rAF loop once the marquee is removed from the DOM
+                // (Webflow re-renders, CMS updates) — otherwise it runs forever
+                // holding references to the detached element.
+                if (!element.isConnected) return;
                 const dropdownOpen = element.getAttribute('data-bb-marquee-dropdown-open') === '1';
                 if (!isPaused && !dropdownOpen) {
                     const deltaTime = isSafari && isMobile ? (currentTime - lastTime) / 16.67 : 1;
@@ -736,6 +753,10 @@ const marquee = {
 
         let lastTime = performance.now();
         const animate = (currentTime) => {
+            // Stop the rAF loop once the marquee is removed from the DOM
+            // (Webflow re-renders, CMS updates) — otherwise it runs forever
+            // holding references to the detached element.
+            if (!element.isConnected) return;
             const dropdownOpen = element.getAttribute('data-bb-marquee-dropdown-open') === '1';
             if (!isPaused && !dropdownOpen) {
                 const deltaTime = (currentTime - lastTime) / 16.67;

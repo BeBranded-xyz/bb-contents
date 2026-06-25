@@ -198,12 +198,16 @@
                 const preloadImg = new Image();
                 preloadImg.onload = function() {
                   if (img.src) img.src = img.src;
+                  let domAttempts = 0;
                   const checkDomImage = function() {
                     if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
                       loadedCount++;
                       checkComplete();
-                    } else {
+                    } else if (++domAttempts < 200) {
                       setTimeout(checkDomImage, 10);
+                    } else {
+                      errorCount++;
+                      checkComplete();
                     }
                   };
                   setTimeout(checkDomImage, 10);
@@ -312,12 +316,16 @@
                 if (renderedCount >= totalImages) resolve();
               };
               images.forEach(function(img) {
+                let renderAttempts = 0;
                 const checkImage = function() {
                   if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && img.offsetWidth > 0) {
                     renderedCount++;
                     checkRendered();
-                  } else {
+                  } else if (++renderAttempts < 200) {
                     setTimeout(checkImage, 10);
+                  } else {
+                    renderedCount++;
+                    checkRendered();
                   }
                 };
                 if (img.dataset.src && !img.src) img.src = img.dataset.src;
@@ -471,7 +479,10 @@
       const { speed, direction, pauseOnHover, gap, isVertical, useAutoHeight } = options;
       const contentSize = isVertical ? mainBlock.offsetHeight : mainBlock.offsetWidth;
       if (contentSize === 0) {
-        setTimeout(() => this.initAnimation(element, scrollContainer, mainBlock, options), 200);
+        element._marqueeInitRetry = (element._marqueeInitRetry || 0) + 1;
+        if (element._marqueeInitRetry <= 50 && element.isConnected) {
+          setTimeout(() => this.initAnimation(element, scrollContainer, mainBlock, options), 200);
+        }
         return;
       }
       const minSize = isVertical ? 50 : 100;
@@ -653,6 +664,7 @@
         if (isSafari && isMobile) void scrollContainer.offsetHeight;
         let lastTime = performance.now();
         const animate = (currentTime) => {
+          if (!element.isConnected) return;
           const dropdownOpen = element.getAttribute("data-bb-marquee-dropdown-open") === "1";
           if (!isPaused && !dropdownOpen) {
             const deltaTime = isSafari && isMobile ? (currentTime - lastTime) / 16.67 : 1;
@@ -732,6 +744,7 @@
       }
       let lastTime = performance.now();
       const animate = (currentTime) => {
+        if (!element.isConnected) return;
         const dropdownOpen = element.getAttribute("data-bb-marquee-dropdown-open") === "1";
         if (!isPaused && !dropdownOpen) {
           const deltaTime = (currentTime - lastTime) / 16.67;
@@ -1703,7 +1716,7 @@
         "check",
         "test"
       ];
-      const isBot = botPatterns.some((pattern) => userAgent.includes(pattern)) || navigator.webdriver || !navigator.userAgent || !window.chrome || navigator.userAgent.includes("HeadlessChrome") || window.navigator.plugins.length === 0;
+      const isBot = botPatterns.some((pattern) => userAgent.includes(pattern)) || navigator.webdriver || !navigator.userAgent || navigator.userAgent.includes("HeadlessChrome");
       if (isBot && bbContents.config.debug) {
         bbContents.utils.log("Bot d\xE9tect\xE9, pas d'appel API YouTube");
       }
@@ -1850,7 +1863,12 @@
         }
       }
       if (this.isRequestActive(baseCacheKey)) {
+        let activeAttempts = 0;
         const checkActive = () => {
+          if (activeAttempts >= 100) {
+            container.innerHTML = this._errorBox("D\xE9lai d\xE9pass\xE9");
+            return;
+          }
           if (!this.isRequestActive(baseCacheKey)) {
             const newCachedData = this.cache.get(baseCacheKey);
             if (newCachedData && newCachedData.items && newCachedData.items.length >= minItemsNeeded) {
@@ -1867,6 +1885,7 @@
               container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Erreur de chargement</div>';
             }
           } else {
+            activeAttempts++;
             setTimeout(checkActive, 200);
           }
         };

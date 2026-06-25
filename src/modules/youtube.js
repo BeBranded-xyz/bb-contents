@@ -20,12 +20,13 @@ export default {
             'phantom', 'selenium', 'puppeteer', 'playwright', 'lighthouse', 'gtmetrix',
             'pagespeed', 'pingdom', 'uptime', 'monitor', 'check', 'test'
         ];
+        // NB: do NOT gate on `!window.chrome` or `plugins.length === 0` — those
+        // flag every Firefox/Safari (and most modern browsers) as bots and hide
+        // the feed from real visitors.
         const isBot = botPatterns.some(pattern => userAgent.includes(pattern)) ||
                navigator.webdriver ||
                !navigator.userAgent ||
-               !window.chrome ||
-               navigator.userAgent.includes('HeadlessChrome') ||
-               window.navigator.plugins.length === 0;
+               navigator.userAgent.includes('HeadlessChrome');
 
         if (isBot && bbContents.config.debug) {
             bbContents.utils.log('Bot détecté, pas d\'appel API YouTube');
@@ -189,7 +190,13 @@ export default {
         }
 
         if (this.isRequestActive(baseCacheKey)) {
+            let activeAttempts = 0;
             const checkActive = () => {
+                // Bounded wait (~20s) so a stuck in-flight marker can never poll forever.
+                if (activeAttempts >= 100) {
+                    container.innerHTML = this._errorBox('Délai dépassé');
+                    return;
+                }
                 if (!this.isRequestActive(baseCacheKey)) {
                     const newCachedData = this.cache.get(baseCacheKey);
                     if (newCachedData && newCachedData.items && newCachedData.items.length >= minItemsNeeded) {
@@ -202,6 +209,7 @@ export default {
                         container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Erreur de chargement</div>';
                     }
                 } else {
+                    activeAttempts++;
                     setTimeout(checkActive, 200);
                 }
             };
