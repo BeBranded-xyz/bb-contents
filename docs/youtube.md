@@ -2,7 +2,8 @@
 
 Displays a dynamic YouTube video feed in Webflow using a Worker proxy endpoint. Supports multiple channels, caching, bot detection, and Webflow template-based rendering.
 
-**Source:** [`src/modules/youtube.js`](../src/modules/youtube.js)
+**Source:** [`src/modules/youtube.js`](../src/modules/youtube.js) (orchestration) + [`src/modules/youtube/`](../src/modules/youtube/) (`format`, `cache`, `fetch`, `render`)
+**Worker:** [`youtube-worker.js`](../youtube-worker.js) — the Cloudflare Worker proxy that holds the API key.
 
 ## Attributes
 
@@ -49,6 +50,27 @@ Or at runtime:
   configureYouTube("https://your-worker.workers.dev");
 </script>
 ```
+
+## Worker Setup (`youtube-worker.js`)
+
+The browser never sees the YouTube API key — all requests go through a Cloudflare
+Worker that holds the key and proxies the YouTube Data API. Deploy `youtube-worker.js`
+with `wrangler` and configure these environment variables / secrets:
+
+| Variable | Required | Description |
+|---|---|---|
+| `YOUTUBE_API_KEY` | Yes (secret) | YouTube Data API key. Stored as a Worker secret — never exposed to the client. |
+| `ALLOWED_ORIGINS` | Recommended | Comma-separated allowlist of origins permitted to call the proxy, e.g. `https://www.bebranded.xyz,https://your-site.webflow.io`. |
+
+**CORS behavior:**
+- When `ALLOWED_ORIGINS` is **set**, only those origins receive a CORS header; any
+  other origin gets `403 Origin not allowed`. This protects your YouTube quota from
+  being consumed by other sites.
+- When `ALLOWED_ORIGINS` is **unset**, the Worker falls back to `Access-Control-Allow-Origin: *`
+  (open) so nothing breaks before you configure it. **Set it before going to production.**
+
+The Worker also caches responses for 24h (Cloudflare cache) and times out upstream
+requests after 10s.
 
 ### Basic Feed
 

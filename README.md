@@ -26,16 +26,25 @@ npm install @bebranded/bb-contents
 ## Architecture
 
 ```
-src/core.js ──imports──▶ src/modules/*.js
-       │
-   esbuild (build.js)
-       │
-       ▼
-bb-contents.js   (IIFE, unminified)
-bb-contents.min.js (IIFE, minified + sourcemap)
+src/
+├── core.js              entry: config, init, MutationObserver, attribute detection
+├── internal/            shared helpers bundled into bbContents
+│   ├── utils.js         sanitize, escapeCss, isValidUrl, isValidCountryCode, log
+│   └── option-rules.js  dev-mode option→module validation table
+└── modules/             one feature per file (larger features get a subfolder)
+    ├── currentYear.js · share.js · favicon.js · readingTime.js
+    ├── countrySelect.js + countrySelect.{data,ui,render}.js
+    ├── youtube.js       + youtube/{format,cache,fetch,render}.js
+    └── marquee.js       + marquee/{dropdown,images,animate,safari-animate,dom}.js
+            │
+        esbuild (build.js) bundles everything into one IIFE
+            ▼
+  bb-contents.js · bb-contents.min.js · bb-contents.min.js.map   (generated)
 ```
 
-`src/core.js` imports all modules and esbuild bundles everything into a single self-executing IIFE — no external dependencies. `bb-contents.js` and `bb-contents.min.js` are **generated files** and should not be edited directly.
+`src/core.js` imports every module (each module may import its own internal
+helpers) and esbuild bundles the whole tree into a single self-executing IIFE —
+no external dependencies. Source files are kept under 300 lines each. `bb-contents.js`, `bb-contents.min.js`, and the sourcemap are **generated files** and must not be edited directly — edit `src/` and run `npm run build`.
 
 ### How It Works
 
@@ -205,6 +214,10 @@ Release targets:
 
 - Test release: push `develop` + `npm publish --tag test`
 - Live release: push `main` + `npm publish`
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for user-facing and developer-facing changes.
 
 ## Support
 

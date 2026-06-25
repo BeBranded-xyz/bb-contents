@@ -147,8 +147,11 @@ Last updated: 2026-06-25
 | Global object | `window.bbContents` |
 | Config object | `window._bbContentsConfig` (e.g. `{ youtubeEndpoint }`) |
 | Attribute prefix | `bb-` / `data-bb-` |
+| Worker env vars | `YOUTUBE_API_KEY` (secret), `ALLOWED_ORIGINS` (comma-separated CORS allowlist) |
 
-> No secrets here. The YouTube API key lives only in the Cloudflare Worker's env.
+> No secrets here. The YouTube API key value lives only in the Cloudflare Worker's
+> env (`YOUTUBE_API_KEY`). `ALLOWED_ORIGINS` must list the production origins before
+> launch, otherwise the Worker stays open (`*`) — see [docs/youtube.md](docs/youtube.md).
 
 ## 9. Active rule modules
 
