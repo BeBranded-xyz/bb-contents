@@ -1,0 +1,30 @@
+---
+alwaysApply: true
+---
+
+# Project Identity
+
+The single source of project-specific truth is **`PROJECT.md`** at the repo root.
+
+**Before making any architectural or stack-dependent decision, read `PROJECT.md`.**
+It declares what the project is, how it runs, the actual tech stack, the
+languages/conventions, the repo structure, the business invariants, and which
+rule modules are active.
+
+## How this ruleset works
+
+- The other rules in this repository are written to be **project-agnostic**. They
+  describe engineering standards and patterns, not this specific project.
+- Whenever a rule needs a concrete fact — a table name, a project ref, a domain,
+  a business invariant, the deployment target — that fact lives in `PROJECT.md`,
+  not in the rule.
+- A rule module that targets a technology the project does not use (see the
+  "Active rule modules" section of `PROJECT.md`) can be ignored.
+
+## Keeping it current
+
+- When the stack, structure, conventions, or a key decision changes, update
+  `PROJECT.md` **in the same PR** as the change.
+- Never hardcode project-specific facts back into the generic rules. If you find
+  yourself wanting to, add the fact to `PROJECT.md` and reference it instead.
+- Never put secrets in `PROJECT.md` — only public identifiers.

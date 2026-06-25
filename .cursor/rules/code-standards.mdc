@@ -1,0 +1,130 @@
+---
+description: Code standards — size limits, architecture, naming, TypeScript, dead code. Project-agnostic.
+alwaysApply: true
+---
+
+# Code Standards
+
+These standards apply to every project. Concrete stack facts (framework, file
+layout, naming exceptions) live in `PROJECT.md`.
+
+## Size and Complexity Limits
+
+| Scope | Hard Limit | Action |
+|---|---|---|
+| File | 300 lines | Split before adding code |
+| Function / method | 50 lines | Extract smaller functions |
+| Component render / view return | 80 lines | Extract sub-components |
+| Nesting depth (if/for/try) | 3 levels | Early returns, guard clauses |
+| Cyclomatic complexity | 10 per function | Split decision branches |
+| Function parameters | 4 params | Use an options/config object |
+| Imports per file | 10 modules | File does too much, split it |
+| SQL migration | 200 lines | Split into sequential migrations |
+| Schema definition (Zod, etc.) | 150 lines | Split by domain |
+
+A 290-line file with a single 250-line function is just as bad as a 500-line file.
+
+**Exemptions** (must be documented in the file header):
+- Auto-generated files (DB types, codegen output, vendor exports).
+- Generated route trees / manifests.
+- Initial schema files until first production deploy, then frozen.
+- Locale / i18n files (split by domain once they cross 500 lines).
+
+List project-specific exempt files in `PROJECT.md` if needed.
+
+## Protocol When Encountering a Large File
+
+When modifying a file over 300 lines (or a function over 50 lines):
+1. STOP. Do not add code.
+2. Identify distinct responsibilities and extraction candidates.
+3. Propose a split plan to the user.
+4. Execute after approval. Commit the refactor **separately** from the feature.
+5. Implement the feature in the now-smaller file in a separate commit.
+
+When splitting, create a directory named after the file and a single `index`
+barrel for the public API. Remove dead code in the process.
+
+## Architecture
+
+- **One unit of responsibility per file.** Extract siblings rather than growing a file.
+- **Separate concerns**: UI rendering, data fetching, and business logic live in
+  separate files.
+- **Early returns over nesting**: replace `if (cond) { ...long block... }` with
+  `if (!cond) return;`.
+- **No deep prop drilling** (beyond 2 levels): use context, composition, or colocation.
+- **Layer the call chain** and never short-circuit it: UI → hooks → business
+  logic (`lib/`/`services/`) → data access. UI does not call the database directly.
+- **Data access in dedicated files** (e.g. `*.queries.ts` / repository modules),
+  never inline in UI or route handlers.
+- **Validation schemas centralized** (e.g. `lib/schemas/`), never inline in
+  components or handlers.
+- **Barrel exports**: external code imports from a module's barrel, not its
+  internal files.
+- **No data fetching in effects**: use the framework's data layer (server-side
+  fetching or a query library), not ad-hoc fetches in lifecycle hooks.
+
+> Framework-specific specializations (e.g. "Server Components by default",
+> custom hooks for queries) are valid when the project uses that framework —
+> see `PROJECT.md` for the actual stack.
+
+## Naming Conventions
+
+Adapt to the language in use; the defaults below cover JS/TS projects.
+
+| Type | Convention | Example |
+|---|---|---|
+| Component files | PascalCase | `FilterPanel.tsx` |
+| Hook files | camelCase with `use` prefix | `useCart.ts` |
+| Utility files | kebab-case | `format-price.ts` |
+| Type files | `*.types.ts` | `product.types.ts` |
+| Constant files | `*.constants.ts` | `cart.constants.ts` |
+| Validation files | `*.validation.ts` | `order.validation.ts` |
+| Data access files | `*.queries.ts` / `*.repo.ts` | `products.queries.ts` |
+| Service files | `*.service.ts` | `orders.service.ts` |
+| Test files | `*.test.*` / `*.spec.*` | `format-price.test.ts` |
+| Barrel files | `index.*` | `index.ts` |
+| Functions / variables | camelCase | `lockProduct`, `cartCount` |
+| Types / Interfaces | PascalCase | `Product`, `OrderPickup` |
+| Constants | UPPER_SNAKE_CASE | `MAX_RETRIES`, `LOCK_DURATION_MS` |
+| DB tables / columns | snake_case | `cart_locks`, `storage_location_id` |
+
+## Import Organization
+
+Order, separated by blank lines:
+1. Language/framework imports
+2. Third-party libraries
+3. Internal shared modules (aliased paths)
+4. Local relative imports
+5. Type-only imports
+
+## TypeScript Rules
+
+(Apply when the project uses TypeScript.)
+
+- **Strict mode mandatory**: `"strict": true`.
+- **No `any`.** Use `unknown` when genuinely unknown, then narrow with type guards.
+- **No `as` casts** except in rare cases, each documented inline with why.
+- **Generated types are generated**: never hand-edit codegen output; derive types
+  from it rather than re-declaring them.
+- **Validate at every boundary**: all external inputs (API routes, functions,
+  forms) are validated with a schema.
+- **Never trust client data**: always re-validate on the server.
+
+## Dead Code
+
+**Git is the history. The codebase is the present.**
+
+When editing any file:
+- Remove all commented-out code without asking.
+- Remove unused imports, variables, parameters, and unreachable code.
+- Never generate commented-out alternatives (no `// you could also do X`).
+- Never leave `// TODO` / `// FIXME` without a linked issue: `// TODO(#142): ...`.
+- No debug logging (`console.log`, prints) in committed code — use the project's
+  logger / error tracker.
+- Flag unused exports and orphan files during refactoring and propose removal.
+- `@deprecated` must carry a removal date and a replacement; delete past the date.
+
+### Periodic cleanup
+- Find unused dependencies (e.g. `npx depcheck`).
+- Find unused locals/params (e.g. `tsc --noUnusedLocals --noUnusedParameters`).
+- Resolve or link any `TODO`/`FIXME` lacking an issue.

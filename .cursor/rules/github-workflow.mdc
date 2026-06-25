@@ -1,0 +1,158 @@
+---
+description: Git workflow, commits, pull requests, and documentation discipline. Project-agnostic. Useful when committing or opening PRs.
+globs:
+  - .github/**
+  - docs/**
+  - CHANGELOG.md
+  - README.md
+---
+
+# Git Workflow & Documentation
+
+Branch names, deploy triggers, required CI checks, and doc locations are
+project-specific — see `PROJECT.md`.
+
+## Branch Strategy
+
+- **`main`**: production, protected, requires PR + review.
+- **Integration branch** (optional): `develop` for multi-PR features.
+- **Feature branches**: `feature/descriptive-name`.
+- **Bug fixes**: `fix/descriptive-name`.
+- **Hotfixes**: `hotfix/descriptive-name` (branched from `main`).
+- Delete branches after merge. **Never force-push to `main` or a shared branch.**
+
+## Commit Messages
+
+Conventional commits: `type(scope): description`.
+
+Types: `feat`, `fix`, `refactor`, `style`, `test`, `docs`, `chore`, `perf`, `ci`.
+
+Rules:
+- **Imperative mood** (`add`, not `added`).
+- Subject under 72 characters, no trailing period.
+- Body for complex changes.
+- **Refactors and features in separate commits.** Never mix structural changes
+  with new functionality.
+
+```
+feat(catalogue): add full-text search bar
+fix(cart): prevent lock extension beyond max
+refactor(checkout): extract slot picker into its own component
+chore(deps): upgrade auth library to 1.2.x
+docs(integrations): document sync safety rules
+```
+
+## Pull Requests
+
+**Before opening a PR**:
+- Tests pass locally; type checks and lint pass.
+- Documentation updated for user-facing or dev-facing changes (mandatory).
+- Self-review done; no commented-out code, debug logging, or unused imports.
+- No file exceeds 300 lines and no function exceeds 50 lines (excluding
+  documented exemptions).
+- Rebased on the latest base branch.
+
+**PR description must include**:
+- Clear description of changes.
+- Link to related issues (`Fixes #123`).
+- Testing steps for reviewers.
+- Breaking changes, if any.
+- The documentation checklist (below).
+- Screenshots / recordings for UI changes.
+
+**PR rules**:
+- 1 PR = 1 feature or 1 fix. Keep it focused; aim under ~400 changed lines.
+- Squash commits on merge if history is noisy.
+- Address review comments promptly.
+
+## Documentation Checklist
+
+Every PR description includes this section. A PR cannot merge with unchecked
+boxes left unjustified. Adapt the doc targets to the project's actual layout.
+
+```markdown
+## Documentation
+- [ ] Feature docs created/updated: [list files]
+- [ ] CHANGELOG.md updated (if user-facing change)
+- [ ] README.md updated (if structure/config/env changed)
+- [ ] Migration changelog updated (if a DB migration is included)
+- [ ] Function/endpoint docs + registry updated (if added/changed/removed)
+- [ ] PROJECT.md updated (if stack/structure/decision changed)
+- [ ] No documentation needed (explain: ___)
+```
+
+## Documentation as a Deliverable
+
+**Documentation is not optional; it is part of the change.** A PR that changes
+behavior, adds a feature, or modifies configuration includes the matching doc
+updates, or it is incomplete.
+
+| Change | Required documentation |
+|---|---|
+| New feature | Feature doc + feature index + CHANGELOG entry |
+| Feature modification/removal | Update/remove doc, update index, CHANGELOG entry |
+| New API route / function | Doc or README in the unit + registry entry |
+| New environment variable | Add to `.env.example` + deployment docs |
+| DB schema change | Migration changelog entry |
+| Config / deployment change | Update the relevant deployment doc |
+| New dependency | Update README prerequisites; justify in the PR |
+| UI change | Update the feature doc with the new flow + screenshot |
+
+### Quality rules
+- Each doc starts with a `# Title` and a one-paragraph summary.
+- Include `Last updated: YYYY-MM-DD` and update it on every edit.
+- Code examples must be tested and working — no pseudocode.
+- Remove outdated information immediately; mark planned items `> [PLANNED]`.
+- Cross-reference related docs with relative links.
+
+### README requirements
+The root `README.md`, in order: title + one-line description; tech stack;
+prerequisites; getting started (copy-paste ready); project structure (matching
+reality); environment variables table; deployment; key architecture decisions.
+
+### Changelog
+Maintain a `CHANGELOG.md`:
+
+```markdown
+## [YYYY-MM-DD] — Short description
+- **Type**: feature | fix | improvement | breaking
+- **Summary**: What changed from the user's perspective.
+- **Related PR**: #123
+```
+
+Every PR with user-facing changes adds an entry.
+
+## Code Review
+
+**As author**: respond to all comments; resolve only after addressing; push fixes
+rather than force-pushing during review unless asked.
+
+**As reviewer, block PRs that**:
+- Add code to files over 300 lines without refactoring, or functions over 50 lines.
+- Miss documentation for user-facing changes, or have an incomplete checklist.
+- Introduce or preserve commented-out code.
+- Have `// TODO` / `// FIXME` without a linked issue.
+- Leave debug logging.
+- Expose secrets in code or history.
+- Bypass authorization, auth, or input validation.
+- Modify an already-applied DB migration (a new migration is required instead).
+
+Review within ~24h when possible; be constructive and specific; test critical
+changes locally.
+
+## CI
+
+- Monitor workflow runs after every push; fix broken workflows immediately.
+- Never disable checks to merge.
+- Update workflow files in the same PR as the infrastructure change requiring them.
+- The project's required workflows and deploy triggers are listed in `PROJECT.md`.
+
+## Hotfix Procedure
+
+1. Branch `hotfix/descriptive-name` from `main`.
+2. Make the minimal change.
+3. Open a PR against `main` with `[HOTFIX]` in the title.
+4. You may skip the size guideline if strictly necessary, but never skip the
+   documentation checklist or tests.
+5. Merge back into the integration branch if one exists.
+6. Add a `CHANGELOG.md` entry tagged `fix` noting `[HOTFIX]`.

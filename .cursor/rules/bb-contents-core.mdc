@@ -1,120 +1,138 @@
 ---
-description: Core project conventions for bb-contents — coding standards, architecture, and publishing workflow
+description: Core project conventions for bb-contents — module contract, src/ architecture, security helpers, and publishing workflow
 alwaysApply: true
 ---
 
 # bb-contents Core Conventions
 
-## Project Overview
+Project identity, stack, and release mapping live in **`PROJECT.md`** at the repo
+root. Generic engineering standards live in the other `.cursor/rules/*.mdc`. This
+file holds the **bb-contents-specific** coding contract.
 
-`@bebranded/bb-contents` is a vanilla JS IIFE library for Webflow. It adds features via `data-bb-*` HTML attributes. Single file, no external dependencies, loaded via CDN or npm. Version must always be in sync across 3 places (see Publishing).
+## Architecture
 
-## Module Pattern
+`@bebranded/bb-contents` is a zero-dependency vanilla-JS library for Webflow,
+activated by `bb-*` / `data-bb-*` HTML attributes.
 
-Every module lives in `bbContents.modules` and follows this exact contract:
+- **Source of truth is `src/`.** `src/core.js` is the bundle entry (config, init,
+  helpers, `MutationObserver`, `utils`, `attrMap`). Each feature is one ES module
+  in `src/modules/<name>.js` with a `export default` object.
+- **`bb-contents.js`, `bb-contents.min.js`, `bb-contents.min.js.map` are GENERATED**
+  by esbuild (`build.js`). Never edit them by hand — edit `src/` and run
+  `npm run build`.
+- esbuild bundles everything into a single self-executing IIFE that sets
+  `window.bbContents`. No external runtime dependency may ever be added.
+
+## Module Contract
+
+Every module is an ES module exporting a single object with an `init(scope)`:
 
 ```js
-moduleName: {
-    detect: function(scope) {
-        // Return true if the page has elements for this module
-        return (scope || document).querySelector(bbContents._attrSelector('bb-attr')) !== null;
-    },
-    init: function(root) {
-        const scope = root || document;
+/**
+ * Module ModuleName
+ * One-line French description of what it does.
+ *
+ * @attr {string} bb-name - Enables the module on the element
+ * @attr {'a'|'b'} [bb-name-option=a] - Option description
+ */
+export default {
+    init(scope) {
+        // 1. Respect the global disable switch
         if (scope.closest && scope.closest('[data-bb-disable]')) return;
-        const elements = scope.querySelectorAll(bbContents._attrSelector('bb-attr'));
-        elements.forEach(function(element) {
-            if (element.bbProcessed) return; // always guard re-init
-            element.bbProcessed = true;
-            // ... module logic
+
+        // 2. Query with _attrSelector (dual bb-* / data-bb-* support)
+        const elements = scope.querySelectorAll(bbContents._attrSelector('name'));
+
+        elements.forEach(function (element) {
+            // 3. Idempotency guard — re-init on the same element is a no-op
+            if (element.hasAttribute('data-bb-name-processed')) return;
+            element.setAttribute('data-bb-name-processed', '1');
+
+            // 4. Read options via _getAttr; sanitize before any DOM insertion
+            const opt = bbContents._getAttr(element, 'bb-name-option') || 'a';
+
+            // ... module logic ...
         });
+
+        bbContents.utils.log('Module ModuleName initialisé:', elements.length, 'éléments');
     }
-}
+};
 ```
 
-- Always use `bbContents._attrSelector('bb-name')` for queries (dual `bb-*` + `data-bb-*` support).
-- Always use `bbContents._getAttr(element, 'bb-name')` to read attribute values.
-- Always guard with `element.bbProcessed` to prevent double-initialization.
-- Respect `[data-bb-disable]` at the top of `init`.
+Rules:
+- **Always query with `bbContents._attrSelector('name')`** — it accepts the bare
+  name (`'current-year'`) or the prefixed form (`'bb-current-year'`) and emits the
+  dual `[bb-name], [data-bb-name]` selector.
+- **Always read values with `bbContents._getAttr(element, 'bb-name-option')`.**
+- **Always guard idempotency** with the `data-bb-name-processed` attribute (some
+  older modules also set `element.bbProcessed` — either works, but be consistent
+  within a module). The `MutationObserver` re-calls `init()` on new nodes, so a
+  guard is mandatory.
+- **Always honor `[data-bb-disable]`** at the top of `init`.
+
+### Registering a module in `core.js`
+
+A new module is not active until it is wired into `src/core.js` in **all** of:
+1. `import name from './modules/name.js';`
+2. the `modules: { ... }` object
+3. the `attrMap` (maps the trigger attribute → module key, e.g.
+   `'country-select': 'countrySelect'`) — this is the single source of truth for
+   detection; there is no per-module `detect` function anymore
+4. `_optionRules` (one entry per option attribute, for dev-mode validation)
 
 ## Security
 
-Before any DOM insertion:
+Before any DOM insertion (helpers live in `bbContents.utils`):
 - Text content → `bbContents.utils.sanitize(value)`
 - CSS values → `bbContents.utils.escapeCss(value)`
 - URLs → validate with `bbContents.utils.isValidUrl(url)` first
 - Country codes → validate with `bbContents.utils.isValidCountryCode(code)`
 
+See the generic `security.mdc` for the broader baseline. The YouTube API key is
+**never** in the browser — it lives only in the Cloudflare Worker
+(`youtube-worker.js`); the module fetches `window._bbContentsConfig.youtubeEndpoint`.
+
 ## Error Handling
 
-Never leave an empty or silent `catch`. Always at minimum `console.error`:
+Never leave an empty or silent `catch`. At minimum log through the project logger:
 
 ```js
-// ❌ BAD
-} catch (e) {}
-
-// ✅ GOOD
 } catch (e) {
     console.error('[bb-contents] Module failed:', e);
 }
 ```
 
-Retry loops must always have a hard max (e.g. `_maxInitRetries`). Never use infinite polling without a timeout.
+Retry loops must have a hard max — never poll infinitely without a timeout.
 
 ## Documentation
 
-**Every code change must be reflected in documentation.**
+**Every code change must be reflected in documentation** (see `github-workflow.mdc`).
 
-### JSDoc inside `bb-contents.js`
+- **JSDoc** above each module: purpose + every supported `@attr`.
+- **`README.md`**: public reference — add/update a section and the attribute table
+  on any new module or attribute change.
+- **`docs/<module>.md`**: per-module detailed doc — keep in sync.
 
-Each module must have a JSDoc comment block above it describing its purpose and all supported attributes:
-
-```js
-/**
- * Module Tooltip
- * @attr {string} bb-tooltip - Tooltip text to display
- * @attr {'top'|'bottom'|'left'|'right'} [bb-tooltip-position=top] - Position
- */
-tooltipName: {
-```
-
-### `README.md`
-
-`README.md` is the public-facing reference. Keep it up to date whenever:
-- A new module is added → add a section with its name, description, and all `data-bb-*` attributes
-- A module attribute is added, changed, or removed → update the relevant section
-- Installation instructions change → update the installation section
-
-The README structure to maintain per module:
-
-```markdown
-## Module Name
-
-Brief description.
-
-| Attribute | Values | Default | Description |
-|---|---|---|---|
-| `data-bb-attr` | — | — | Main trigger |
-| `data-bb-attr-option` | `a` \| `b` | `a` | Option description |
-```
-
-### When to update
-
-| Action | JSDoc | README |
+| Action | JSDoc | README + docs/ |
 |---|---|---|
-| Add a module | ✅ Required | ✅ Required |
-| Add an attribute | ✅ Required | ✅ Required |
-| Change behavior | ✅ Update | ✅ Update if user-facing |
+| Add a module | Required | Required |
+| Add an attribute | Required | Required |
+| Change behavior | Update | Update if user-facing |
 | Bug fix (no API change) | — | — |
 
 ## Publishing Workflow
 
-**Always publish GitHub + npm simultaneously. Version must be identical in all 3 places:**
+**The version must be identical in 2 source places; the generated banner follows
+automatically:**
 1. `package.json` → `"version"`
-2. `bb-contents.js` → `BB_CONTENTS_VERSION` constant (line ~13)
-3. `bb-contents.js` → `@version` JSDoc header (line ~4)
+2. `src/core.js` → `const BB_CONTENTS_VERSION = '...'`
+3. `bb-contents.js` → `@version` banner — **generated** by `build.js` from
+   `package.json`; do not edit by hand. Run `npm run build` after a bump.
 
 | Target | GitHub | npm |
 |---|---|---|
 | `develop` / test | `git push origin develop` | `npm publish --tag test` |
 | `main` / live | `git push origin main` | `npm publish` (tag `latest`) |
+
+Always rebuild (`npm run build`) and commit the regenerated bundles with the
+version bump. See the `bump-and-publish` skill for the full checklist.
