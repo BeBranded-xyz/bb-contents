@@ -214,25 +214,26 @@ export default {
 
         const apiVideoCount = groupConfig.maxVideoCount + groupConfig.maxSkip;
 
-        if (!endpoint || typeof endpoint !== 'string') {
+        // Validate config gracefully — never throw out of initElement, or a single
+        // bad attribute would abort init for every other element on the page and
+        // leave the request marker stuck active (deadlocking other elements).
+        const endpointInvalid =
+            !endpoint || typeof endpoint !== 'string' ||
+            (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) ||
+            (bbContents.config.youtubeEndpoint && !endpoint.startsWith(bbContents.config.youtubeEndpoint));
+        if (endpointInvalid) {
             this.markRequestComplete(baseCacheKey);
-            throw new Error('Endpoint YouTube invalide');
-        }
-        if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
-            this.markRequestComplete(baseCacheKey);
-            throw new Error('Endpoint YouTube doit être une URL valide');
-        }
-        if (bbContents.config.youtubeEndpoint && !endpoint.startsWith(bbContents.config.youtubeEndpoint)) {
-            this.markRequestComplete(baseCacheKey);
-            throw new Error('Endpoint YouTube non autorisé');
+            container.innerHTML = this._errorBox('Endpoint YouTube invalide');
+            return;
         }
 
         const channelIds = groupConfig.channelIds.split(',');
-        channelIds.forEach(channelId => {
-            if (!channelId || !/^[a-zA-Z0-9_-]+$/.test(channelId)) {
-                throw new Error('Channel ID invalide: ' + channelId);
-            }
-        });
+        const invalidChannelId = channelIds.find(id => !id || !/^[a-zA-Z0-9_-]+$/.test(id));
+        if (invalidChannelId !== undefined) {
+            this.markRequestComplete(baseCacheKey);
+            container.innerHTML = this._errorBox('Channel ID invalide : ' + invalidChannelId);
+            return;
+        }
 
         const safeAllowShorts = groupConfig.allowShorts === true || groupConfig.allowShorts === 'true';
 
@@ -267,6 +268,11 @@ export default {
                     this.handleFetchError(error, container, baseCacheKey, skip, videoCount, template, groupConfig);
                 });
         }
+    },
+
+    _errorBox(message) {
+        return '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>' +
+            bbContents.utils.sanitize(message || 'Erreur inconnue') + '</div>';
     },
 
     applySkipAndLimit(data, skip, videoCount) {
@@ -358,7 +364,7 @@ export default {
         if (thumbnail) {
             const t = snippet.thumbnails;
             const bestUrl = (t.maxres || t.high || t.medium || t.default || {}).url;
-            if (bestUrl) {
+            if (bestUrl && bbContents.utils.isValidUrl(bestUrl)) {
                 thumbnail.src = bestUrl;
                 thumbnail.alt = snippet.title;
             }

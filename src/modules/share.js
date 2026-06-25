@@ -41,8 +41,10 @@ export default {
             const customText = bbContents._getAttr(element, 'bb-text');
 
             const data = {
+                // text is only ever percent-encoded into share URLs or passed to
+                // navigator.share — never inserted as HTML — so it stays raw.
                 url: bbContents.utils.isValidUrl(customUrl) ? customUrl : window.location.href,
-                text: bbContents.utils.sanitize(customText || document.title || 'Découvrez ce site')
+                text: customText || document.title || 'Découvrez ce site'
             };
 
             element.addEventListener('click', function(e) {

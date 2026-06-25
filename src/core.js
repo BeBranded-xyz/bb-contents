@@ -115,11 +115,17 @@ const bbContents = {
             }
         },
 
+        // Escapes for safe insertion into HTML, in both text-node AND
+        // attribute (value="...") contexts. The previous textContent->innerHTML
+        // round-trip did NOT escape " or ', allowing attribute-context breakout.
         sanitize(str) {
             if (typeof str !== 'string') return '';
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         },
 
         isValidCountryCode(code) {
@@ -142,8 +148,14 @@ const bbContents = {
             return cleaned;
         },
 
+        // Accepts only absolute http(s) URLs. Rejects javascript:, data:, etc.
         isValidUrl(string) {
-            try { new URL(string); return true; } catch (_) { return false; }
+            try {
+                const protocol = new URL(string).protocol;
+                return protocol === 'http:' || protocol === 'https:';
+            } catch (_) {
+                return false;
+            }
         }
     },
 

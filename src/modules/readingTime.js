@@ -117,9 +117,22 @@ export default {
                 }
             }
 
+            // Final guard: only fetch absolute http(s) URLs on the SAME origin,
+            // regardless of whether the URL came from bb-url or a wrapping <a href>.
+            let sameOriginUrl = null;
             if (articleUrl && bbContents.utils.isValidUrl(articleUrl)) {
+                try {
+                    if (new URL(articleUrl).origin === window.location.origin) {
+                        sameOriginUrl = articleUrl;
+                    }
+                } catch (e) {
+                    sameOriginUrl = null;
+                }
+            }
+
+            if (sameOriginUrl) {
                 const originalText = element.textContent;
-                self.fetchContentFromUrl(articleUrl, targetSelector)
+                self.fetchContentFromUrl(sameOriginUrl, targetSelector)
                     .then(function(data) {
                         const minutes = self.calculateReadingTime(data.text, data.images, wordsPerMinute, secondsPerImage);
                         element.textContent = format.replace('{minutes}', String(minutes));

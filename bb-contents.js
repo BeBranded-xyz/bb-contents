@@ -793,8 +793,10 @@
         const customUrl = bbContents._getAttr(element, "bb-url");
         const customText = bbContents._getAttr(element, "bb-text");
         const data = {
+          // text is only ever percent-encoded into share URLs or passed to
+          // navigator.share — never inserted as HTML — so it stays raw.
           url: bbContents.utils.isValidUrl(customUrl) ? customUrl : window.location.href,
-          text: bbContents.utils.sanitize(customText || document.title || "D\xE9couvrez ce site")
+          text: customText || document.title || "D\xE9couvrez ce site"
         };
         element.addEventListener("click", function(e) {
           e.preventDefault();
@@ -993,9 +995,19 @@
             }
           }
         }
+        let sameOriginUrl = null;
         if (articleUrl && bbContents.utils.isValidUrl(articleUrl)) {
+          try {
+            if (new URL(articleUrl).origin === window.location.origin) {
+              sameOriginUrl = articleUrl;
+            }
+          } catch (e) {
+            sameOriginUrl = null;
+          }
+        }
+        if (sameOriginUrl) {
           const originalText = element.textContent;
-          self.fetchContentFromUrl(articleUrl, targetSelector).then(function(data) {
+          self.fetchContentFromUrl(sameOriginUrl, targetSelector).then(function(data) {
             const minutes2 = self.calculateReadingTime(data.text, data.images, wordsPerMinute, secondsPerImage);
             element.textContent = format.replace("{minutes}", String(minutes2));
           }).catch(function(error) {
@@ -1864,24 +1876,19 @@
       this.markRequestActive(baseCacheKey);
       container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vid\xE9os YouTube...</div>';
       const apiVideoCount = groupConfig.maxVideoCount + groupConfig.maxSkip;
-      if (!endpoint || typeof endpoint !== "string") {
+      const endpointInvalid = !endpoint || typeof endpoint !== "string" || !endpoint.startsWith("http://") && !endpoint.startsWith("https://") || bbContents.config.youtubeEndpoint && !endpoint.startsWith(bbContents.config.youtubeEndpoint);
+      if (endpointInvalid) {
         this.markRequestComplete(baseCacheKey);
-        throw new Error("Endpoint YouTube invalide");
-      }
-      if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
-        this.markRequestComplete(baseCacheKey);
-        throw new Error("Endpoint YouTube doit \xEAtre une URL valide");
-      }
-      if (bbContents.config.youtubeEndpoint && !endpoint.startsWith(bbContents.config.youtubeEndpoint)) {
-        this.markRequestComplete(baseCacheKey);
-        throw new Error("Endpoint YouTube non autoris\xE9");
+        container.innerHTML = this._errorBox("Endpoint YouTube invalide");
+        return;
       }
       const channelIds = groupConfig.channelIds.split(",");
-      channelIds.forEach((channelId) => {
-        if (!channelId || !/^[a-zA-Z0-9_-]+$/.test(channelId)) {
-          throw new Error("Channel ID invalide: " + channelId);
-        }
-      });
+      const invalidChannelId = channelIds.find((id) => !id || !/^[a-zA-Z0-9_-]+$/.test(id));
+      if (invalidChannelId !== void 0) {
+        this.markRequestComplete(baseCacheKey);
+        container.innerHTML = this._errorBox("Channel ID invalide : " + invalidChannelId);
+        return;
+      }
       const safeAllowShorts = groupConfig.allowShorts === true || groupConfig.allowShorts === "true";
       if (channelIds.length > 1) {
         this.fetchMultipleChannels(endpoint, channelIds, apiVideoCount, safeAllowShorts).then((data) => {
@@ -1909,6 +1916,9 @@
           this.handleFetchError(error, container, baseCacheKey, skip, videoCount, template, groupConfig);
         });
       }
+    },
+    _errorBox(message) {
+      return '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>' + bbContents.utils.sanitize(message || "Erreur inconnue") + "</div>";
     },
     applySkipAndLimit(data, skip, videoCount) {
       if (!data || !data.items) return data;
@@ -1989,7 +1999,7 @@
       if (thumbnail) {
         const t = snippet.thumbnails;
         const bestUrl = (t.maxres || t.high || t.medium || t.default || {}).url;
-        if (bestUrl) {
+        if (bestUrl && bbContents.utils.isValidUrl(bestUrl)) {
           thumbnail.src = bestUrl;
           thumbnail.alt = snippet.title;
         }
@@ -2136,11 +2146,12 @@
           console.log("[BB Contents]", ...args);
         }
       },
+      // Escapes for safe insertion into HTML, in both text-node AND
+      // attribute (value="...") contexts. The previous textContent->innerHTML
+      // round-trip did NOT escape " or ', allowing attribute-context breakout.
       sanitize(str) {
         if (typeof str !== "string") return "";
-        const div = document.createElement("div");
-        div.textContent = str;
-        return div.innerHTML;
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
       },
       isValidCountryCode(code) {
         if (!code || typeof code !== "string") return false;
@@ -2162,10 +2173,11 @@
         cleaned = cleaned.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, "");
         return cleaned;
       },
+      // Accepts only absolute http(s) URLs. Rejects javascript:, data:, etc.
       isValidUrl(string) {
         try {
-          new URL(string);
-          return true;
+          const protocol = new URL(string).protocol;
+          return protocol === "http:" || protocol === "https:";
         } catch (_) {
           return false;
         }
