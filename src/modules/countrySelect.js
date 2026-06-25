@@ -6,10 +6,12 @@
  * @attr {string} [bb-country-select-preferred] - Codes pays ISO à afficher en tête de liste (ex: "FR,BE,CH")
  * @attr {string} [bb-country-select-default] - Code ou nom du pays sélectionné par défaut
  */
+import countries from './countrySelect.data.js';
+import { captureStyles, buildUI } from './countrySelect.ui.js';
+import { renderCountries, bindEvents } from './countrySelect.render.js';
+
 export default {
-    countries: [
-        {alpha2:'AD',alpha3:'AND',name:{fr:'Andorre',en:'Andorra'}},{alpha2:'AE',alpha3:'ARE',name:{fr:'Émirats arabes unis',en:'United Arab Emirates'}},{alpha2:'AF',alpha3:'AFG',name:{fr:'Afghanistan',en:'Afghanistan'}},{alpha2:'AG',alpha3:'ATG',name:{fr:'Antigua-et-Barbuda',en:'Antigua and Barbuda'}},{alpha2:'AI',alpha3:'AIA',name:{fr:'Anguilla',en:'Anguilla'}},{alpha2:'AL',alpha3:'ALB',name:{fr:'Albanie',en:'Albania'}},{alpha2:'AM',alpha3:'ARM',name:{fr:'Arménie',en:'Armenia'}},{alpha2:'AO',alpha3:'AGO',name:{fr:'Angola',en:'Angola'}},{alpha2:'AQ',alpha3:'ATA',name:{fr:'Antarctique',en:'Antarctica'}},{alpha2:'AR',alpha3:'ARG',name:{fr:'Argentine',en:'Argentina'}},{alpha2:'AS',alpha3:'ASM',name:{fr:'Samoa américaines',en:'American Samoa'}},{alpha2:'AT',alpha3:'AUT',name:{fr:'Autriche',en:'Austria'}},{alpha2:'AU',alpha3:'AUS',name:{fr:'Australie',en:'Australia'}},{alpha2:'AW',alpha3:'ABW',name:{fr:'Aruba',en:'Aruba'}},{alpha2:'AX',alpha3:'ALA',name:{fr:'Åland',en:'Åland Islands'}},{alpha2:'AZ',alpha3:'AZE',name:{fr:'Azerbaïdjan',en:'Azerbaijan'}},{alpha2:'BA',alpha3:'BIH',name:{fr:'Bosnie-Herzégovine',en:'Bosnia and Herzegovina'}},{alpha2:'BB',alpha3:'BRB',name:{fr:'Barbade',en:'Barbados'}},{alpha2:'BD',alpha3:'BGD',name:{fr:'Bangladesh',en:'Bangladesh'}},{alpha2:'BE',alpha3:'BEL',name:{fr:'Belgique',en:'Belgium'}},{alpha2:'BF',alpha3:'BFA',name:{fr:'Burkina Faso',en:'Burkina Faso'}},{alpha2:'BG',alpha3:'BGR',name:{fr:'Bulgarie',en:'Bulgaria'}},{alpha2:'BH',alpha3:'BHR',name:{fr:'Bahreïn',en:'Bahrain'}},{alpha2:'BI',alpha3:'BDI',name:{fr:'Burundi',en:'Burundi'}},{alpha2:'BJ',alpha3:'BEN',name:{fr:'Bénin',en:'Benin'}},{alpha2:'BL',alpha3:'BLM',name:{fr:'Saint-Barthélemy',en:'Saint Barthélemy'}},{alpha2:'BM',alpha3:'BMU',name:{fr:'Bermudes',en:'Bermuda'}},{alpha2:'BN',alpha3:'BRN',name:{fr:'Brunei',en:'Brunei'}},{alpha2:'BO',alpha3:'BOL',name:{fr:'Bolivie',en:'Bolivia'}},{alpha2:'BQ',alpha3:'BES',name:{fr:'Pays-Bas caribéens',en:'Caribbean Netherlands'}},{alpha2:'BR',alpha3:'BRA',name:{fr:'Brésil',en:'Brazil'}},{alpha2:'BS',alpha3:'BHS',name:{fr:'Bahamas',en:'Bahamas'}},{alpha2:'BT',alpha3:'BTN',name:{fr:'Bhoutan',en:'Bhutan'}},{alpha2:'BV',alpha3:'BVT',name:{fr:'Île Bouvet',en:'Bouvet Island'}},{alpha2:'BW',alpha3:'BWA',name:{fr:'Botswana',en:'Botswana'}},{alpha2:'BY',alpha3:'BLR',name:{fr:'Biélorussie',en:'Belarus'}},{alpha2:'BZ',alpha3:'BLZ',name:{fr:'Belize',en:'Belize'}},{alpha2:'CA',alpha3:'CAN',name:{fr:'Canada',en:'Canada'}},{alpha2:'CC',alpha3:'CCK',name:{fr:'Îles Cocos',en:'Cocos Islands'}},{alpha2:'CD',alpha3:'COD',name:{fr:'République démocratique du Congo',en:'Democratic Republic of the Congo'}},{alpha2:'CF',alpha3:'CAF',name:{fr:'République centrafricaine',en:'Central African Republic'}},{alpha2:'CG',alpha3:'COG',name:{fr:'Congo',en:'Republic of the Congo'}},{alpha2:'CH',alpha3:'CHE',name:{fr:'Suisse',en:'Switzerland'}},{alpha2:'CI',alpha3:'CIV',name:{fr:"Côte d'Ivoire",en:'Ivory Coast'}},{alpha2:'CK',alpha3:'COK',name:{fr:'Îles Cook',en:'Cook Islands'}},{alpha2:'CL',alpha3:'CHL',name:{fr:'Chili',en:'Chile'}},{alpha2:'CM',alpha3:'CMR',name:{fr:'Cameroun',en:'Cameroon'}},{alpha2:'CN',alpha3:'CHN',name:{fr:'Chine',en:'China'}},{alpha2:'CO',alpha3:'COL',name:{fr:'Colombie',en:'Colombia'}},{alpha2:'CR',alpha3:'CRI',name:{fr:'Costa Rica',en:'Costa Rica'}},{alpha2:'CU',alpha3:'CUB',name:{fr:'Cuba',en:'Cuba'}},{alpha2:'CV',alpha3:'CPV',name:{fr:'Cap-Vert',en:'Cape Verde'}},{alpha2:'CW',alpha3:'CUW',name:{fr:'Curaçao',en:'Curaçao'}},{alpha2:'CX',alpha3:'CXR',name:{fr:'Île Christmas',en:'Christmas Island'}},{alpha2:'CY',alpha3:'CYP',name:{fr:'Chypre',en:'Cyprus'}},{alpha2:'CZ',alpha3:'CZE',name:{fr:'Tchéquie',en:'Czechia'}},{alpha2:'DE',alpha3:'DEU',name:{fr:'Allemagne',en:'Germany'}},{alpha2:'DJ',alpha3:'DJI',name:{fr:'Djibouti',en:'Djibouti'}},{alpha2:'DK',alpha3:'DNK',name:{fr:'Danemark',en:'Denmark'}},{alpha2:'DM',alpha3:'DMA',name:{fr:'Dominique',en:'Dominica'}},{alpha2:'DO',alpha3:'DOM',name:{fr:'République dominicaine',en:'Dominican Republic'}},{alpha2:'DZ',alpha3:'DZA',name:{fr:'Algérie',en:'Algeria'}},{alpha2:'EC',alpha3:'ECU',name:{fr:'Équateur',en:'Ecuador'}},{alpha2:'EE',alpha3:'EST',name:{fr:'Estonie',en:'Estonia'}},{alpha2:'EG',alpha3:'EGY',name:{fr:'Égypte',en:'Egypt'}},{alpha2:'EH',alpha3:'ESH',name:{fr:'Sahara occidental',en:'Western Sahara'}},{alpha2:'ER',alpha3:'ERI',name:{fr:'Érythrée',en:'Eritrea'}},{alpha2:'ES',alpha3:'ESP',name:{fr:'Espagne',en:'Spain'}},{alpha2:'ET',alpha3:'ETH',name:{fr:'Éthiopie',en:'Ethiopia'}},{alpha2:'FI',alpha3:'FIN',name:{fr:'Finlande',en:'Finland'}},{alpha2:'FJ',alpha3:'FJI',name:{fr:'Fidji',en:'Fiji'}},{alpha2:'FK',alpha3:'FLK',name:{fr:'Îles Malouines',en:'Falkland Islands'}},{alpha2:'FM',alpha3:'FSM',name:{fr:'Micronésie',en:'Micronesia'}},{alpha2:'FO',alpha3:'FRO',name:{fr:'Îles Féroé',en:'Faroe Islands'}},{alpha2:'FR',alpha3:'FRA',name:{fr:'France',en:'France'}},{alpha2:'GA',alpha3:'GAB',name:{fr:'Gabon',en:'Gabon'}},{alpha2:'GB',alpha3:'GBR',name:{fr:'Royaume-Uni',en:'United Kingdom'}},{alpha2:'GD',alpha3:'GRD',name:{fr:'Grenade',en:'Grenada'}},{alpha2:'GE',alpha3:'GEO',name:{fr:'Géorgie',en:'Georgia'}},{alpha2:'GF',alpha3:'GUF',name:{fr:'Guyane française',en:'French Guiana'}},{alpha2:'GG',alpha3:'GGY',name:{fr:'Guernesey',en:'Guernsey'}},{alpha2:'GH',alpha3:'GHA',name:{fr:'Ghana',en:'Ghana'}},{alpha2:'GI',alpha3:'GIB',name:{fr:'Gibraltar',en:'Gibraltar'}},{alpha2:'GL',alpha3:'GRL',name:{fr:'Groenland',en:'Greenland'}},{alpha2:'GM',alpha3:'GMB',name:{fr:'Gambie',en:'Gambia'}},{alpha2:'GN',alpha3:'GIN',name:{fr:'Guinée',en:'Guinea'}},{alpha2:'GP',alpha3:'GLP',name:{fr:'Guadeloupe',en:'Guadeloupe'}},{alpha2:'GQ',alpha3:'GNQ',name:{fr:'Guinée équatoriale',en:'Equatorial Guinea'}},{alpha2:'GR',alpha3:'GRC',name:{fr:'Grèce',en:'Greece'}},{alpha2:'GS',alpha3:'SGS',name:{fr:'Géorgie du Sud-et-les Îles Sandwich du Sud',en:'South Georgia and the South Sandwich Islands'}},{alpha2:'GT',alpha3:'GTM',name:{fr:'Guatemala',en:'Guatemala'}},{alpha2:'GU',alpha3:'GUM',name:{fr:'Guam',en:'Guam'}},{alpha2:'GW',alpha3:'GNB',name:{fr:'Guinée-Bissau',en:'Guinea-Bissau'}},{alpha2:'GY',alpha3:'GUY',name:{fr:'Guyane',en:'Guyana'}},{alpha2:'HK',alpha3:'HKG',name:{fr:'Hong Kong',en:'Hong Kong'}},{alpha2:'HM',alpha3:'HMD',name:{fr:'Îles Heard-et-MacDonald',en:'Heard Island and McDonald Islands'}},{alpha2:'HN',alpha3:'HND',name:{fr:'Honduras',en:'Honduras'}},{alpha2:'HR',alpha3:'HRV',name:{fr:'Croatie',en:'Croatia'}},{alpha2:'HT',alpha3:'HTI',name:{fr:'Haïti',en:'Haiti'}},{alpha2:'HU',alpha3:'HUN',name:{fr:'Hongrie',en:'Hungary'}},{alpha2:'ID',alpha3:'IDN',name:{fr:'Indonésie',en:'Indonesia'}},{alpha2:'IE',alpha3:'IRL',name:{fr:'Irlande',en:'Ireland'}},{alpha2:'IL',alpha3:'ISR',name:{fr:'Israël',en:'Israel'}},{alpha2:'IM',alpha3:'IMN',name:{fr:'Île de Man',en:'Isle of Man'}},{alpha2:'IN',alpha3:'IND',name:{fr:'Inde',en:'India'}},{alpha2:'IO',alpha3:'IOT',name:{fr:"Territoire britannique de l'océan Indien",en:'British Indian Ocean Territory'}},{alpha2:'IQ',alpha3:'IRQ',name:{fr:'Irak',en:'Iraq'}},{alpha2:'IR',alpha3:'IRN',name:{fr:'Iran',en:'Iran'}},{alpha2:'IS',alpha3:'ISL',name:{fr:'Islande',en:'Iceland'}},{alpha2:'IT',alpha3:'ITA',name:{fr:'Italie',en:'Italy'}},{alpha2:'JE',alpha3:'JEY',name:{fr:'Jersey',en:'Jersey'}},{alpha2:'JM',alpha3:'JAM',name:{fr:'Jamaïque',en:'Jamaica'}},{alpha2:'JO',alpha3:'JOR',name:{fr:'Jordanie',en:'Jordan'}},{alpha2:'JP',alpha3:'JPN',name:{fr:'Japon',en:'Japan'}},{alpha2:'KE',alpha3:'KEN',name:{fr:'Kenya',en:'Kenya'}},{alpha2:'KG',alpha3:'KGZ',name:{fr:'Kirghizistan',en:'Kyrgyzstan'}},{alpha2:'KH',alpha3:'KHM',name:{fr:'Cambodge',en:'Cambodia'}},{alpha2:'KI',alpha3:'KIR',name:{fr:'Kiribati',en:'Kiribati'}},{alpha2:'KM',alpha3:'COM',name:{fr:'Comores',en:'Comoros'}},{alpha2:'KN',alpha3:'KNA',name:{fr:'Saint-Kitts-et-Nevis',en:'Saint Kitts and Nevis'}},{alpha2:'KP',alpha3:'PRK',name:{fr:'Corée du Nord',en:'North Korea'}},{alpha2:'KR',alpha3:'KOR',name:{fr:'Corée du Sud',en:'South Korea'}},{alpha2:'KW',alpha3:'KWT',name:{fr:'Koweït',en:'Kuwait'}},{alpha2:'KY',alpha3:'CYM',name:{fr:'Îles Caïmans',en:'Cayman Islands'}},{alpha2:'KZ',alpha3:'KAZ',name:{fr:'Kazakhstan',en:'Kazakhstan'}},{alpha2:'LA',alpha3:'LAO',name:{fr:'Laos',en:'Laos'}},{alpha2:'LB',alpha3:'LBN',name:{fr:'Liban',en:'Lebanon'}},{alpha2:'LC',alpha3:'LCA',name:{fr:'Sainte-Lucie',en:'Saint Lucia'}},{alpha2:'LI',alpha3:'LIE',name:{fr:'Liechtenstein',en:'Liechtenstein'}},{alpha2:'LK',alpha3:'LKA',name:{fr:'Sri Lanka',en:'Sri Lanka'}},{alpha2:'LR',alpha3:'LBR',name:{fr:'Liberia',en:'Liberia'}},{alpha2:'LS',alpha3:'LSO',name:{fr:'Lesotho',en:'Lesotho'}},{alpha2:'LT',alpha3:'LTU',name:{fr:'Lituanie',en:'Lithuania'}},{alpha2:'LU',alpha3:'LUX',name:{fr:'Luxembourg',en:'Luxembourg'}},{alpha2:'LV',alpha3:'LVA',name:{fr:'Lettonie',en:'Latvia'}},{alpha2:'LY',alpha3:'LBY',name:{fr:'Libye',en:'Libya'}},{alpha2:'MA',alpha3:'MAR',name:{fr:'Maroc',en:'Morocco'}},{alpha2:'MC',alpha3:'MCO',name:{fr:'Monaco',en:'Monaco'}},{alpha2:'MD',alpha3:'MDA',name:{fr:'Moldavie',en:'Moldova'}},{alpha2:'ME',alpha3:'MNE',name:{fr:'Monténégro',en:'Montenegro'}},{alpha2:'MF',alpha3:'MAF',name:{fr:'Saint-Martin',en:'Saint Martin'}},{alpha2:'MG',alpha3:'MDG',name:{fr:'Madagascar',en:'Madagascar'}},{alpha2:'MH',alpha3:'MHL',name:{fr:'Îles Marshall',en:'Marshall Islands'}},{alpha2:'MK',alpha3:'MKD',name:{fr:'Macédoine du Nord',en:'North Macedonia'}},{alpha2:'ML',alpha3:'MLI',name:{fr:'Mali',en:'Mali'}},{alpha2:'MM',alpha3:'MMR',name:{fr:'Myanmar',en:'Myanmar'}},{alpha2:'MN',alpha3:'MNG',name:{fr:'Mongolie',en:'Mongolia'}},{alpha2:'MO',alpha3:'MAC',name:{fr:'Macao',en:'Macao'}},{alpha2:'MP',alpha3:'MNP',name:{fr:'Îles Mariannes du Nord',en:'Northern Mariana Islands'}},{alpha2:'MQ',alpha3:'MTQ',name:{fr:'Martinique',en:'Martinique'}},{alpha2:'MR',alpha3:'MRT',name:{fr:'Mauritanie',en:'Mauritania'}},{alpha2:'MS',alpha3:'MSR',name:{fr:'Montserrat',en:'Montserrat'}},{alpha2:'MT',alpha3:'MLT',name:{fr:'Malte',en:'Malta'}},{alpha2:'MU',alpha3:'MUS',name:{fr:'Maurice',en:'Mauritius'}},{alpha2:'MV',alpha3:'MDV',name:{fr:'Maldives',en:'Maldives'}},{alpha2:'MW',alpha3:'MWI',name:{fr:'Malawi',en:'Malawi'}},{alpha2:'MX',alpha3:'MEX',name:{fr:'Mexique',en:'Mexico'}},{alpha2:'MY',alpha3:'MYS',name:{fr:'Malaisie',en:'Malaysia'}},{alpha2:'MZ',alpha3:'MOZ',name:{fr:'Mozambique',en:'Mozambique'}},{alpha2:'NA',alpha3:'NAM',name:{fr:'Namibie',en:'Namibia'}},{alpha2:'NC',alpha3:'NCL',name:{fr:'Nouvelle-Calédonie',en:'New Caledonia'}},{alpha2:'NE',alpha3:'NER',name:{fr:'Niger',en:'Niger'}},{alpha2:'NF',alpha3:'NFK',name:{fr:'Île Norfolk',en:'Norfolk Island'}},{alpha2:'NG',alpha3:'NGA',name:{fr:'Nigeria',en:'Nigeria'}},{alpha2:'NI',alpha3:'NIC',name:{fr:'Nicaragua',en:'Nicaragua'}},{alpha2:'NL',alpha3:'NLD',name:{fr:'Pays-Bas',en:'Netherlands'}},{alpha2:'NO',alpha3:'NOR',name:{fr:'Norvège',en:'Norway'}},{alpha2:'NP',alpha3:'NPL',name:{fr:'Népal',en:'Nepal'}},{alpha2:'NR',alpha3:'NRU',name:{fr:'Nauru',en:'Nauru'}},{alpha2:'NU',alpha3:'NIU',name:{fr:'Niue',en:'Niue'}},{alpha2:'NZ',alpha3:'NZL',name:{fr:'Nouvelle-Zélande',en:'New Zealand'}},{alpha2:'OM',alpha3:'OMN',name:{fr:'Oman',en:'Oman'}},{alpha2:'PA',alpha3:'PAN',name:{fr:'Panama',en:'Panama'}},{alpha2:'PE',alpha3:'PER',name:{fr:'Pérou',en:'Peru'}},{alpha2:'PF',alpha3:'PYF',name:{fr:'Polynésie française',en:'French Polynesia'}},{alpha2:'PG',alpha3:'PNG',name:{fr:'Papouasie-Nouvelle-Guinée',en:'Papua New Guinea'}},{alpha2:'PH',alpha3:'PHL',name:{fr:'Philippines',en:'Philippines'}},{alpha2:'PK',alpha3:'PAK',name:{fr:'Pakistan',en:'Pakistan'}},{alpha2:'PL',alpha3:'POL',name:{fr:'Pologne',en:'Poland'}},{alpha2:'PM',alpha3:'SPM',name:{fr:'Saint-Pierre-et-Miquelon',en:'Saint Pierre and Miquelon'}},{alpha2:'PN',alpha3:'PCN',name:{fr:'Pitcairn',en:'Pitcairn'}},{alpha2:'PR',alpha3:'PRI',name:{fr:'Porto Rico',en:'Puerto Rico'}},{alpha2:'PS',alpha3:'PSE',name:{fr:'Palestine',en:'Palestine'}},{alpha2:'PT',alpha3:'PRT',name:{fr:'Portugal',en:'Portugal'}},{alpha2:'PW',alpha3:'PLW',name:{fr:'Palaos',en:'Palau'}},{alpha2:'PY',alpha3:'PRY',name:{fr:'Paraguay',en:'Paraguay'}},{alpha2:'QA',alpha3:'QAT',name:{fr:'Qatar',en:'Qatar'}},{alpha2:'RE',alpha3:'REU',name:{fr:'La Réunion',en:'Réunion'}},{alpha2:'RO',alpha3:'ROU',name:{fr:'Roumanie',en:'Romania'}},{alpha2:'RS',alpha3:'SRB',name:{fr:'Serbie',en:'Serbia'}},{alpha2:'RU',alpha3:'RUS',name:{fr:'Russie',en:'Russia'}},{alpha2:'RW',alpha3:'RWA',name:{fr:'Rwanda',en:'Rwanda'}},{alpha2:'SA',alpha3:'SAU',name:{fr:'Arabie saoudite',en:'Saudi Arabia'}},{alpha2:'SB',alpha3:'SLB',name:{fr:'Îles Salomon',en:'Solomon Islands'}},{alpha2:'SC',alpha3:'SYC',name:{fr:'Seychelles',en:'Seychelles'}},{alpha2:'SD',alpha3:'SDN',name:{fr:'Soudan',en:'Sudan'}},{alpha2:'SE',alpha3:'SWE',name:{fr:'Suède',en:'Sweden'}},{alpha2:'SG',alpha3:'SGP',name:{fr:'Singapour',en:'Singapore'}},{alpha2:'SH',alpha3:'SHN',name:{fr:'Sainte-Hélène',en:'Saint Helena'}},{alpha2:'SI',alpha3:'SVN',name:{fr:'Slovénie',en:'Slovenia'}},{alpha2:'SJ',alpha3:'SJM',name:{fr:'Svalbard et Jan Mayen',en:'Svalbard and Jan Mayen'}},{alpha2:'SK',alpha3:'SVK',name:{fr:'Slovaquie',en:'Slovakia'}},{alpha2:'SL',alpha3:'SLE',name:{fr:'Sierra Leone',en:'Sierra Leone'}},{alpha2:'SM',alpha3:'SMR',name:{fr:'Saint-Marin',en:'San Marino'}},{alpha2:'SN',alpha3:'SEN',name:{fr:'Sénégal',en:'Senegal'}},{alpha2:'SO',alpha3:'SOM',name:{fr:'Somalie',en:'Somalia'}},{alpha2:'SR',alpha3:'SUR',name:{fr:'Suriname',en:'Suriname'}},{alpha2:'SS',alpha3:'SSD',name:{fr:'Soudan du Sud',en:'South Sudan'}},{alpha2:'ST',alpha3:'STP',name:{fr:'São Tomé-et-Príncipe',en:'São Tomé and Príncipe'}},{alpha2:'SV',alpha3:'SLV',name:{fr:'Salvador',en:'El Salvador'}},{alpha2:'SX',alpha3:'SXM',name:{fr:'Saint-Martin',en:'Sint Maarten'}},{alpha2:'SY',alpha3:'SYR',name:{fr:'Syrie',en:'Syria'}},{alpha2:'SZ',alpha3:'SWZ',name:{fr:'Eswatini',en:'Eswatini'}},{alpha2:'TC',alpha3:'TCA',name:{fr:'Îles Turques-et-Caïques',en:'Turks and Caicos Islands'}},{alpha2:'TD',alpha3:'TCD',name:{fr:'Tchad',en:'Chad'}},{alpha2:'TF',alpha3:'ATF',name:{fr:'Terres australes françaises',en:'French Southern Territories'}},{alpha2:'TG',alpha3:'TGO',name:{fr:'Togo',en:'Togo'}},{alpha2:'TH',alpha3:'THA',name:{fr:'Thaïlande',en:'Thailand'}},{alpha2:'TJ',alpha3:'TJK',name:{fr:'Tadjikistan',en:'Tajikistan'}},{alpha2:'TK',alpha3:'TKL',name:{fr:'Tokelau',en:'Tokelau'}},{alpha2:'TL',alpha3:'TLS',name:{fr:'Timor oriental',en:'Timor-Leste'}},{alpha2:'TM',alpha3:'TKM',name:{fr:'Turkménistan',en:'Turkmenistan'}},{alpha2:'TN',alpha3:'TUN',name:{fr:'Tunisie',en:'Tunisia'}},{alpha2:'TO',alpha3:'TON',name:{fr:'Tonga',en:'Tonga'}},{alpha2:'TR',alpha3:'TUR',name:{fr:'Turquie',en:'Turkey'}},{alpha2:'TT',alpha3:'TTO',name:{fr:'Trinité-et-Tobago',en:'Trinidad and Tobago'}},{alpha2:'TV',alpha3:'TUV',name:{fr:'Tuvalu',en:'Tuvalu'}},{alpha2:'TW',alpha3:'TWN',name:{fr:'Taïwan',en:'Taiwan'}},{alpha2:'TZ',alpha3:'TZA',name:{fr:'Tanzanie',en:'Tanzania'}},{alpha2:'UA',alpha3:'UKR',name:{fr:'Ukraine',en:'Ukraine'}},{alpha2:'UG',alpha3:'UGA',name:{fr:'Ouganda',en:'Uganda'}},{alpha2:'UM',alpha3:'UMI',name:{fr:'Îles mineures éloignées des États-Unis',en:'United States Minor Outlying Islands'}},{alpha2:'US',alpha3:'USA',name:{fr:'États-Unis',en:'United States'}},{alpha2:'UY',alpha3:'URY',name:{fr:'Uruguay',en:'Uruguay'}},{alpha2:'UZ',alpha3:'UZB',name:{fr:'Ouzbékistan',en:'Uzbekistan'}},{alpha2:'VA',alpha3:'VAT',name:{fr:'Vatican',en:'Vatican City'}},{alpha2:'VC',alpha3:'VCT',name:{fr:'Saint-Vincent-et-les-Grenadines',en:'Saint Vincent and the Grenadines'}},{alpha2:'VE',alpha3:'VEN',name:{fr:'Venezuela',en:'Venezuela'}},{alpha2:'VG',alpha3:'VGB',name:{fr:'Îles Vierges britanniques',en:'British Virgin Islands'}},{alpha2:'VI',alpha3:'VIR',name:{fr:'Îles Vierges américaines',en:'United States Virgin Islands'}},{alpha2:'VN',alpha3:'VNM',name:{fr:'Vietnam',en:'Vietnam'}},{alpha2:'VU',alpha3:'VUT',name:{fr:'Vanuatu',en:'Vanuatu'}},{alpha2:'WF',alpha3:'WLF',name:{fr:'Wallis-et-Futuna',en:'Wallis and Futuna'}},{alpha2:'WS',alpha3:'WSM',name:{fr:'Samoa',en:'Samoa'}},{alpha2:'YE',alpha3:'YEM',name:{fr:'Yémen',en:'Yemen'}},{alpha2:'YT',alpha3:'MYT',name:{fr:'Mayotte',en:'Mayotte'}},{alpha2:'ZA',alpha3:'ZAF',name:{fr:'Afrique du Sud',en:'South Africa'}},{alpha2:'ZM',alpha3:'ZMB',name:{fr:'Zambie',en:'Zambia'}},{alpha2:'ZW',alpha3:'ZWE',name:{fr:'Zimbabwe',en:'Zimbabwe'}}
-    ],
+    countries,
 
     getLanguage(element) {
         let lang = element.getAttribute('lang');
@@ -44,320 +46,102 @@ export default {
             if (element.hasAttribute('data-bb-country-select-processed')) return;
             if (element.tagName !== 'SELECT') return;
             element.setAttribute('data-bb-country-select-processed', '1');
-
-            const language = self.getLanguage(element);
-            const preferredAttr = bbContents._getAttr(element, 'bb-country-select-preferred');
-            const defaultAttr = bbContents._getAttr(element, 'bb-country-select-default');
-            const placeholder = bbContents.config.i18n.selectCountry[language] ||
-                              (language === 'en' ? 'Select country' : 'Sélectionner un pays');
-            const searchPlaceholder = bbContents.config.i18n.searchCountry[language] ||
-                                    (language === 'en' ? 'Search country...' : 'Rechercher un pays...');
-
-            let preferredCountries = [];
-            if (preferredAttr) {
-                preferredAttr.split(',').forEach(function(code) {
-                    const country = self.findCountry(code.trim());
-                    if (country) preferredCountries.push(country.alpha2);
-                });
-            }
-
-            let defaultCountry = null;
-            if (defaultAttr) {
-                defaultCountry = self.findCountry(defaultAttr.trim());
-            } else if (element.value) {
-                defaultCountry = self.findCountry(element.value);
-            }
-
-            if (defaultCountry) {
-                const countryName = defaultCountry.name[language];
-                const existingOption = Array.from(element.options).find(function(opt) {
-                    return opt.value === countryName;
-                });
-                if (!existingOption) {
-                    const newOption = document.createElement('option');
-                    newOption.value = countryName;
-                    newOption.textContent = countryName;
-                    element.appendChild(newOption);
-                }
-                element.value = countryName;
-            }
-
-            let sortedCountries = self.countries.slice();
-            if (preferredCountries.length > 0) {
-                const preferred = preferredCountries
-                    .map(function(code) { return self.countries.find(function(c) { return c.alpha2 === code; }); })
-                    .filter(function(c) { return c !== undefined; });
-                const others = sortedCountries.filter(function(c) {
-                    return preferredCountries.indexOf(c.alpha2) === -1;
-                }).sort(function(a, b) {
-                    return a.name[language].localeCompare(b.name[language], language === 'fr' ? 'fr' : 'en', {
-                        sensitivity: 'base', ignorePunctuation: true, numeric: true
-                    });
-                });
-                sortedCountries = preferred.concat(others);
-            } else {
-                sortedCountries = sortedCountries.sort(function(a, b) {
-                    return a.name[language].localeCompare(b.name[language], language === 'fr' ? 'fr' : 'en', {
-                        sensitivity: 'base', ignorePunctuation: true, numeric: true
-                    });
-                });
-            }
-
-            const selectComputedStyle = window.getComputedStyle(element);
-            const selectWidth = element.offsetWidth || parseFloat(selectComputedStyle.width) || 'auto';
-            const selectHeight = element.offsetHeight || parseFloat(selectComputedStyle.height) || 'auto';
-            const selectMinWidth = selectComputedStyle.minWidth !== 'none' ? selectComputedStyle.minWidth : null;
-            const selectMaxWidth = selectComputedStyle.maxWidth !== 'none' ? selectComputedStyle.maxWidth : null;
-            const selectMinHeight = selectComputedStyle.minHeight !== 'none' ? selectComputedStyle.minHeight : null;
-            const selectMaxHeight = selectComputedStyle.maxHeight !== 'none' ? selectComputedStyle.maxHeight : null;
-
-            const selectBgColor = selectComputedStyle.backgroundColor;
-            let selectBorder = selectComputedStyle.border;
-            if (!selectBorder || selectBorder === 'none' || selectBorder === '0px none rgb(0, 0, 0)') {
-                if (selectComputedStyle.borderWidth && selectComputedStyle.borderStyle && selectComputedStyle.borderColor) {
-                    selectBorder = selectComputedStyle.borderWidth + ' ' + selectComputedStyle.borderStyle + ' ' + selectComputedStyle.borderColor;
-                } else {
-                    selectBorder = null;
-                }
-            }
-            const selectBorderColor = selectComputedStyle.borderColor;
-            const selectBorderRadius = selectComputedStyle.borderRadius;
-            const selectColor = selectComputedStyle.color;
-            const selectFontSize = selectComputedStyle.fontSize;
-            const selectFontFamily = selectComputedStyle.fontFamily;
-            let selectPadding = selectComputedStyle.padding;
-            if (!selectPadding || selectPadding === '0px') {
-                if (selectComputedStyle.paddingTop && selectComputedStyle.paddingRight && selectComputedStyle.paddingBottom && selectComputedStyle.paddingLeft) {
-                    selectPadding = selectComputedStyle.paddingTop + ' ' + selectComputedStyle.paddingRight + ' ' + selectComputedStyle.paddingBottom + ' ' + selectComputedStyle.paddingLeft;
-                } else {
-                    selectPadding = null;
-                }
-            }
-
-            const wrapper = document.createElement('div');
-            wrapper.className = 'bb-country-select-wrapper';
-            let wrapperStyle = 'position: relative;';
-            if (selectWidth !== 'auto' && selectWidth > 0) wrapperStyle += ' width: ' + selectWidth + 'px;';
-            if (selectHeight !== 'auto' && selectHeight > 0) wrapperStyle += ' min-height: ' + selectHeight + 'px;';
-            if (selectMinWidth) wrapperStyle += ' min-width: ' + selectMinWidth + ';';
-            if (selectMaxWidth) wrapperStyle += ' max-width: ' + selectMaxWidth + ';';
-            if (selectMinHeight) wrapperStyle += ' min-height: ' + selectMinHeight + ';';
-            if (selectMaxHeight) wrapperStyle += ' max-height: ' + selectMaxHeight + ';';
-            wrapper.style.cssText = wrapperStyle;
-
-            const selectStyle = element.style.cssText || '';
-            element.style.cssText = selectStyle + '; position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; overflow: hidden;';
-            element.setAttribute('aria-hidden', 'true');
-
-            const trigger = document.createElement('button');
-            trigger.type = 'button';
-            trigger.className = 'bb-country-select-trigger';
-            trigger.setAttribute('aria-haspopup', 'listbox');
-            trigger.setAttribute('aria-expanded', 'false');
-
-            const selectedCountry = defaultCountry;
-            const selectedName = selectedCountry ? selectedCountry.name[language] : placeholder;
-            const selectedFlag = selectedCountry && bbContents.utils.isValidCountryCode(selectedCountry.alpha2)
-                ? '<img src="https://hatscripts.github.io/circle-flags/flags/' + selectedCountry.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(selectedCountry.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">'
-                : '';
-
-            trigger.innerHTML = '<div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;"><span class="bb-country-flag" style="flex-shrink: 0;">' + selectedFlag + '</span><span class="bb-country-name" style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + bbContents.utils.sanitize(selectedName) + '</span></div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink: 0; transition: transform 0.2s;"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
-            let triggerStyle = 'display: flex; align-items: center; justify-content: space-between; cursor: pointer; box-sizing: border-box; transition: border-color 0.2s;';
-            if (selectBgColor && selectBgColor !== 'rgba(0, 0, 0, 0)' && selectBgColor !== 'transparent') triggerStyle += ' background-color: ' + selectBgColor + ';';
-            if (selectBorder && selectBorder !== 'none' && selectBorder !== '0px none rgb(0, 0, 0)') triggerStyle += ' border: ' + selectBorder + ';';
-            else if (selectBorderColor && selectBorderColor !== 'rgba(0, 0, 0, 0)') triggerStyle += ' border-color: ' + selectBorderColor + ';';
-            if (selectBorderRadius && selectBorderRadius !== '0px') triggerStyle += ' border-radius: ' + selectBorderRadius + ';';
-            if (selectColor && selectColor !== 'rgba(0, 0, 0, 0)') triggerStyle += ' color: ' + selectColor + ';';
-            if (selectFontSize) triggerStyle += ' font-size: ' + selectFontSize + ';';
-            if (selectFontFamily) triggerStyle += ' font-family: ' + selectFontFamily + ';';
-            if (selectPadding && selectPadding !== '0px') triggerStyle += ' padding: ' + selectPadding + ';';
-            if (selectWidth !== 'auto' && selectWidth > 0) triggerStyle += ' width: ' + selectWidth + 'px;';
-            else triggerStyle += ' width: 100%;';
-            if (selectHeight !== 'auto' && selectHeight > 0) triggerStyle += ' height: ' + selectHeight + 'px;';
-            if (selectMinWidth) triggerStyle += ' min-width: ' + selectMinWidth + ';';
-            if (selectMaxWidth) triggerStyle += ' max-width: ' + selectMaxWidth + ';';
-            if (selectMinHeight) triggerStyle += ' min-height: ' + selectMinHeight + ';';
-            if (selectMaxHeight) triggerStyle += ' max-height: ' + selectMaxHeight + ';';
-            trigger.style.cssText = triggerStyle;
-
-            let currentSelectedCountry = defaultCountry;
-
-            const popover = document.createElement('div');
-            popover.className = 'bb-country-select-popover';
-            popover.setAttribute('role', 'listbox');
-            let popoverStyle = 'position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; max-height: 300px; overflow: hidden; display: none; z-index: 50; background-color: white; border: 1px solid #e5e7eb;';
-            if (selectBorderRadius && selectBorderRadius !== '0px') popoverStyle += ' border-radius: ' + selectBorderRadius + ';';
-            else popoverStyle += ' border-radius: 6px;';
-            popoverStyle += ' box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);';
-            popover.style.cssText = popoverStyle;
-
-            const searchWrapper = document.createElement('div');
-            searchWrapper.className = 'bb-country-search';
-            searchWrapper.style.cssText = 'position: sticky; top: 0; padding: 8px; background-color: white; border-bottom: 1px solid #e5e7eb; z-index: 1;';
-
-            const searchInput = document.createElement('input');
-            searchInput.type = 'text';
-            searchInput.className = 'bb-country-search-input';
-            searchInput.placeholder = searchPlaceholder;
-            searchInput.setAttribute('aria-label', searchPlaceholder);
-            let searchInputStyle = 'width: 100%; padding: 8px 12px; box-sizing: border-box;';
-            if (selectFontSize) searchInputStyle += ' font-size: ' + selectFontSize + ';';
-            if (selectFontFamily) searchInputStyle += ' font-family: ' + selectFontFamily + ';';
-            searchInputStyle += ' border: 1px solid #e5e7eb;';
-            if (selectBorderRadius && selectBorderRadius !== '0px') {
-                const borderRadiusValue = parseFloat(selectBorderRadius);
-                if (!isNaN(borderRadiusValue)) searchInputStyle += ' border-radius: ' + (borderRadiusValue * 0.75) + 'px;';
-            } else {
-                searchInputStyle += ' border-radius: 4px;';
-            }
-            searchInput.style.cssText = searchInputStyle;
-
-            searchWrapper.appendChild(searchInput);
-            popover.appendChild(searchWrapper);
-
-            const list = document.createElement('div');
-            list.className = 'bb-country-list';
-            list.style.cssText = 'overflow-y: auto; max-height: 250px; padding-bottom: 8px;';
-            popover.appendChild(list);
-
-            function renderCountries(countries) {
-                if (countries.length === 0) {
-                    const noResult = bbContents.config.i18n.noCountryFound[language] ||
-                                   (language === 'en' ? 'No country found' : 'Aucun pays trouvé');
-                    list.innerHTML = '<div style="padding: 16px; text-align: center; color: #9ca3af; font-size: inherit; font-family: inherit;">' + bbContents.utils.sanitize(noResult) + '</div>';
-                    return;
-                }
-
-                list.innerHTML = countries.map(function(country) {
-                    if (!bbContents.utils.isValidCountryCode(country.alpha2)) return '';
-                    const isSelected = currentSelectedCountry && currentSelectedCountry.alpha2 === country.alpha2;
-                    let itemStyle = 'display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; transition: background-color 0.15s; min-height: 36px; box-sizing: border-box;';
-                    if (selectFontSize) itemStyle += ' font-size: ' + bbContents.utils.escapeCss(selectFontSize) + ';';
-                    if (selectFontFamily) itemStyle += ' font-family: ' + bbContents.utils.escapeCss(selectFontFamily) + ';';
-                    if (isSelected) itemStyle += ' background-color: #f3f4f6;';
-                    return '<div class="bb-country-item" data-country="' + country.alpha2.toLowerCase() + '" role="option" aria-selected="' + (isSelected ? 'true' : 'false') + '" style="' + itemStyle + '"><img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;"><span style="line-height: 1.2;">' + bbContents.utils.sanitize(country.name[language]) + '</span></div>';
-                }).join('');
-
-                list.querySelectorAll('.bb-country-item').forEach(function(item) {
-                    item.addEventListener('mouseenter', function() {
-                        if (this.getAttribute('aria-selected') !== 'true') this.style.backgroundColor = '#f3f4f6';
-                    });
-                    item.addEventListener('mouseleave', function() {
-                        if (this.getAttribute('aria-selected') !== 'true') this.style.backgroundColor = '';
-                    });
-                });
-            }
-
-            renderCountries(sortedCountries);
-
-            const parent = element.parentNode;
-            parent.insertBefore(wrapper, element);
-            wrapper.appendChild(element);
-            wrapper.appendChild(trigger);
-            wrapper.appendChild(popover);
-
-            const flagSpan = trigger.querySelector('.bb-country-flag');
-            const nameSpan = trigger.querySelector('.bb-country-name');
-            const chevron = trigger.querySelector('svg');
-
-            trigger.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const isOpen = popover.style.display === 'block';
-                if (!isOpen) {
-                    document.querySelectorAll('.bb-country-select-popover').forEach(function(otherPopover) {
-                        if (otherPopover !== popover && otherPopover.style.display === 'block') {
-                            otherPopover.style.display = 'none';
-                            if (otherPopover.parentElement) {
-                                const otherTrigger = otherPopover.parentElement.querySelector('.bb-country-select-trigger');
-                                if (otherTrigger) {
-                                    otherTrigger.setAttribute('aria-expanded', 'false');
-                                    const otherChevron = otherTrigger.querySelector('svg');
-                                    if (otherChevron) otherChevron.style.transform = 'rotate(0deg)';
-                                }
-                            }
-                        }
-                    });
-                }
-                popover.style.display = isOpen ? 'none' : 'block';
-                trigger.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
-                if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
-                if (!isOpen) {
-                    searchInput.focus();
-                    searchInput.value = '';
-                    renderCountries(sortedCountries);
-                }
-            });
-
-            document.addEventListener('click', function(e) {
-                if (!wrapper.contains(e.target)) {
-                    popover.style.display = 'none';
-                    trigger.setAttribute('aria-expanded', 'false');
-                    if (chevron) chevron.style.transform = 'rotate(0deg)';
-                }
-            });
-
-            searchInput.addEventListener('input', function(e) {
-                const query = e.target.value.toLowerCase();
-                const filtered = sortedCountries.filter(function(c) {
-                    return c.name[language].toLowerCase().indexOf(query) !== -1 ||
-                           c.alpha2.toLowerCase().indexOf(query) !== -1 ||
-                           c.alpha3.toLowerCase().indexOf(query) !== -1;
-                });
-                renderCountries(filtered);
-            });
-
-            searchInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    popover.style.display = 'none';
-                    trigger.setAttribute('aria-expanded', 'false');
-                    if (chevron) chevron.style.transform = 'rotate(0deg)';
-                    trigger.focus();
-                }
-            });
-
-            list.addEventListener('click', function(e) {
-                const item = e.target.closest('.bb-country-item');
-                if (!item) return;
-                const countryCode = item.dataset.country;
-                if (!bbContents.utils.isValidCountryCode(countryCode)) return;
-                const country = self.countries.find(function(c) {
-                    return c.alpha2.toLowerCase() === countryCode.toLowerCase();
-                });
-                if (!country) return;
-
-                currentSelectedCountry = country;
-
-                if (bbContents.utils.isValidCountryCode(country.alpha2)) {
-                    flagSpan.innerHTML = '<img src="https://hatscripts.github.io/circle-flags/flags/' + country.alpha2.toLowerCase() + '.svg" alt="' + bbContents.utils.sanitize(country.name[language]) + '" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">';
-                    nameSpan.textContent = country.name[language];
-                }
-
-                const countryName = country.name[language];
-                element.value = countryName;
-                const existingOption = Array.from(element.options).find(function(opt) { return opt.value === countryName; });
-                if (!existingOption) {
-                    const newOption = document.createElement('option');
-                    newOption.value = countryName;
-                    newOption.textContent = countryName;
-                    if (element.options.length > 0) {
-                        Array.from(element.options).forEach(function(opt) { if (!opt.value || opt.value === '') opt.remove(); });
-                    }
-                    element.appendChild(newOption);
-                }
-                element.dispatchEvent(new Event('change', { bubbles: true }));
-
-                popover.style.display = 'none';
-                trigger.setAttribute('aria-expanded', 'false');
-                if (chevron) chevron.style.transform = 'rotate(0deg)';
-                searchInput.value = '';
-                renderCountries(sortedCountries);
-                setTimeout(function() { renderCountries(sortedCountries); }, 0);
-            });
-
-            wrapper.setAttribute('data-bb-country-select-processed', 'true');
+            self._enhance(element);
         });
 
         bbContents.utils.log('Module CountrySelect initialisé:', elements.length, 'éléments');
+    },
+
+    _enhance(element) {
+        const self = this;
+        const cfg = self._resolveConfig(element);
+
+        self._applyDefaultOption(element, cfg.defaultCountry, cfg.language);
+        const sortedCountries = self._sortCountries(cfg.preferredCountries, cfg.language);
+        const styles = captureStyles(element);
+        const ui = buildUI(element, styles, cfg);
+
+        const ctx = {
+            self, element, language: cfg.language, styles, sortedCountries,
+            currentSelectedCountry: cfg.defaultCountry,
+            wrapper: ui.wrapper, trigger: ui.trigger, popover: ui.popover,
+            searchInput: ui.searchInput, list: ui.list,
+            flagSpan: ui.flagSpan, nameSpan: ui.nameSpan, chevron: ui.chevron
+        };
+
+        renderCountries(ctx, sortedCountries);
+
+        const parent = element.parentNode;
+        parent.insertBefore(ui.wrapper, element);
+        ui.wrapper.appendChild(element);
+        ui.wrapper.appendChild(ui.trigger);
+        ui.wrapper.appendChild(ui.popover);
+
+        bindEvents(ctx);
+
+        ui.wrapper.setAttribute('data-bb-country-select-processed', 'true');
+    },
+
+    _resolveConfig(element) {
+        const self = this;
+        const language = self.getLanguage(element);
+        const preferredAttr = bbContents._getAttr(element, 'bb-country-select-preferred');
+        const defaultAttr = bbContents._getAttr(element, 'bb-country-select-default');
+        const placeholder = bbContents.config.i18n.selectCountry[language] ||
+                          (language === 'en' ? 'Select country' : 'Sélectionner un pays');
+        const searchPlaceholder = bbContents.config.i18n.searchCountry[language] ||
+                                (language === 'en' ? 'Search country...' : 'Rechercher un pays...');
+
+        let preferredCountries = [];
+        if (preferredAttr) {
+            preferredAttr.split(',').forEach(function(code) {
+                const country = self.findCountry(code.trim());
+                if (country) preferredCountries.push(country.alpha2);
+            });
+        }
+
+        let defaultCountry = null;
+        if (defaultAttr) {
+            defaultCountry = self.findCountry(defaultAttr.trim());
+        } else if (element.value) {
+            defaultCountry = self.findCountry(element.value);
+        }
+
+        return { language, placeholder, searchPlaceholder, preferredCountries, defaultCountry };
+    },
+
+    _applyDefaultOption(element, defaultCountry, language) {
+        if (!defaultCountry) return;
+        const countryName = defaultCountry.name[language];
+        const existingOption = Array.from(element.options).find(function(opt) {
+            return opt.value === countryName;
+        });
+        if (!existingOption) {
+            const newOption = document.createElement('option');
+            newOption.value = countryName;
+            newOption.textContent = countryName;
+            element.appendChild(newOption);
+        }
+        element.value = countryName;
+    },
+
+    _sortCountries(preferredCountries, language) {
+        const self = this;
+        const compare = function(a, b) {
+            return a.name[language].localeCompare(b.name[language], language === 'fr' ? 'fr' : 'en', {
+                sensitivity: 'base', ignorePunctuation: true, numeric: true
+            });
+        };
+        let sortedCountries = self.countries.slice();
+        if (preferredCountries.length > 0) {
+            const preferred = preferredCountries
+                .map(function(code) { return self.countries.find(function(c) { return c.alpha2 === code; }); })
+                .filter(function(c) { return c !== undefined; });
+            const others = sortedCountries.filter(function(c) {
+                return preferredCountries.indexOf(c.alpha2) === -1;
+            }).sort(compare);
+            return preferred.concat(others);
+        }
+        return sortedCountries.sort(compare);
     }
 };
