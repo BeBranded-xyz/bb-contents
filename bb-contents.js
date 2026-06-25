@@ -1798,9 +1798,181 @@
     }
   };
 
+  // src/modules/youtube/format.js
+  function applySkipAndLimit(data, skip, videoCount) {
+    if (!data || !data.items) return data;
+    const afterSkip = skip > 0 ? data.items.slice(skip) : data.items;
+    return __spreadProps(__spreadValues({}, data), { items: afterSkip.slice(0, videoCount) });
+  }
+  function errorBox(message) {
+    return '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>' + bbContents.utils.sanitize(message || "Erreur inconnue") + "</div>";
+  }
+  function formatDate(dateString, language = "fr") {
+    const date = new Date(dateString);
+    const diffDays = Math.ceil(Math.abs(/* @__PURE__ */ new Date() - date) / (1e3 * 60 * 60 * 24));
+    const t = {
+      fr: { day: "jour", days: "jours", week: "semaine", weeks: "semaines", month: "mois", months: "mois", year: "an", years: "ans", ago: "Il y a" },
+      en: { day: "day", days: "days", week: "week", weeks: "weeks", month: "month", months: "months", year: "year", years: "years", ago: "ago" }
+    }[language] || { day: "jour", days: "jours", week: "semaine", weeks: "semaines", month: "mois", months: "mois", year: "an", years: "ans", ago: "Il y a" };
+    if (diffDays === 1) return `${t.ago} 1 ${t.day}`;
+    if (diffDays < 7) return `${t.ago} ${diffDays} ${t.days}`;
+    const weeks = Math.floor(diffDays / 7);
+    if (weeks === 1) return `${t.ago} 1 ${t.week}`;
+    if (diffDays < 30) return `${t.ago} ${weeks} ${t.weeks}`;
+    const months = Math.floor(diffDays / 30);
+    if (months === 1) return `${t.ago} 1 ${t.month}`;
+    if (diffDays < 365) return `${t.ago} ${months} ${t.months}`;
+    const years = Math.floor(diffDays / 365);
+    if (years === 1) return `${t.ago} 1 ${t.year}`;
+    return `${t.ago} ${years} ${t.years}`;
+  }
+  function decodeHtmlEntities(text) {
+    if (!text) return "";
+    const div = document.createElement("div");
+    div.textContent = text;
+    const textarea = document.createElement("textarea");
+    textarea.innerHTML = div.innerHTML;
+    return textarea.value;
+  }
+
+  // src/modules/youtube/cache.js
+  var activeRequests = /* @__PURE__ */ new Set();
+  var cache = {
+    get(key) {
+      try {
+        const cached = localStorage.getItem(key);
+        if (!cached) return null;
+        const data = JSON.parse(cached);
+        if (Date.now() - data.timestamp > 24 * 60 * 60 * 1e3) {
+          localStorage.removeItem(key);
+          return null;
+        }
+        return data.value;
+      } catch (e) {
+        return null;
+      }
+    },
+    set(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify({ value, timestamp: Date.now() }));
+      } catch (e) {
+        console.error("[bb-contents] youtube cache set failed:", e);
+      }
+    }
+  };
+  function isRequestActive(cacheKey) {
+    return activeRequests.has(cacheKey);
+  }
+  function markRequestActive(cacheKey) {
+    activeRequests.add(cacheKey);
+  }
+  function markRequestComplete(cacheKey) {
+    activeRequests.delete(cacheKey);
+  }
+  function cleanCache() {
+    try {
+      const now = Date.now();
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith("youtube_")) {
+          try {
+            const cached = JSON.parse(localStorage.getItem(key));
+            if (now - cached.timestamp > 24 * 60 * 60 * 1e3) localStorage.removeItem(key);
+          } catch (e) {
+            localStorage.removeItem(key);
+          }
+        }
+      });
+    } catch (e) {
+      console.error("[bb-contents] youtube cleanCache failed:", e);
+    }
+  }
+
+  // src/modules/youtube/fetch.js
+  function fetchChannelFeed(endpoint, channelId, maxResults, allowShorts) {
+    return fetch(`${endpoint}?channelId=${encodeURIComponent(channelId)}&maxResults=${maxResults}&allowShorts=${allowShorts}`).then((response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    });
+  }
+  function fetchMultipleChannels(endpoint, channelIds, maxResults, allowShorts) {
+    if (channelIds.length > 10) throw new Error("Maximum 10 channelIds allowed");
+    const promises = channelIds.map((channelId) => {
+      return fetch(`${endpoint}?channelId=${encodeURIComponent(channelId)}&maxResults=${maxResults}&allowShorts=${allowShorts}`).then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status} for channel ${channelId}`);
+        return response.json();
+      }).then((data) => {
+        if (data.error) throw new Error(data.error.message || "Erreur API YouTube");
+        return { success: true, items: data.items || [] };
+      }).catch(() => ({ success: false, items: [] }));
+    });
+    return Promise.all(promises).then((allResults) => {
+      const allChannelsFailed = allResults.every((result) => !result.success);
+      const mergedItems = [].concat(...allResults.map((result) => result.items));
+      mergedItems.sort((a, b) => {
+        var _a, _b;
+        const dateA = new Date(((_a = a.snippet) == null ? void 0 : _a.publishedAt) || 0);
+        const dateB = new Date(((_b = b.snippet) == null ? void 0 : _b.publishedAt) || 0);
+        return dateB - dateA;
+      });
+      return {
+        items: mergedItems,
+        pageInfo: { totalResults: mergedItems.length, resultsPerPage: mergedItems.length },
+        allChannelsFailed
+      };
+    });
+  }
+
+  // src/modules/youtube/render.js
+  function generateYouTubeFeed(container, template, data, allowShorts, language = "fr") {
+    if (!data || !data.items || data.items.length === 0) {
+      if (data && data.allChannelsFailed) {
+        container.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626; text-align: center;"><strong>Erreur de chargement</strong><br>Impossible de r\xE9cup\xE9rer les vid\xE9os des cha\xEEnes YouTube</div>';
+      } else {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vid\xE9o trouv\xE9e</div>';
+      }
+      return;
+    }
+    const marqueeElements = container.querySelectorAll("[data-bb-marquee-processed]");
+    container.innerHTML = "";
+    marqueeElements.forEach((marqueeEl) => container.appendChild(marqueeEl));
+    data.items.forEach((item) => {
+      var _a;
+      const videoId = (_a = item.id) == null ? void 0 : _a.videoId;
+      if (!videoId) return;
+      const snippet = item.snippet;
+      const clone = template.cloneNode(true);
+      clone.style.display = "";
+      fillVideoData(clone, videoId, snippet, language);
+      container.appendChild(clone);
+    });
+  }
+  function fillVideoData(element, videoId, snippet, language = "fr") {
+    if (element.tagName === "A" || element.hasAttribute("bb-youtube-item") || element.hasAttribute("data-bb-youtube-item")) {
+      element.href = `https://www.youtube.com/watch?v=${videoId}`;
+      element.target = "_blank";
+      element.rel = "noopener noreferrer";
+    }
+    const thumbnail = element.querySelector(bbContents._attrSelector("youtube-thumbnail"));
+    if (thumbnail) {
+      const t = snippet.thumbnails;
+      const bestUrl = (t.maxres || t.high || t.medium || t.default || {}).url;
+      if (bestUrl && bbContents.utils.isValidUrl(bestUrl)) {
+        thumbnail.src = bestUrl;
+        thumbnail.alt = snippet.title;
+      }
+    }
+    const title = element.querySelector(bbContents._attrSelector("youtube-title"));
+    if (title) title.textContent = decodeHtmlEntities(snippet.title);
+    const description = element.querySelector(bbContents._attrSelector("youtube-description"));
+    if (description) description.textContent = decodeHtmlEntities(snippet.description);
+    const date = element.querySelector(bbContents._attrSelector("youtube-date"));
+    if (date) date.textContent = formatDate(snippet.publishedAt, language);
+    const channel = element.querySelector(bbContents._attrSelector("youtube-channel"));
+    if (channel) channel.textContent = snippet.channelTitle;
+  }
+
   // src/modules/youtube.js
   var youtube_default = {
-    _activeRequests: /* @__PURE__ */ new Set(),
     isBot() {
       const userAgent = navigator.userAgent.toLowerCase();
       const botPatterns = [
@@ -1841,45 +2013,24 @@
       }
       return isBot;
     },
-    cache: {
-      get(key) {
-        try {
-          const cached = localStorage.getItem(key);
-          if (!cached) return null;
-          const data = JSON.parse(cached);
-          if (Date.now() - data.timestamp > 24 * 60 * 60 * 1e3) {
-            localStorage.removeItem(key);
-            return null;
-          }
-          return data.value;
-        } catch (e) {
-          return null;
-        }
-      },
-      set(key, value) {
-        try {
-          localStorage.setItem(key, JSON.stringify({ value, timestamp: Date.now() }));
-        } catch (e) {
-          console.error("[bb-contents] youtube cache set failed:", e);
-        }
-      }
-    },
-    isRequestActive(cacheKey) {
-      return this._activeRequests.has(cacheKey);
-    },
-    markRequestActive(cacheKey) {
-      this._activeRequests.add(cacheKey);
-    },
-    markRequestComplete(cacheKey) {
-      this._activeRequests.delete(cacheKey);
-    },
     init(root) {
       const scope = root || document;
       if (scope.closest && scope.closest("[data-bb-disable]")) return;
       if (this.isBot()) return;
-      this.cleanCache();
+      cleanCache();
       const allElements = scope.querySelectorAll(bbContents._attrSelector("youtube-channel"));
       if (allElements.length === 0) return;
+      const elementsByConfig = this._groupByConfig(allElements);
+      Object.keys(elementsByConfig).forEach((configKey) => {
+        const group = elementsByConfig[configKey];
+        group.elements.forEach((element) => {
+          const videoCount = parseInt(bbContents._getAttr(element, "bb-youtube-video-count") || "10", 10);
+          const skip = parseInt(bbContents._getAttr(element, "bb-youtube-skip") || "0", 10);
+          this.initElement(element, group, videoCount, skip);
+        });
+      });
+    },
+    _groupByConfig(allElements) {
       const elementsByConfig = {};
       allElements.forEach((element) => {
         if (element.hasAttribute("data-bb-youtube-processed")) return;
@@ -1908,23 +2059,33 @@
         element.setAttribute("data-bb-youtube-processed", "true");
         elementsByConfig[configKey].elements.push(element);
       });
-      Object.keys(elementsByConfig).forEach((configKey) => {
-        const group = elementsByConfig[configKey];
-        group.elements.forEach((element) => {
-          const videoCount = parseInt(bbContents._getAttr(element, "bb-youtube-video-count") || "10", 10);
-          const skip = parseInt(bbContents._getAttr(element, "bb-youtube-skip") || "0", 10);
-          this.initElement(element, group, videoCount, skip);
-        });
-      });
+      return elementsByConfig;
     },
     initElement(element, groupConfig, videoCount, skip) {
       if (this.isBot()) return;
+      const resolved = this._resolveConfig(element, groupConfig, videoCount, skip);
+      if (!resolved) return;
+      groupConfig = resolved.groupConfig;
+      videoCount = resolved.videoCount;
+      skip = resolved.skip;
+      const endpoint = bbContents.checkYouTubeConfig() ? bbContents.config.youtubeEndpoint : null;
+      if (!endpoint) {
+        this._renderEndpointRetry(element);
+        return;
+      }
+      const tpl = this._resolveTemplate(element);
+      if (!tpl) return;
+      tpl.template.style.display = "none";
+      element.setAttribute("data-bb-youtube-processed", "true");
+      this._loadFeed(element, tpl.container, tpl.template, groupConfig, videoCount, skip);
+    },
+    _resolveConfig(element, groupConfig, videoCount, skip) {
       if (!groupConfig) {
         const channelIdsRaw = bbContents._getAttr(element, "bb-youtube-channel");
-        if (!channelIdsRaw) return;
-        const channelIds2 = channelIdsRaw.split(",").map((id) => id.trim()).filter((id) => id);
-        if (channelIds2.length === 0) return;
-        const normalizedChannelIds = channelIds2.sort().join(",");
+        if (!channelIdsRaw) return null;
+        const channelIds = channelIdsRaw.split(",").map((id) => id.trim()).filter((id) => id);
+        if (channelIds.length === 0) return null;
+        const normalizedChannelIds = channelIds.sort().join(",");
         const allowShorts = bbContents._getAttr(element, "bb-youtube-allow-shorts") === "true";
         const language = bbContents._getAttr(element, "bb-youtube-language") || "fr";
         groupConfig = {
@@ -1939,18 +2100,19 @@
       }
       if (!videoCount) videoCount = parseInt(bbContents._getAttr(element, "bb-youtube-video-count") || "10", 10);
       if (skip === void 0 || skip === null) skip = parseInt(bbContents._getAttr(element, "bb-youtube-skip") || "0", 10);
-      const endpoint = bbContents.checkYouTubeConfig() ? bbContents.config.youtubeEndpoint : null;
-      if (!endpoint) {
-        const retries = parseInt(element.getAttribute("data-youtube-retry-count") || "0", 10);
-        if (retries < 10) {
-          element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Configuration YouTube en cours...</div>';
-          element.setAttribute("data-youtube-retry-count", (retries + 1).toString());
-          setTimeout(() => this.initElement(element), 500);
-        } else {
-          element.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = 'votre-worker-url';<br>&lt;/script&gt;</code></div>`;
-        }
-        return;
+      return { groupConfig, videoCount, skip };
+    },
+    _renderEndpointRetry(element) {
+      const retries = parseInt(element.getAttribute("data-youtube-retry-count") || "0", 10);
+      if (retries < 10) {
+        element.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Configuration YouTube en cours...</div>';
+        element.setAttribute("data-youtube-retry-count", (retries + 1).toString());
+        setTimeout(() => this.initElement(element), 500);
+      } else {
+        element.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Configuration YouTube manquante</strong><br>Ajoutez dans le &lt;head&gt; :<br><code style="display: block; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace;">&lt;script&gt;<br>bbContents.config.youtubeEndpoint = 'votre-worker-url';<br>&lt;/script&gt;</code></div>`;
       }
+    },
+    _resolveTemplate(element) {
       let template = element.querySelector(bbContents._attrSelector("youtube-item"));
       let container = element;
       if (!template) {
@@ -1962,16 +2124,16 @@
       }
       if (!template) {
         element.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Template manquant</strong><br>Ajoutez un \xE9l\xE9ment avec l'attribut bb-youtube-item</div>`;
-        return;
+        return null;
       }
-      template.style.display = "none";
-      element.setAttribute("data-bb-youtube-processed", "true");
+      return { template, container };
+    },
+    _loadFeed(element, container, template, groupConfig, videoCount, skip) {
       const baseCacheKey = `youtube_${groupConfig.channelIds}_${groupConfig.allowShorts}_${groupConfig.language}`;
-      const cachedData = this.cache.get(baseCacheKey);
+      const cachedData = cache.get(baseCacheKey);
       const minItemsNeeded = skip + videoCount;
       if (cachedData && cachedData.items && cachedData.items.length >= minItemsNeeded) {
-        const limitedData = this.applySkipAndLimit(cachedData, skip, videoCount);
-        this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
+        this._render(container, template, cachedData, groupConfig, skip, videoCount);
         return;
       }
       if (cachedData && cachedData.items && cachedData.items.length < minItemsNeeded) {
@@ -1981,219 +2143,92 @@
           console.error("[bb-contents] youtube cache remove failed:", e);
         }
       }
-      if (this.isRequestActive(baseCacheKey)) {
-        let activeAttempts = 0;
-        const checkActive = () => {
-          if (activeAttempts >= 100) {
-            container.innerHTML = this._errorBox("D\xE9lai d\xE9pass\xE9");
-            return;
-          }
-          if (!this.isRequestActive(baseCacheKey)) {
-            const newCachedData = this.cache.get(baseCacheKey);
-            if (newCachedData && newCachedData.items && newCachedData.items.length >= minItemsNeeded) {
-              const limitedData = this.applySkipAndLimit(newCachedData, skip, videoCount);
-              this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
-            } else if (newCachedData && newCachedData.items && newCachedData.items.length < minItemsNeeded) {
-              try {
-                localStorage.removeItem(baseCacheKey);
-              } catch (e) {
-                console.error("[bb-contents] youtube cache remove failed:", e);
-              }
-              this.initElement(element, groupConfig, videoCount, skip);
-            } else {
-              container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Erreur de chargement</div>';
-            }
-          } else {
-            activeAttempts++;
-            setTimeout(checkActive, 200);
-          }
-        };
-        checkActive();
+      if (isRequestActive(baseCacheKey)) {
+        this._waitForInflight(element, container, template, groupConfig, videoCount, skip, baseCacheKey, minItemsNeeded);
         return;
       }
-      this.markRequestActive(baseCacheKey);
+      this._startFetch(container, template, groupConfig, videoCount, skip, baseCacheKey);
+    },
+    _render(container, template, data, groupConfig, skip, videoCount) {
+      const limitedData = applySkipAndLimit(data, skip, videoCount);
+      generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
+    },
+    _waitForInflight(element, container, template, groupConfig, videoCount, skip, baseCacheKey, minItemsNeeded) {
+      let activeAttempts = 0;
+      const checkActive = () => {
+        if (activeAttempts >= 100) {
+          container.innerHTML = errorBox("D\xE9lai d\xE9pass\xE9");
+          return;
+        }
+        if (!isRequestActive(baseCacheKey)) {
+          const newCachedData = cache.get(baseCacheKey);
+          if (newCachedData && newCachedData.items && newCachedData.items.length >= minItemsNeeded) {
+            this._render(container, template, newCachedData, groupConfig, skip, videoCount);
+          } else if (newCachedData && newCachedData.items && newCachedData.items.length < minItemsNeeded) {
+            try {
+              localStorage.removeItem(baseCacheKey);
+            } catch (e) {
+              console.error("[bb-contents] youtube cache remove failed:", e);
+            }
+            this.initElement(element, groupConfig, videoCount, skip);
+          } else {
+            container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Erreur de chargement</div>';
+          }
+        } else {
+          activeAttempts++;
+          setTimeout(checkActive, 200);
+        }
+      };
+      checkActive();
+    },
+    _startFetch(container, template, groupConfig, videoCount, skip, baseCacheKey) {
+      markRequestActive(baseCacheKey);
       container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Chargement des vid\xE9os YouTube...</div>';
+      const endpoint = bbContents.config.youtubeEndpoint;
       const apiVideoCount = groupConfig.maxVideoCount + groupConfig.maxSkip;
       const endpointInvalid = !endpoint || typeof endpoint !== "string" || !endpoint.startsWith("http://") && !endpoint.startsWith("https://") || bbContents.config.youtubeEndpoint && !endpoint.startsWith(bbContents.config.youtubeEndpoint);
       if (endpointInvalid) {
-        this.markRequestComplete(baseCacheKey);
-        container.innerHTML = this._errorBox("Endpoint YouTube invalide");
+        markRequestComplete(baseCacheKey);
+        container.innerHTML = errorBox("Endpoint YouTube invalide");
         return;
       }
       const channelIds = groupConfig.channelIds.split(",");
       const invalidChannelId = channelIds.find((id) => !id || !/^[a-zA-Z0-9_-]+$/.test(id));
       if (invalidChannelId !== void 0) {
-        this.markRequestComplete(baseCacheKey);
-        container.innerHTML = this._errorBox("Channel ID invalide : " + invalidChannelId);
+        markRequestComplete(baseCacheKey);
+        container.innerHTML = errorBox("Channel ID invalide : " + invalidChannelId);
         return;
       }
       const safeAllowShorts = groupConfig.allowShorts === true || groupConfig.allowShorts === "true";
+      const onSuccess = (data) => {
+        if (data.error) throw new Error(data.error.message || "Erreur API YouTube");
+        cache.set(baseCacheKey, data);
+        this._render(container, template, data, groupConfig, skip, videoCount);
+        markRequestComplete(baseCacheKey);
+      };
+      const onError = (error) => {
+        markRequestComplete(baseCacheKey);
+        this.handleFetchError(error, container, baseCacheKey, skip, videoCount, template, groupConfig);
+      };
       if (channelIds.length > 1) {
-        this.fetchMultipleChannels(endpoint, channelIds, apiVideoCount, safeAllowShorts).then((data) => {
-          if (data.error) throw new Error(data.error.message || "Erreur API YouTube");
-          this.cache.set(baseCacheKey, data);
-          const limitedData = this.applySkipAndLimit(data, skip, videoCount);
-          this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
-          this.markRequestComplete(baseCacheKey);
-        }).catch((error) => {
-          this.markRequestComplete(baseCacheKey);
-          this.handleFetchError(error, container, baseCacheKey, skip, videoCount, template, groupConfig);
-        });
+        fetchMultipleChannels(endpoint, channelIds, apiVideoCount, safeAllowShorts).then(onSuccess).catch(onError);
       } else {
-        fetch(`${endpoint}?channelId=${encodeURIComponent(channelIds[0])}&maxResults=${apiVideoCount}&allowShorts=${safeAllowShorts}`).then((response) => {
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          return response.json();
-        }).then((data) => {
-          if (data.error) throw new Error(data.error.message || "Erreur API YouTube");
-          this.cache.set(baseCacheKey, data);
-          const limitedData = this.applySkipAndLimit(data, skip, videoCount);
-          this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
-          this.markRequestComplete(baseCacheKey);
-        }).catch((error) => {
-          this.markRequestComplete(baseCacheKey);
-          this.handleFetchError(error, container, baseCacheKey, skip, videoCount, template, groupConfig);
-        });
+        fetchChannelFeed(endpoint, channelIds[0], apiVideoCount, safeAllowShorts).then(onSuccess).catch(onError);
       }
-    },
-    _errorBox(message) {
-      return '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>' + bbContents.utils.sanitize(message || "Erreur inconnue") + "</div>";
-    },
-    applySkipAndLimit(data, skip, videoCount) {
-      if (!data || !data.items) return data;
-      const afterSkip = skip > 0 ? data.items.slice(skip) : data.items;
-      return __spreadProps(__spreadValues({}, data), { items: afterSkip.slice(0, videoCount) });
-    },
-    fetchMultipleChannels(endpoint, channelIds, maxResults, allowShorts) {
-      if (channelIds.length > 10) throw new Error("Maximum 10 channelIds allowed");
-      const promises = channelIds.map((channelId) => {
-        return fetch(`${endpoint}?channelId=${encodeURIComponent(channelId)}&maxResults=${maxResults}&allowShorts=${allowShorts}`).then((response) => {
-          if (!response.ok) throw new Error(`HTTP ${response.status} for channel ${channelId}`);
-          return response.json();
-        }).then((data) => {
-          if (data.error) throw new Error(data.error.message || "Erreur API YouTube");
-          return { success: true, items: data.items || [] };
-        }).catch(() => ({ success: false, items: [] }));
-      });
-      return Promise.all(promises).then((allResults) => {
-        const allChannelsFailed = allResults.every((result) => !result.success);
-        const mergedItems = [].concat(...allResults.map((result) => result.items));
-        mergedItems.sort((a, b) => {
-          var _a, _b;
-          const dateA = new Date(((_a = a.snippet) == null ? void 0 : _a.publishedAt) || 0);
-          const dateB = new Date(((_b = b.snippet) == null ? void 0 : _b.publishedAt) || 0);
-          return dateB - dateA;
-        });
-        return {
-          items: mergedItems,
-          pageInfo: { totalResults: mergedItems.length, resultsPerPage: mergedItems.length },
-          allChannelsFailed
-        };
-      });
     },
     handleFetchError(error, container, cacheKey, skip, videoCount, template, groupConfig) {
       const expiredCache = localStorage.getItem(cacheKey);
       if (expiredCache) {
         try {
           const cachedData = JSON.parse(expiredCache);
-          const limitedData = this.applySkipAndLimit(cachedData.value, skip, videoCount);
-          this.generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
+          const limitedData = applySkipAndLimit(cachedData.value, skip, videoCount);
+          generateYouTubeFeed(container, template, limitedData, groupConfig.allowShorts, groupConfig.language);
           return;
         } catch (e) {
           console.error("[bb-contents] youtube expired cache parse failed:", e);
         }
       }
       container.innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;"><strong>Erreur de chargement</strong><br>${bbContents.utils.sanitize(error.message || "Erreur inconnue")}</div>`;
-    },
-    generateYouTubeFeed(container, template, data, allowShorts, language = "fr") {
-      if (!data || !data.items || data.items.length === 0) {
-        if (data && data.allChannelsFailed) {
-          container.innerHTML = '<div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626; text-align: center;"><strong>Erreur de chargement</strong><br>Impossible de r\xE9cup\xE9rer les vid\xE9os des cha\xEEnes YouTube</div>';
-        } else {
-          container.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">Aucune vid\xE9o trouv\xE9e</div>';
-        }
-        return;
-      }
-      const marqueeElements = container.querySelectorAll("[data-bb-marquee-processed]");
-      container.innerHTML = "";
-      marqueeElements.forEach((marqueeEl) => container.appendChild(marqueeEl));
-      data.items.forEach((item) => {
-        var _a;
-        const videoId = (_a = item.id) == null ? void 0 : _a.videoId;
-        if (!videoId) return;
-        const snippet = item.snippet;
-        const clone = template.cloneNode(true);
-        clone.style.display = "";
-        this.fillVideoData(clone, videoId, snippet, language);
-        container.appendChild(clone);
-      });
-    },
-    fillVideoData(element, videoId, snippet, language = "fr") {
-      if (element.tagName === "A" || element.hasAttribute("bb-youtube-item") || element.hasAttribute("data-bb-youtube-item")) {
-        element.href = `https://www.youtube.com/watch?v=${videoId}`;
-        element.target = "_blank";
-        element.rel = "noopener noreferrer";
-      }
-      const thumbnail = element.querySelector(bbContents._attrSelector("youtube-thumbnail"));
-      if (thumbnail) {
-        const t = snippet.thumbnails;
-        const bestUrl = (t.maxres || t.high || t.medium || t.default || {}).url;
-        if (bestUrl && bbContents.utils.isValidUrl(bestUrl)) {
-          thumbnail.src = bestUrl;
-          thumbnail.alt = snippet.title;
-        }
-      }
-      const title = element.querySelector(bbContents._attrSelector("youtube-title"));
-      if (title) title.textContent = this.decodeHtmlEntities(snippet.title);
-      const description = element.querySelector(bbContents._attrSelector("youtube-description"));
-      if (description) description.textContent = this.decodeHtmlEntities(snippet.description);
-      const date = element.querySelector(bbContents._attrSelector("youtube-date"));
-      if (date) date.textContent = this.formatDate(snippet.publishedAt, language);
-      const channel = element.querySelector(bbContents._attrSelector("youtube-channel"));
-      if (channel) channel.textContent = snippet.channelTitle;
-    },
-    formatDate(dateString, language = "fr") {
-      const date = new Date(dateString);
-      const diffDays = Math.ceil(Math.abs(/* @__PURE__ */ new Date() - date) / (1e3 * 60 * 60 * 24));
-      const t = {
-        fr: { day: "jour", days: "jours", week: "semaine", weeks: "semaines", month: "mois", months: "mois", year: "an", years: "ans", ago: "Il y a" },
-        en: { day: "day", days: "days", week: "week", weeks: "weeks", month: "month", months: "months", year: "year", years: "years", ago: "ago" }
-      }[language] || { day: "jour", days: "jours", week: "semaine", weeks: "semaines", month: "mois", months: "mois", year: "an", years: "ans", ago: "Il y a" };
-      if (diffDays === 1) return `${t.ago} 1 ${t.day}`;
-      if (diffDays < 7) return `${t.ago} ${diffDays} ${t.days}`;
-      const weeks = Math.floor(diffDays / 7);
-      if (weeks === 1) return `${t.ago} 1 ${t.week}`;
-      if (diffDays < 30) return `${t.ago} ${weeks} ${t.weeks}`;
-      const months = Math.floor(diffDays / 30);
-      if (months === 1) return `${t.ago} 1 ${t.month}`;
-      if (diffDays < 365) return `${t.ago} ${months} ${t.months}`;
-      const years = Math.floor(diffDays / 365);
-      if (years === 1) return `${t.ago} 1 ${t.year}`;
-      return `${t.ago} ${years} ${t.years}`;
-    },
-    decodeHtmlEntities(text) {
-      if (!text) return "";
-      const div = document.createElement("div");
-      div.textContent = text;
-      const textarea = document.createElement("textarea");
-      textarea.innerHTML = div.innerHTML;
-      return textarea.value;
-    },
-    cleanCache() {
-      try {
-        const now = Date.now();
-        Object.keys(localStorage).forEach((key) => {
-          if (key.startsWith("youtube_")) {
-            try {
-              const cached = JSON.parse(localStorage.getItem(key));
-              if (now - cached.timestamp > 24 * 60 * 60 * 1e3) localStorage.removeItem(key);
-            } catch (e) {
-              localStorage.removeItem(key);
-            }
-          }
-        });
-      } catch (e) {
-        console.error("[bb-contents] youtube cleanCache failed:", e);
-      }
     }
   };
 
